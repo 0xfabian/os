@@ -1,0 +1,4 @@
+/.vscode
+*.ld
+Makefile
+*.psf
