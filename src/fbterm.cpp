@@ -49,8 +49,6 @@ void Framebuffer::init(limine_framebuffer* fb)
     addr = (uint32_t*)fb->address;
 }
 
-// FramebufferTerminal::Cell tmp_buffer[10000];
-
 void FramebufferTerminal::init()
 {
     fb = &default_fb;
@@ -62,8 +60,6 @@ void FramebufferTerminal::init()
 
     fg = FOREGROUND;
     bg = BACKGROUND;
-
-    // buffer = tmp_buffer;
 
     clear();
 }
@@ -209,7 +205,7 @@ void FramebufferTerminal::putchar(char c)
             cursor += width - cursor % width;
     }
 
-    while (cursor >= width * height)
+    if (cursor >= width * height)
         scroll();
 }
 

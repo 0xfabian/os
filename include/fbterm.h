@@ -25,14 +25,6 @@ struct FramebufferTerminal
     uint32_t fg;
     uint32_t bg;
 
-    // struct Cell
-    // {
-    //     char chr;
-    //     uint8_t color;
-    // };
-
-    // Cell* buffer;
-
     void init();
     void clear();
     void scroll();
