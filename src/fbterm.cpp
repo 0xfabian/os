@@ -49,6 +49,8 @@ void Framebuffer::init(limine_framebuffer* fb)
     addr = (uint32_t*)fb->address;
 }
 
+uint32_t fast_fb[1920 * 1080];
+
 void FramebufferTerminal::init()
 {
     fb = &default_fb;
@@ -61,25 +63,34 @@ void FramebufferTerminal::init()
     fg = FOREGROUND;
     bg = BACKGROUND;
 
+    state = NONE;
+    param_index = 0;
+    params[0] = 0;
+    params[1] = 0;
+    params[2] = 0;
+    params[3] = 0;
+
     clear();
 }
 
 void FramebufferTerminal::clear()
 {
-    uint64_t* start = (uint64_t*)fb->addr;
-    uint64_t* end = (uint64_t*)(fb->addr + fb->width * fb->height);
+    uint64_t* start = (uint64_t*)fast_fb;
+    uint64_t* end = (uint64_t*)(fast_fb + fb->width * fb->height);
     uint64_t value = ((uint64_t)bg << 32) | bg;
 
     for (uint64_t* ptr = start; ptr < end; ptr++)
         *ptr = value;
 
     cursor = 0;
+
+    render();
 }
 
 void FramebufferTerminal::scroll()
 {
-    uint64_t* start = (uint64_t*)fb->addr;
-    uint64_t* end = (uint64_t*)(fb->addr + fb->width * (fb->height - font->header->height));
+    uint64_t* start = (uint64_t*)fast_fb;
+    uint64_t* end = (uint64_t*)(fast_fb + fb->width * (fb->height - font->header->height));
     uint64_t scroll_offset = fb->width * font->header->height / 2;
     uint64_t value = ((uint64_t)bg << 32) | bg;
 
@@ -90,23 +101,14 @@ void FramebufferTerminal::scroll()
         *ptr = value;
 
     cursor -= width;
+
+    render();
 }
 
 void FramebufferTerminal::write(const char* buffer, size_t len)
 {
     const char* ptr = buffer;
     size_t i = 0;
-
-    enum EscapeState
-    {
-        NONE,
-        EXPECT_CSI,
-        TAKE_PARAMS,
-    };
-
-    EscapeState state = NONE;
-    int param_index = 0;
-    int params[4] = { 0, 0, 0, 0 };
 
     while (i < len)
     {
@@ -203,19 +205,22 @@ void FramebufferTerminal::putchar(char c)
     {
         if (c == '\n')
             cursor += width - cursor % width;
+        else if (c == '\r')
+            cursor -= cursor % width;
     }
 
     if (cursor >= width * height)
         scroll();
 }
 
-void FramebufferTerminal::draw_bitmap(uint8_t chr)
+void FramebufferTerminal::draw_bitmap(char c)
 {
     uint32_t x = (cursor % width) * font->header->width;
     uint32_t y = (cursor / width) * font->header->height;
 
-    uint32_t* ptr = fb->addr + x + y * fb->width;
-    uint8_t* font_ptr = font->glyph_buffer + chr * font->header->char_size;
+    uint32_t* ptr = fast_fb + x + y * fb->width;
+    uint32_t* ptr2 = fb->addr + x + y * fb->width;
+    uint8_t* font_ptr = font->glyph_buffer + c * font->header->char_size;
 
     for (y = 0; y < font->header->height; y++)
     {
@@ -225,9 +230,21 @@ void FramebufferTerminal::draw_bitmap(uint8_t chr)
                 font_ptr++;
 
             ptr[x] = (*font_ptr & (0b10000000 >> (x & 7))) ? fg : bg;
+            ptr2[x] = (*font_ptr & (0b10000000 >> (x & 7))) ? fg : bg;
         }
 
         font_ptr++;
         ptr += fb->width;
+        ptr2 += fb->width;
     }
+}
+
+void FramebufferTerminal::render()
+{
+    uint64_t* from = (uint64_t*)fast_fb;
+    uint64_t* to = (uint64_t*)fb->addr;
+    uint64_t* end = (uint64_t*)(fast_fb + fb->width * fb->height);
+
+    while (from < end)
+        *to++ = *from++;
 }

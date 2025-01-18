@@ -25,14 +25,26 @@ struct FramebufferTerminal
     uint32_t fg;
     uint32_t bg;
 
+    enum EscapeState
+    {
+        NONE,
+        EXPECT_CSI,
+        TAKE_PARAMS,
+    };
+
+    EscapeState state;
+    int param_index;
+    int params[4];
+
     void init();
     void clear();
     void scroll();
     void write(const char* buffer, size_t len);
     void ansi_function(char name, int arg);
-
     void putchar(char c);
-    void draw_bitmap(uint8_t chr);
+
+    void draw_bitmap(char c);
+    void render();
 };
 
 extern Framebuffer default_fb;

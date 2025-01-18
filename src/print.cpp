@@ -61,7 +61,17 @@ void append_hex(uint64_t num, int size)
     static const char* hex = "0123456789abcdef";
 
     for (int i = size * 8 - 4; i >= 0; i -= 4)
+    {
+        bool is_pad = num >> i == 0 && i != 0;
+
+        if (is_pad)
+            append_string("\e[90m");
+
         append_char(hex[(num >> i) & 0x0f]);
+
+        if (is_pad)
+            append_string("\e[m");
+    }
 }
 
 void append_binary(uint64_t num, int size)

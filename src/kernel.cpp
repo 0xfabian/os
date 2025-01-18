@@ -54,7 +54,7 @@ extern "C" void kmain(void)
         fbterm.init();
 
         kprintf(INFO "default framebuffer initialized\n");
-        kprintf(INFO "fbterm initialized\n");
+        kprintf(INFO "fbterm initialized %dx%d\n", fbterm.width, fbterm.height);
     }
     else
         idle();
@@ -74,6 +74,18 @@ extern "C" void kmain(void)
 
         kprintf(INFO "memory map response\n");
 
+        const char* type_str[] = {
+            "\e[92musable\e[m",
+            "reserved",
+            "ACPI reclaimable",
+            "ACPI NVS",
+            "bad memory",
+            "\e[92mbootloader reclaimable\e[m",
+            "executable and modules",
+            "framebuffer"
+        };
+
+
         for (uint64_t i = 0; i < memmap_response->entry_count; i++)
         {
             limine_memmap_entry* entry = memmap_response->entries[i];
@@ -82,10 +94,10 @@ extern "C" void kmain(void)
             if (entry->type == LIMINE_MEMMAP_USABLE || entry->type == LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE)
                 usable_memory += entry->length;
 
-            kprintf("base: %lx  length: %lx  type: %d\n", entry->base, entry->length, entry->type);
+            kprintf("[%lx, %lx] %s\n", entry->base, entry->base + entry->length, type_str[entry->type]);
         }
 
-        kprintf("total: %ld   usable: %ld\n", MB(total_memory), MB(usable_memory));
+        kprintf("total: %ld MB   usable: %ld MB\n", MB(total_memory), MB(usable_memory));
     }
     else
     {
