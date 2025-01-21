@@ -61,6 +61,26 @@ void append_hex(uint64_t num, int size)
     static const char* hex = "0123456789abcdef";
 
     for (int i = size * 8 - 4; i >= 0; i -= 4)
+        append_char(hex[(num >> i) & 0x0f]);
+}
+
+void append_address(void* addr)
+{
+    uint64_t num = (uint64_t)addr;
+
+    num &= 0x0000ffffffffffff;
+
+    if ((num >> 47) & 1)
+    {
+        num |= 0xffff000000000000;
+        append_string("0x");
+    }
+    else
+        append_string("\e[90m0x\e[m");
+
+    static const char* hex = "0123456789abcdef";
+
+    for (int i = 60; i >= 0; i -= 4)
     {
         bool is_pad = num >> i == 0 && i != 0;
 
@@ -174,6 +194,7 @@ void kprintf(const char* fmt, ...)
 
             break;
         }
+        case 'a': append_address(va_arg(args, void*));                          break;
         case 'c': append_char(va_arg(args, int));                               break;
         case 's':
         {
@@ -188,4 +209,20 @@ void kprintf(const char* fmt, ...)
 
     write_buf();
     va_end(args);
+}
+
+void hexdump(void* data, size_t len)
+{
+    uint8_t* ptr = (uint8_t*)data;
+
+    for (size_t i = 0; i < len; i++)
+    {
+        if (i % 16 == 0)
+            kprintf("\e[92m%p\e[m: ", ptr + i);
+
+        kprintf("%hhx ", ptr[i]);
+
+        if (i % 16 == 15)
+            kprintf("\n");
+    }
 }

@@ -40,6 +40,7 @@ uint32_t colors[] =
 };
 
 Framebuffer default_fb;
+uint32_t* backbuffer;
 FramebufferTerminal fbterm;
 
 void Framebuffer::init(limine_framebuffer* fb)
@@ -49,7 +50,7 @@ void Framebuffer::init(limine_framebuffer* fb)
     addr = (uint32_t*)fb->address;
 }
 
-uint32_t fast_fb[1920 * 1080];
+// uint32_t fast_fb[1920 * 1080];
 
 void FramebufferTerminal::init()
 {
@@ -75,8 +76,8 @@ void FramebufferTerminal::init()
 
 void FramebufferTerminal::clear()
 {
-    uint64_t* start = (uint64_t*)fast_fb;
-    uint64_t* end = (uint64_t*)(fast_fb + fb->width * fb->height);
+    uint64_t* start = (uint64_t*)backbuffer;
+    uint64_t* end = (uint64_t*)(backbuffer + fb->width * fb->height);
     uint64_t value = ((uint64_t)bg << 32) | bg;
 
     for (uint64_t* ptr = start; ptr < end; ptr++)
@@ -89,8 +90,8 @@ void FramebufferTerminal::clear()
 
 void FramebufferTerminal::scroll()
 {
-    uint64_t* start = (uint64_t*)fast_fb;
-    uint64_t* end = (uint64_t*)(fast_fb + fb->width * (fb->height - font->header->height));
+    uint64_t* start = (uint64_t*)backbuffer;
+    uint64_t* end = (uint64_t*)(backbuffer + fb->width * (fb->height - font->header->height));
     uint64_t scroll_offset = fb->width * font->header->height / 2;
     uint64_t value = ((uint64_t)bg << 32) | bg;
 
@@ -218,7 +219,7 @@ void FramebufferTerminal::draw_bitmap(char c)
     uint32_t x = (cursor % width) * font->header->width;
     uint32_t y = (cursor / width) * font->header->height;
 
-    uint32_t* ptr = fast_fb + x + y * fb->width;
+    uint32_t* ptr = backbuffer + x + y * fb->width;
     uint32_t* ptr2 = fb->addr + x + y * fb->width;
     uint8_t* font_ptr = font->glyph_buffer + c * font->header->char_size;
 
@@ -241,9 +242,9 @@ void FramebufferTerminal::draw_bitmap(char c)
 
 void FramebufferTerminal::render()
 {
-    uint64_t* from = (uint64_t*)fast_fb;
+    uint64_t* from = (uint64_t*)backbuffer;
     uint64_t* to = (uint64_t*)fb->addr;
-    uint64_t* end = (uint64_t*)(fast_fb + fb->width * fb->height);
+    uint64_t* end = (uint64_t*)(backbuffer + fb->width * fb->height);
 
     while (from < end)
         *to++ = *from++;

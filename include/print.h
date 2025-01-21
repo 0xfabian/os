@@ -8,3 +8,4 @@
 #define WARN    "[\e[93mWARN\e[m] "
 
 void kprintf(const char* fmt, ...);
+void hexdump(void* data, size_t len);

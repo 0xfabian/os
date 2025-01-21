@@ -48,4 +48,5 @@ struct FramebufferTerminal
 };
 
 extern Framebuffer default_fb;
+extern uint32_t* backbuffer;
 extern FramebufferTerminal fbterm;

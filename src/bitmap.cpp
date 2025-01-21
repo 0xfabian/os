@@ -1,0 +1,40 @@
+#include <bitmap.h>
+
+void BitmapView::from(void* data, size_t _size)
+{
+    buffer = (uint8_t*)data;
+    size = _size;
+}
+
+void BitmapView::set(size_t index)
+{
+    if (index >= size)
+        return;
+
+    buffer[index / 8] |= (1 << (index % 8));
+}
+
+void BitmapView::clear(size_t index)
+{
+    if (index >= size)
+        return;
+
+    buffer[index / 8] &= ~(1 << (index % 8));
+}
+
+bool BitmapView::get(size_t index)
+{
+    if (index >= size)
+        return false;
+
+    return buffer[index / 8] & (1 << (index % 8));
+}
+
+size_t BitmapView::first_free()
+{
+    for (size_t i = 0; i < size; i++)
+        if (get(i) == false)
+            return i;
+
+    return size;
+}
