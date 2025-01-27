@@ -4,7 +4,7 @@ PageFrameAllocator pfa;
 
 void* MemoryRegion::alloc_page()
 {
-    return MemoryRegion::alloc_pages(1);
+    return alloc_pages(1);
 }
 
 void* MemoryRegion::alloc_pages(size_t count)
@@ -132,7 +132,7 @@ bool PageFrameAllocator::init(limine_memmap_response* memmap)
     {
         limine_memmap_entry* entry = memmap->entries[i];
 
-        if (entry->type == LIMINE_MEMMAP_USABLE && entry->length >= 4096)
+        if (entry->type == LIMINE_MEMMAP_USABLE && entry->length >= total_size)
         {
             allocator_addr = (void*)(entry->base | 0xffff800000000000);
             break;
@@ -173,7 +173,6 @@ bool PageFrameAllocator::init(limine_memmap_response* memmap)
 
             region->base = base;
             region->end = end;
-            region->total_pages = pages;
             region->used_pages = 0;
             region->bitmap.from(bitmap_addr, pages);
             memset(bitmap_addr, 0, bitmap_size);
@@ -201,7 +200,6 @@ bool PageFrameAllocator::init(limine_memmap_response* memmap)
 
         region->base = base;
         region->end = end;
-        region->total_pages = pages;
         region->used_pages = 0;
         region->bitmap.from(bitmap_addr, pages);
         memset(bitmap_addr, 0, bitmap_size);

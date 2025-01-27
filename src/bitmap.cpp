@@ -29,12 +29,3 @@ bool BitmapView::get(size_t index)
 
     return buffer[index / 8] & (1 << (index % 8));
 }
-
-size_t BitmapView::first_free()
-{
-    for (size_t i = 0; i < size; i++)
-        if (get(i) == false)
-            return i;
-
-    return size;
-}

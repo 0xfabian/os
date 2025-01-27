@@ -13,7 +13,6 @@ struct MemoryRegion
     uint64_t base;
     uint64_t end;
 
-    size_t total_pages;
     size_t used_pages;
 
     BitmapView bitmap;

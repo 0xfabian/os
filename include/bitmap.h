@@ -12,5 +12,4 @@ struct BitmapView
     void set(size_t bit);
     void clear(size_t bit);
     bool get(size_t bit);
-    size_t first_free();
 };

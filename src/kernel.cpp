@@ -64,12 +64,12 @@ uint64_t read_cr3()
 //     return val;
 // }
 
-// void cpuid(uint32_t code, uint32_t* eax, uint32_t* ebx, uint32_t* ecx, uint32_t* edx)
-// {
-//     asm volatile("cpuid"
-//         : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx)
-//         : "a"(code));
-// }
+void cpuid(uint32_t code, uint32_t* eax, uint32_t* ebx, uint32_t* ecx, uint32_t* edx)
+{
+    asm volatile("cpuid"
+        : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx)
+        : "a"(code));
+}
 
 // bool check_pat_support()
 // {
@@ -78,6 +78,22 @@ uint64_t read_cr3()
 
 //     return edx & (1 << 16);
 // }
+
+bool check_apic_support()
+{
+    uint32_t eax, ecx, edx, ebx;
+    cpuid(1, &eax, &ebx, &ecx, &edx);
+
+    return edx & (1 << 9);
+}
+
+bool check_x2apic_support()
+{
+    uint32_t eax, ecx, edx, ebx;
+    cpuid(1, &eax, &ebx, &ecx, &edx);
+
+    return ecx & (1 << 21);
+}
 
 void idle()
 {
@@ -110,6 +126,75 @@ void idle()
 
 //     kprintf("%p %s", page & ~0xfff, pat_str[pat_entries[index]]);
 // }
+
+constexpr uint64_t MSR_EFER = 0xC0000080;  // Extended Feature Enable Register
+constexpr uint64_t MSR_STAR = 0xC0000081;  // Segment selectors
+constexpr uint64_t MSR_LSTAR = 0xC0000082; // Syscall handler entry point
+constexpr uint64_t MSR_FMASK = 0xC0000084; // Syscall flag mask
+
+void wrmsr(uint64_t msr, uint64_t value) {
+    asm volatile (
+        "wrmsr"
+        :
+    : "c"(msr), "a"(value & 0xFFFFFFFF), "d"(value >> 32)
+        : "memory"
+        );
+}
+
+uint64_t rdmsr(uint64_t msr) {
+    uint32_t lo, hi;
+    asm volatile (
+        "rdmsr"
+        : "=a"(lo), "=d"(hi)
+        : "c"(msr)
+        : "memory"
+        );
+    return (static_cast<uint64_t>(hi) << 32) | lo;
+}
+
+void setup_syscall(uint64_t syscall_handler_address, uint16_t kernel_cs, uint16_t user_cs) {
+    // Enable SYSCALL/SYSRET instructions
+    uint64_t efer = rdmsr(MSR_EFER);
+    efer |= 1; // Enable SYSCALL
+    wrmsr(MSR_EFER, efer);
+
+    // Set up STAR MSR for segment selectors
+    uint64_t star_value = (static_cast<uint64_t>(kernel_cs) << 48) |
+        (static_cast<uint64_t>(user_cs) << 32);
+    wrmsr(MSR_STAR, star_value);
+
+    // Set up LSTAR MSR for syscall entry point
+    wrmsr(MSR_LSTAR, syscall_handler_address);
+
+    // Set up FMASK MSR to mask interrupt flag (IF)
+    wrmsr(MSR_FMASK, 1 << 9);
+}
+
+uint16_t get_cs() {
+    uint16_t cs;
+    asm volatile ("mov %%cs, %0" : "=r"(cs));
+    return cs;
+}
+
+void syscall_handler()
+{
+    kprintf("syscall\n");
+    idle();
+}
+
+struct GDTEntry {
+    uint16_t limitLow;
+    uint16_t baseLow;
+    uint8_t  baseMiddle;
+    uint8_t  access;
+    uint8_t  granularity;
+    uint8_t  baseHigh;
+} __attribute__((packed));
+
+struct GDTPtr {
+    uint16_t limit;
+    uint32_t base;
+} __attribute__((packed));
 
 extern "C" void kmain(void)
 {
@@ -147,27 +232,29 @@ extern "C" void kmain(void)
     {
         MemoryRegion* region = &pfa.regions[i];
 
-        kprintf("region %d: %a-%a    total: %d    used: %d\n", i, region->base, region->end, region->total_pages, region->used_pages);
+        kprintf("region %d: %a-%a    total: %d    used: %d\n", i, region->base, region->end, region->bitmap.size, region->used_pages);
     }
 
-    for (uint64_t i = 0; i < memmap_response->entry_count; i++)
-    {
-        limine_memmap_entry* entry = memmap_response->entries[i];
+    // for (uint64_t i = 0; i < memmap_response->entry_count; i++)
+    // {
+    //     limine_memmap_entry* entry = memmap_response->entries[i];
 
-        const char* type_str[] =
-        {
-            "\e[92musable\e[m",
-            "reserved",
-            "ACPI reclaimable",
-            "ACPI NVS",
-            "bad memory",
-            "\e[92mbootloader reclaimable\e[m",
-            "executable and modules",
-            "framebuffer"
-        };
+    //     const char* type_str[] =
+    //     {
+    //         "\e[92musable\e[m",
+    //         "reserved",
+    //         "ACPI reclaimable",
+    //         "ACPI NVS",
+    //         "bad memory",
+    //         "\e[92mbootloader reclaimable\e[m",
+    //         "executable and modules",
+    //         "framebuffer"
+    //     };
 
-        kprintf("%a-%a %s (%d pages)\n", entry->base, entry->base + entry->length, type_str[entry->type], entry->length / 4096);
-    }
+    //     kprintf("%a-%a %s (%d pages)\n", entry->base, entry->base + entry->length, type_str[entry->type], entry->length / 4096);
+    // }
+
+    // kprintf("%d\n", sizeof(MemoryRegion));
 
     // uint64_t* pml4 = (uint64_t*)(read_cr3() | 0xffff800000000000);
 
@@ -321,6 +408,29 @@ extern "C" void kmain(void)
     //         }
     //     }
     // }
+
+    // write the msr of syscall with the address of syscall_handler
+
+    GDTPtr gdtr;
+    asm volatile("sgdt %0" : "=m"(gdtr));
+
+    kprintf("gdt.base: %a\n", (void*)(uint64_t)gdtr.base);
+    kprintf("gdt.limit: %hx\n", gdtr.limit);
+
+    hexdump((void*)((uint64_t)gdtr.base | 0xffff800000000000), 20 * 16);
+
+    kprintf("cs: %hb\n", get_cs());
+
+    // setup_syscall((uint64_t)syscall_handler, 0x28, 0x28);
+
+    // asm volatile("syscall");
+
+    uint64_t apic_base = rdmsr(0x1b);
+
+    kprintf("apic: %f\n", check_apic_support());
+    kprintf("x2apic: %f\n", check_x2apic_support());
+
+    kprintf("apic_base: %lx\n", apic_base);
 
     idle();
 }
