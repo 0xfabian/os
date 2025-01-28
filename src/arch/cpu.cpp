@@ -5,6 +5,45 @@ void cpuid(uint32_t code, uint32_t* eax, uint32_t* ebx, uint32_t* ecx, uint32_t*
     asm volatile("cpuid" : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx) : "a"(code));
 }
 
+uint8_t inb(uint16_t port)
+{
+    uint8_t ret;
+    asm volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
+
+    return ret;
+}
+
+uint16_t inw(uint16_t port)
+{
+    uint16_t ret;
+    asm volatile ("inw %1, %0" : "=a"(ret) : "d"(port));
+
+    return ret;
+}
+
+uint32_t inl(uint16_t port)
+{
+    uint32_t ret;
+    asm volatile ("inl %1, %0" : "=a"(ret) : "d"(port));
+
+    return ret;
+}
+
+void outb(uint16_t port, uint8_t val)
+{
+    asm volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
+}
+
+void outw(uint16_t port, uint16_t val)
+{
+    asm volatile ("outw %0, %1" : : "a"(val), "d"(port));
+}
+
+void outl(uint16_t port, uint32_t val)
+{
+    asm volatile ("outl %0, %1" : : "a"(val), "d"(port));
+}
+
 uint64_t read_cr3()
 {
     uint64_t cr3;

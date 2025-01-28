@@ -1,8 +1,9 @@
 #include <requests.h>
 #include <memory/pfalloc.h>
 #include <print.h>
-#include <arch/gdt.h>
 #include <arch/cpu.h>
+#include <arch/gdt.h>
+#include <arch/idt.h>
 
 extern "C" void kmain(void)
 {
@@ -30,12 +31,17 @@ extern "C" void kmain(void)
 
     size_t count = PAGE_COUNT(default_fb.width * default_fb.height * sizeof(uint32_t));
     backbuffer = (uint32_t*)((uint64_t)pfa.alloc_pages(count) | 0xffff800000000000);
+    memcpy(backbuffer, (void*)default_fb.addr, count * PAGE_SIZE);
 
     kprintf(INFO "backbuffer allocated at %a\n", backbuffer);
 
     gdt.init();
 
     kprintf(INFO "gdt initialized\n");
+
+    idt.init();
+
+    kprintf(INFO "idt initialized\n");
 
     idle();
 }

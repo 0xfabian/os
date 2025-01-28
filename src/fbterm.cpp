@@ -153,7 +153,7 @@ void FramebufferTerminal::write(const char* buffer, size_t len)
                 if (param_index < 4)
                     param_index++;
             }
-            else if (*ptr >= 'a' && *ptr <= 'z' || *ptr >= 'A' && *ptr <= 'Z')
+            else if ((*ptr >= 'a' && *ptr <= 'z') || (*ptr >= 'A' && *ptr <= 'Z'))
             {
                 for (int j = 0; j <= param_index; j++)
                     ansi_function(*ptr, params[j]);

@@ -5,12 +5,12 @@ QEMU_FLAGS = -cpu qemu64 -m 1G -net none \
 	-drive if=pflash,format=raw,unit=0,file=$(IMG_PATH)/OVMFbin/OVMF_CODE-pure-efi.fd,readonly=on \
 	-drive if=pflash,format=raw,unit=1,file=$(IMG_PATH)/OVMFbin/OVMF_VARS-pure-efi.fd \
 
-CC = gcc
+CC = g++
 ASMC = nasm
 LD = ld
 LDSCRIPT = link.ld
 
-CFLAGS = -ffreestanding -mno-red-zone -Iinclude -O2
+CFLAGS = -ffreestanding -mno-red-zone -mgeneral-regs-only -Iinclude -O2 -Wall
 ASMFLAGS = 
 LDFLAGS = -T $(LDSCRIPT) -static -Bsymbolic -nostdlib
 
