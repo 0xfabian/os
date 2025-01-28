@@ -1,12 +1,12 @@
 #pragma once
 
 #include <limine.h>
-#include <memops.h>
+#include <utils.h>
 #include <bitmap.h>
 
-#define PAGE_SIZE 4096
-#define PAGE_SHIFT 12
-#define PAGE_COUNT(x) ((x + PAGE_SIZE - 1) / PAGE_SIZE)
+#define PAGE_SIZE       4096
+#define PAGE_SHIFT      12
+#define PAGE_COUNT(x)   ((x + PAGE_SIZE - 1) / PAGE_SIZE)
 
 struct MemoryRegion
 {

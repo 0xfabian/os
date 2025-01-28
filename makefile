@@ -58,6 +58,10 @@ $(IMG): esp/boot/kernel
 	@ echo ---------- UPDATING IMAGE ----------
 	mcopy -o -i $(IMG)@@1M esp/boot/kernel ::/boot
 
+clean:
+	@ echo ---------- CLEANING ----------
+	rm -rf $(OBJDIR)
+
 run:
 	@ powershell.exe -Command "qemu-system-x86_64 $(QEMU_FLAGS)"
 

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <limine.h>
-#include <memops.h>
 #include <font.h>
 
 struct Framebuffer

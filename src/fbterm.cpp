@@ -50,8 +50,6 @@ void Framebuffer::init(limine_framebuffer* fb)
     addr = (uint32_t*)fb->address;
 }
 
-// uint32_t fast_fb[1920 * 1080];
-
 void FramebufferTerminal::init()
 {
     fb = &default_fb;
