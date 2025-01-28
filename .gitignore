@@ -1,4 +1,3 @@
 /.vscode
-*.ld
-Makefile
-*.psf
+/build
+zap-light20.psf

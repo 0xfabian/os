@@ -80,7 +80,7 @@ void compute_allocator_total_size(limine_memmap_response* memmap, size_t* region
     {
         limine_memmap_entry* entry = memmap->entries[i];
 
-        bool valid_type = entry->type == LIMINE_MEMMAP_USABLE || entry->type == LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE;
+        bool valid_type = entry->type == LIMINE_MEMMAP_USABLE;
 
         if (try_join)
         {
@@ -158,7 +158,7 @@ bool PageFrameAllocator::init(limine_memmap_response* memmap)
     {
         limine_memmap_entry* entry = memmap->entries[i];
 
-        bool valid_type = entry->type == LIMINE_MEMMAP_USABLE || entry->type == LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE;
+        bool valid_type = entry->type == LIMINE_MEMMAP_USABLE;
 
         if (try_join)
         {

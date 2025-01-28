@@ -1,10 +1,7 @@
 #include <limine.h>
 #include <pfalloc.h>
 #include <print.h>
-
-// #define KB(x) ((x) / 1024)
-// #define MB(x) ((x) / 1048576)
-// #define GB(x) ((x) / 1073741824) 
+#include <gdt.h>
 
 __attribute__((used, section(".limine_requests")))
 static volatile LIMINE_BASE_REVISION(3);
@@ -27,42 +24,12 @@ static volatile LIMINE_REQUESTS_START_MARKER;
 __attribute__((used, section(".limine_requests_end")))
 static volatile LIMINE_REQUESTS_END_MARKER;
 
-// uint64_t rdmsr(uint32_t msr)
-// {
-//     uint32_t low, high;
-
-//     asm volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
-
-//     return ((uint64_t)high << 32) | low;
-// }
-
-// uint64_t read_cr0()
-// {
-//     uint64_t val;
-//     asm volatile("mov %%cr0, %0" : "=r"(val));
-//     return val;
-// }
-
-// uint64_t read_cr2()
-// {
-//     uint64_t val;
-//     asm volatile("mov %%cr2, %0" : "=r"(val));
-//     return val;
-// }
-
 uint64_t read_cr3()
 {
     uint64_t val;
     asm volatile("mov %%cr3, %0" : "=r"(val));
     return val;
 }
-
-// uint64_t read_cr4()
-// {
-//     uint64_t val;
-//     asm volatile("mov %%cr4, %0" : "=r"(val));
-//     return val;
-// }
 
 void cpuid(uint32_t code, uint32_t* eax, uint32_t* ebx, uint32_t* ecx, uint32_t* edx)
 {
@@ -71,13 +38,13 @@ void cpuid(uint32_t code, uint32_t* eax, uint32_t* ebx, uint32_t* ecx, uint32_t*
         : "a"(code));
 }
 
-// bool check_pat_support()
-// {
-//     uint32_t eax, ecx, edx, ebx;
-//     cpuid(1, &eax, &ebx, &ecx, &edx);
+bool check_pat_support()
+{
+    uint32_t eax, ecx, edx, ebx;
+    cpuid(1, &eax, &ebx, &ecx, &edx);
 
-//     return edx & (1 << 16);
-// }
+    return edx & (1 << 16);
+}
 
 bool check_apic_support()
 {
@@ -100,32 +67,6 @@ void idle()
     while (true)
         asm("hlt");
 }
-
-// uint64_t saved_pat;
-
-// const char* pat_str[] =
-// {
-//     "uc",
-//     "wc",
-//     "?",
-//     "?",
-//     "wt",
-//     "wp",
-//     "wb",
-//     "uc-"
-// };
-
-// void print_page(uint64_t page)
-// {
-//     uint8_t* pat_entries = (uint8_t*)&saved_pat;
-//     int pat = (page >> 7) & 1;
-//     int pcd = (page >> 4) & 1;
-//     int pwt = (page >> 3) & 1;
-
-//     int index = pat << 2 | pcd << 1 | pwt;
-
-//     kprintf("%p %s", page & ~0xfff, pat_str[pat_entries[index]]);
-// }
 
 constexpr uint64_t MSR_EFER = 0xC0000080;  // Extended Feature Enable Register
 constexpr uint64_t MSR_STAR = 0xC0000081;  // Segment selectors
@@ -170,31 +111,11 @@ void setup_syscall(uint64_t syscall_handler_address, uint16_t kernel_cs, uint16_
     wrmsr(MSR_FMASK, 1 << 9);
 }
 
-uint16_t get_cs() {
-    uint16_t cs;
-    asm volatile ("mov %%cs, %0" : "=r"(cs));
-    return cs;
-}
-
 void syscall_handler()
 {
     kprintf("syscall\n");
     idle();
 }
-
-struct GDTEntry {
-    uint16_t limitLow;
-    uint16_t baseLow;
-    uint8_t  baseMiddle;
-    uint8_t  access;
-    uint8_t  granularity;
-    uint8_t  baseHigh;
-} __attribute__((packed));
-
-struct GDTPtr {
-    uint16_t limit;
-    uint32_t base;
-} __attribute__((packed));
 
 extern "C" void kmain(void)
 {
@@ -226,8 +147,6 @@ extern "C" void kmain(void)
     kprintf(INFO "total pages: %d\n", pfa.total_pages);
     kprintf(INFO "used pages: %d\n", pfa.used_pages);
 
-    kprintf("\n");
-
     for (size_t i = 0; i < pfa.region_count; i++)
     {
         MemoryRegion* region = &pfa.regions[i];
@@ -235,26 +154,9 @@ extern "C" void kmain(void)
         kprintf("region %d: %a-%a    total: %d    used: %d\n", i, region->base, region->end, region->bitmap.size, region->used_pages);
     }
 
-    // for (uint64_t i = 0; i < memmap_response->entry_count; i++)
-    // {
-    //     limine_memmap_entry* entry = memmap_response->entries[i];
+    gdt.init();
 
-    //     const char* type_str[] =
-    //     {
-    //         "\e[92musable\e[m",
-    //         "reserved",
-    //         "ACPI reclaimable",
-    //         "ACPI NVS",
-    //         "bad memory",
-    //         "\e[92mbootloader reclaimable\e[m",
-    //         "executable and modules",
-    //         "framebuffer"
-    //     };
-
-    //     kprintf("%a-%a %s (%d pages)\n", entry->base, entry->base + entry->length, type_str[entry->type], entry->length / 4096);
-    // }
-
-    // kprintf("%d\n", sizeof(MemoryRegion));
+    kprintf(INFO "gdt initialized\n");
 
     // uint64_t* pml4 = (uint64_t*)(read_cr3() | 0xffff800000000000);
 
@@ -409,19 +311,10 @@ extern "C" void kmain(void)
     //     }
     // }
 
-    // write the msr of syscall with the address of syscall_handler
+    // if (try_join)
+    //     kprintf("%a-%a\n", lower, upper + 1);
 
-    GDTPtr gdtr;
-    asm volatile("sgdt %0" : "=m"(gdtr));
-
-    kprintf("gdt.base: %a\n", (void*)(uint64_t)gdtr.base);
-    kprintf("gdt.limit: %hx\n", gdtr.limit);
-
-    hexdump((void*)((uint64_t)gdtr.base | 0xffff800000000000), 20 * 16);
-
-    kprintf("cs: %hb\n", get_cs());
-
-    // setup_syscall((uint64_t)syscall_handler, 0x28, 0x28);
+    // setup_syscall((uint64_t)syscall_handler, 0x08, 0x18);
 
     // asm volatile("syscall");
 
