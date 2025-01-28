@@ -5,7 +5,7 @@ alignas(0x1000) IDT idt;
 void IDT::init()
 {
     pic::remap();
-    pic::set_mask(0b1111111111111101);
+    pic::set_mask(0xffff);
 
     for (int i = 0; i < 256; i++)
         set(i, default_handler);

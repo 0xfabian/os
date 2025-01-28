@@ -16,23 +16,22 @@ extern "C" void kmain(void)
         idle();
 
     default_fb.init(framebuffer_response->framebuffers[0]);
-    backbuffer = (uint32_t*)default_fb.addr;
-    fbterm.init();
-
-    kprintf(INFO "%dx%d fbterm initialized\n", fbterm.width, fbterm.height);
-    kprintf(WARN "no backbuffer\n");
 
     limine_memmap_response* memmap_response = memmap_request.response;
 
     if (!memmap_response || !pfa.init(memmap_response))
         idle();
 
-    kprintf(INFO "pfa initialized %d/%d\n", pfa.used_pages, pfa.total_pages);
-
     size_t count = PAGE_COUNT(default_fb.width * default_fb.height * sizeof(uint32_t));
     backbuffer = (uint32_t*)((uint64_t)pfa.alloc_pages(count) | 0xffff800000000000);
-    memcpy(backbuffer, (void*)default_fb.addr, count * PAGE_SIZE);
 
+    if (!backbuffer)
+        idle();
+
+    fbterm.init();
+
+    kprintf(INFO "%dx%d fbterm initialized\n", fbterm.width, fbterm.height);
+    kprintf(INFO "pfa initialized %d/%d\n", pfa.used_pages, pfa.total_pages);
     kprintf(INFO "backbuffer allocated at %a\n", backbuffer);
 
     gdt.init();

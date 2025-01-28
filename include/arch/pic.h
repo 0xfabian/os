@@ -16,7 +16,13 @@
 namespace pic
 {
     void remap(uint8_t offset1 = 0x20, uint8_t offset2 = 0x28);
-    void set_mask(uint16_t mask);
-    void send_eoi(uint8_t irq);
     void disable();
+
+    void set_mask(uint16_t mask);
+    uint16_t get_mask();
+
+    void set_irq(uint8_t irq, bool masked);
+    bool get_irq(uint8_t irq);
+
+    void send_eoi(uint8_t irq);
 }
