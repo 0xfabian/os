@@ -1,7 +1,8 @@
 #include <limine.h>
 #include <pfalloc.h>
 #include <print.h>
-#include <gdt.h>
+#include <arch/gdt.h>
+#include <arch/cpu.h>
 
 __attribute__((used, section(".limine_requests")))
 static volatile LIMINE_BASE_REVISION(3);
@@ -23,93 +24,6 @@ static volatile LIMINE_REQUESTS_START_MARKER;
 
 __attribute__((used, section(".limine_requests_end")))
 static volatile LIMINE_REQUESTS_END_MARKER;
-
-uint64_t read_cr3()
-{
-    uint64_t val;
-    asm volatile("mov %%cr3, %0" : "=r"(val));
-    return val;
-}
-
-void cpuid(uint32_t code, uint32_t* eax, uint32_t* ebx, uint32_t* ecx, uint32_t* edx)
-{
-    asm volatile("cpuid"
-        : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx)
-        : "a"(code));
-}
-
-bool check_pat_support()
-{
-    uint32_t eax, ecx, edx, ebx;
-    cpuid(1, &eax, &ebx, &ecx, &edx);
-
-    return edx & (1 << 16);
-}
-
-bool check_apic_support()
-{
-    uint32_t eax, ecx, edx, ebx;
-    cpuid(1, &eax, &ebx, &ecx, &edx);
-
-    return edx & (1 << 9);
-}
-
-bool check_x2apic_support()
-{
-    uint32_t eax, ecx, edx, ebx;
-    cpuid(1, &eax, &ebx, &ecx, &edx);
-
-    return ecx & (1 << 21);
-}
-
-void idle()
-{
-    while (true)
-        asm("hlt");
-}
-
-constexpr uint64_t MSR_EFER = 0xC0000080;  // Extended Feature Enable Register
-constexpr uint64_t MSR_STAR = 0xC0000081;  // Segment selectors
-constexpr uint64_t MSR_LSTAR = 0xC0000082; // Syscall handler entry point
-constexpr uint64_t MSR_FMASK = 0xC0000084; // Syscall flag mask
-
-void wrmsr(uint64_t msr, uint64_t value) {
-    asm volatile (
-        "wrmsr"
-        :
-    : "c"(msr), "a"(value & 0xFFFFFFFF), "d"(value >> 32)
-        : "memory"
-        );
-}
-
-uint64_t rdmsr(uint64_t msr) {
-    uint32_t lo, hi;
-    asm volatile (
-        "rdmsr"
-        : "=a"(lo), "=d"(hi)
-        : "c"(msr)
-        : "memory"
-        );
-    return (static_cast<uint64_t>(hi) << 32) | lo;
-}
-
-void setup_syscall(uint64_t syscall_handler_address, uint16_t kernel_cs, uint16_t user_cs) {
-    // Enable SYSCALL/SYSRET instructions
-    uint64_t efer = rdmsr(MSR_EFER);
-    efer |= 1; // Enable SYSCALL
-    wrmsr(MSR_EFER, efer);
-
-    // Set up STAR MSR for segment selectors
-    uint64_t star_value = (static_cast<uint64_t>(kernel_cs) << 48) |
-        (static_cast<uint64_t>(user_cs) << 32);
-    wrmsr(MSR_STAR, star_value);
-
-    // Set up LSTAR MSR for syscall entry point
-    wrmsr(MSR_LSTAR, syscall_handler_address);
-
-    // Set up FMASK MSR to mask interrupt flag (IF)
-    wrmsr(MSR_FMASK, 1 << 9);
-}
 
 void syscall_handler()
 {
@@ -314,9 +228,9 @@ extern "C" void kmain(void)
     // if (try_join)
     //     kprintf("%a-%a\n", lower, upper + 1);
 
-    // setup_syscall((uint64_t)syscall_handler, 0x08, 0x18);
+    setup_syscall((uint64_t)syscall_handler);
 
-    // asm volatile("syscall");
+    asm volatile("syscall");
 
     uint64_t apic_base = rdmsr(0x1b);
 

@@ -1,4 +1,4 @@
-#include <gdt.h>
+#include <arch/gdt.h>
 
 extern "C" void load_gdt_desc(GDTDescriptor* desc);
 
