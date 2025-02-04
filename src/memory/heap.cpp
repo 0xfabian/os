@@ -59,15 +59,19 @@ void Heap::Header::split(size_t size)
 
 void Heap::init(size_t pages)
 {
+    kprintf("Initializing heap (%lu pages)... ", pages);
+
     start = (Header*)((uint64_t)pfa.alloc_pages(pages) | 0xffff800000000000);
 
     if (!start)
-        return;
+        panic("Failed to allocate heap");
 
     start->_size = pages * PAGE_SIZE - sizeof(Header);
     start->next = nullptr;
     start->prev = nullptr;
     start->set_free();
+
+    kprintf(OK);
 }
 
 void* Heap::alloc(size_t size)

@@ -1,8 +1,9 @@
 #pragma once
 
-#include <limine.h>
+#include <requests.h>
 #include <utils.h>
 #include <bitmap.h>
+#include <print.h>
 
 #define PAGE_SIZE       4096
 #define PAGE_SHIFT      12
@@ -35,7 +36,7 @@ struct PageFrameAllocator
     size_t total_pages;
     size_t used_pages;
 
-    bool init(limine_memmap_response* memmap);
+    void init();
 
     void* alloc_page();
     void* alloc_pages(size_t count);

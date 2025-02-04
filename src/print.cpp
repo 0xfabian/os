@@ -226,3 +226,12 @@ void hexdump(void* data, size_t len)
             kprintf("\n");
     }
 }
+
+void panic(const char* msg)
+{
+    if (fbterm.cursor % fbterm.width)
+        kprintf("\n");
+
+    kprintf(PANIC "%s\n", msg);
+    idle();
+}

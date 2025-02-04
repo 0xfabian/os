@@ -4,6 +4,8 @@ alignas(0x1000) IDT idt;
 
 void IDT::init()
 {
+    kprintf("Initializing IDT... ");
+
     pic::remap();
     pic::set_mask(0xffff);
 
@@ -20,6 +22,8 @@ void IDT::init()
 
     asm volatile("lidt %0" : : "m"(desc));
     asm volatile("sti");
+
+    kprintf(OK);
 }
 
 void IDT::set(uint8_t index, void (*isr)(interrupt_frame*))
@@ -37,20 +41,17 @@ void IDT::set(uint8_t index, void (*isr)(interrupt_frame*))
 
 __attribute__((interrupt)) void default_handler(interrupt_frame* frame)
 {
-    kprintf(FATAL "Unhandled interrupt\n");
-    idle();
+    panic("Unhandled interrupt");
 }
 
 __attribute__((interrupt)) void gp_fault_handler(interrupt_frame* frame)
 {
-    kprintf(FATAL "General Protection Fault\n");
-    idle();
+    panic("General Protection Fault");
 }
 
 __attribute__((interrupt)) void page_fault_handler(interrupt_frame* frame)
 {
-    kprintf(FATAL "Page Fault\n");
-    idle();
+    panic("Page Fault");
 }
 
 __attribute__((interrupt)) void keyboard_handler(interrupt_frame* frame)

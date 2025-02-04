@@ -1,7 +1,9 @@
 #pragma once
 
-#include <limine.h>
+#include <requests.h>
 #include <font.h>
+#include <memory/pfalloc.h>
+#include <print.h>
 
 struct Framebuffer
 {
@@ -36,6 +38,8 @@ struct FramebufferTerminal
     int params[4];
 
     void init();
+    void enable_backbuffer();
+
     void clear();
     void scroll();
     void write(const char* buffer, size_t len);

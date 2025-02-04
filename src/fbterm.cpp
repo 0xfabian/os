@@ -52,6 +52,14 @@ void Framebuffer::init(limine_framebuffer* fb)
 
 void FramebufferTerminal::init()
 {
+    limine_framebuffer_response* framebuffer_response = framebuffer_request.response;
+
+    if (!framebuffer_response || framebuffer_response->framebuffer_count == 0)
+        idle();
+
+    default_fb.init(framebuffer_response->framebuffers[0]);
+    backbuffer = default_fb.addr;
+
     fb = &default_fb;
     font = &zap_light20;
 
@@ -70,6 +78,31 @@ void FramebufferTerminal::init()
     params[3] = 0;
 
     clear();
+
+    kprintf("Framebuffer terminal initialized (%ux%u)\n", width, height);
+}
+
+void FramebufferTerminal::enable_backbuffer()
+{
+    kprintf("Enabling backbuffer... ");
+
+    size_t count = PAGE_COUNT(default_fb.width * default_fb.height * sizeof(uint32_t));
+    backbuffer = (uint32_t*)((uint64_t)pfa.alloc_pages(count) | 0xffff800000000000);
+
+    if (!backbuffer)
+    {
+        kprintf("\n" WARN "Failed to allocate backbuffer\n");
+        return;
+    }
+
+    uint64_t* from = (uint64_t*)fb->addr;
+    uint64_t* to = (uint64_t*)backbuffer;
+    uint64_t* end = (uint64_t*)(fb->addr + fb->width * fb->height);
+
+    while (from < end)
+        *to++ = *from++;
+
+    kprintf(OK);
 }
 
 void FramebufferTerminal::clear()
@@ -240,6 +273,9 @@ void FramebufferTerminal::draw_bitmap(char c)
 
 void FramebufferTerminal::render()
 {
+    if (backbuffer == fb->addr)
+        return;
+
     uint64_t* from = (uint64_t*)backbuffer;
     uint64_t* to = (uint64_t*)fb->addr;
     uint64_t* end = (uint64_t*)(backbuffer + fb->width * fb->height);

@@ -121,8 +121,15 @@ void compute_allocator_total_size(limine_memmap_response* memmap, size_t* region
     *total_size = sizeof(MemoryRegion) * count + bitmaps_total_size;
 }
 
-bool PageFrameAllocator::init(limine_memmap_response* memmap)
+void PageFrameAllocator::init()
 {
+    kprintf("Initializing page frame allocator... ");
+
+    limine_memmap_response* memmap = memmap_request.response;
+
+    if (!memmap)
+        panic("No memory map response\n");
+
     size_t total_size;
     compute_allocator_total_size(memmap, &region_count, &total_size);
 
@@ -140,7 +147,7 @@ bool PageFrameAllocator::init(limine_memmap_response* memmap)
     }
 
     if (!allocator_addr)
-        return false;
+        panic("Failed to allocate page frame allocator\n");
 
     regions = (MemoryRegion*)allocator_addr;
     total_pages = 0;
@@ -209,7 +216,7 @@ bool PageFrameAllocator::init(limine_memmap_response* memmap)
 
     lock_pages((void*)((uint64_t)allocator_addr & ~0xffff800000000000), PAGE_COUNT(total_size));
 
-    return true;
+    kprintf(OK);
 }
 
 void* PageFrameAllocator::alloc_page()
