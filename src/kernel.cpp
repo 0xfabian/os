@@ -23,5 +23,11 @@ extern "C" void kmain(void)
 
     List<int> list;
 
+    list.add(21);
+    list.add(23);
+
+    for (auto& a : list)
+        kprintf("%d\n", a);
+
     idle();
 }

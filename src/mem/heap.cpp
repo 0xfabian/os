@@ -108,3 +108,13 @@ void Heap::free(void* ptr)
     hdr->combine_forward();
     hdr->combine_backward();
 }
+
+void* operator new(size_t size)
+{
+    return heap.alloc(size);
+}
+
+void operator delete(void* ptr)
+{
+    heap.free(ptr);
+}
