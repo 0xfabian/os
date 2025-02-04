@@ -4,7 +4,7 @@ alignas(0x1000) IDT idt;
 
 void IDT::init()
 {
-    kprintf("Initializing IDT... ");
+    kprintf(INFO "Initializing IDT...\n");
 
     pic::remap();
     pic::set_mask(0xffff);
@@ -22,8 +22,6 @@ void IDT::init()
 
     asm volatile("lidt %0" : : "m"(desc));
     asm volatile("sti");
-
-    kprintf(OK);
 }
 
 void IDT::set(uint8_t index, void (*isr)(interrupt_frame*))

@@ -2,7 +2,7 @@
 
 #include <requests.h>
 #include <utils.h>
-#include <bitmap.h>
+#include <ds/bitmap.h>
 #include <print.h>
 
 #define PAGE_SIZE       4096

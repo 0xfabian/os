@@ -1,7 +1,8 @@
 #include <print.h>
-#include <memory/heap.h>
+#include <mem/heap.h>
 #include <arch/gdt.h>
 #include <arch/idt.h>
+#include <ds/list.h>
 
 extern "C" void kmain(void)
 {
@@ -19,6 +20,8 @@ extern "C" void kmain(void)
     idt.init();
 
     heap.init(2000);
+
+    List<int> list;
 
     idle();
 }

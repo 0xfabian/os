@@ -1,4 +1,4 @@
-#include <memory/heap.h>
+#include <mem/heap.h>
 
 Heap heap;
 
@@ -59,7 +59,7 @@ void Heap::Header::split(size_t size)
 
 void Heap::init(size_t pages)
 {
-    kprintf("Initializing heap (%lu pages)... ", pages);
+    kprintf(INFO "Initializing heap (%lu pages)...\n", pages);
 
     start = (Header*)((uint64_t)pfa.alloc_pages(pages) | 0xffff800000000000);
 
@@ -70,8 +70,6 @@ void Heap::init(size_t pages)
     start->next = nullptr;
     start->prev = nullptr;
     start->set_free();
-
-    kprintf(OK);
 }
 
 void* Heap::alloc(size_t size)

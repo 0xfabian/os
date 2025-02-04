@@ -1,6 +1,6 @@
 #pragma once
 
-#include <memory/pfalloc.h>
+#include <mem/pfalloc.h>
 #include <print.h>
 
 #define HEAP_MIN_ALLOC  8

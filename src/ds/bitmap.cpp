@@ -1,4 +1,4 @@
-#include <bitmap.h>
+#include <ds/bitmap.h>
 
 void BitmapView::from(void* data, size_t _size)
 {

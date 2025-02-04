@@ -79,19 +79,19 @@ void FramebufferTerminal::init()
 
     clear();
 
-    kprintf("Framebuffer terminal initialized (%ux%u)\n", width, height);
+    kprintf(INFO "Framebuffer terminal initialized (%ux%u)\n", width, height);
 }
 
 void FramebufferTerminal::enable_backbuffer()
 {
-    kprintf("Enabling backbuffer... ");
+    kprintf(INFO "Enabling backbuffer...\n");
 
     size_t count = PAGE_COUNT(default_fb.width * default_fb.height * sizeof(uint32_t));
     backbuffer = (uint32_t*)((uint64_t)pfa.alloc_pages(count) | 0xffff800000000000);
 
     if (!backbuffer)
     {
-        kprintf("\n" WARN "Failed to allocate backbuffer\n");
+        kprintf(WARN "Failed to allocate backbuffer\n");
         return;
     }
 
@@ -101,8 +101,6 @@ void FramebufferTerminal::enable_backbuffer()
 
     while (from < end)
         *to++ = *from++;
-
-    kprintf(OK);
 }
 
 void FramebufferTerminal::clear()

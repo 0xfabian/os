@@ -1,4 +1,4 @@
-#include <memory/pfalloc.h>
+#include <mem/pfalloc.h>
 
 PageFrameAllocator pfa;
 
@@ -123,7 +123,7 @@ void compute_allocator_total_size(limine_memmap_response* memmap, size_t* region
 
 void PageFrameAllocator::init()
 {
-    kprintf("Initializing page frame allocator... ");
+    kprintf(INFO "Initializing page frame allocator...\n");
 
     limine_memmap_response* memmap = memmap_request.response;
 
@@ -215,8 +215,6 @@ void PageFrameAllocator::init()
     }
 
     lock_pages((void*)((uint64_t)allocator_addr & ~0xffff800000000000), PAGE_COUNT(total_size));
-
-    kprintf(OK);
 }
 
 void* PageFrameAllocator::alloc_page()

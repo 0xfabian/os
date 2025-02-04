@@ -18,7 +18,7 @@ void GDTEntry::set(uint32_t base, uint32_t limit, uint8_t _access, uint8_t flags
 
 void GDT::init()
 {
-    kprintf("Initializing GDT... ");
+    kprintf(INFO "Initializing GDT...\n");
 
     null.set(0, 0, 0, 0);
     kernel_code.set(0, 0, 0b10011010, 0b0010);
@@ -31,6 +31,4 @@ void GDT::init()
     desc.offset = (uint64_t)this;
 
     load_gdt_desc(&desc);
-
-    kprintf(OK);
 }
