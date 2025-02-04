@@ -1,5 +1,5 @@
 #include <requests.h>
-#include <memory/pfalloc.h>
+#include <memory/heap.h>
 #include <print.h>
 #include <arch/cpu.h>
 #include <arch/gdt.h>
@@ -34,13 +34,49 @@ extern "C" void kmain(void)
     kprintf(INFO "pfa initialized %d/%d\n", pfa.used_pages, pfa.total_pages);
     kprintf(INFO "backbuffer allocated at %a\n", backbuffer);
 
+    kprintf(INFO "initializing gdt\n");
+
     gdt.init();
 
-    kprintf(INFO "gdt initialized\n");
+    kprintf(INFO "initializing idt\n");
 
     idt.init();
 
-    kprintf(INFO "idt initialized\n");
+    kprintf(INFO "initializing heap\n");
+
+    heap.init(200);
+
+    if (!heap.start)
+        idle();
+
+    int* a = (int*)heap.alloc(sizeof(int));
+    int* b = (int*)heap.alloc(100 * sizeof(int));
+    MemoryRegion* mr = (MemoryRegion*)heap.alloc(sizeof(MemoryRegion));
+
+    kprintf("heap_header: %lu\n", sizeof(Heap::Header));
+
+    Heap::Header* ptr = heap.start;
+
+    while (ptr)
+    {
+        kprintf("%a: prev: %a next: %a size: %lu free: %f\n", ptr, ptr->prev, ptr->next, ptr->size(), ptr->is_free());
+        ptr = ptr->next;
+    }
+
+    heap.free(a);
+    heap.free(b);
+
+    kprintf("after\n");
+
+    ptr = heap.start;
+
+    while (ptr)
+    {
+        kprintf("%a: prev: %a next: %a size: %lu free: %f\n", ptr, ptr->prev, ptr->next, ptr->size(), ptr->is_free());
+        ptr = ptr->next;
+    }
+
+    heap.free(mr);
 
     idle();
 }

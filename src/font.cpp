@@ -943,8 +943,8 @@ uint8_t zap_light20_data[] =
     0xc3, 0xbf, 0xff
 };
 
-PSF2_Font zap_light20 =
+PSF2 zap_light20 =
 {
-    (PSF2_Font::PSF2_Header*)zap_light20_data,
-    zap_light20_data + sizeof(PSF2_Font::PSF2_Header)
+    (PSF2::Header*)zap_light20_data,
+    zap_light20_data + sizeof(PSF2::Header)
 };

@@ -15,7 +15,7 @@ struct Framebuffer
 struct FramebufferTerminal
 {
     Framebuffer* fb;
-    PSF2_Font* font;
+    PSF2* font;
 
     uint32_t width;
     uint32_t height;

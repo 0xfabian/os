@@ -3,9 +3,9 @@
 #include <cstdint>
 #include <cstddef>
 
-struct PSF2_Font
+struct PSF2
 {
-    struct PSF2_Header
+    struct Header
     {
         uint8_t magic[4];
         uint32_t version;
@@ -17,9 +17,9 @@ struct PSF2_Font
         uint32_t width;
     };
 
-    PSF2_Header* header;
+    Header* header;
     uint8_t* glyph_buffer;
 };
 
 extern uint8_t zap_light20_data[];
-extern PSF2_Font zap_light20;
+extern PSF2 zap_light20;

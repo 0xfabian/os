@@ -10,7 +10,7 @@ ASMC = nasm
 LD = ld
 LDSCRIPT = link.ld
 
-CFLAGS = -ffreestanding -mno-red-zone -mgeneral-regs-only -Iinclude -O2 -Wall
+CFLAGS = -Iinclude -O2 -Wall -mno-red-zone -mgeneral-regs-only -ffreestanding -fno-exceptions -fno-rtti
 ASMFLAGS = 
 LDFLAGS = -T $(LDSCRIPT) -static -Bsymbolic -nostdlib
 
