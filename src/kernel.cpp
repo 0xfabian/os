@@ -2,7 +2,6 @@
 #include <mem/heap.h>
 #include <arch/gdt.h>
 #include <arch/idt.h>
-#include <ds/table.h>
 
 extern "C" void kmain(void)
 {
