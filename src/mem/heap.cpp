@@ -118,3 +118,8 @@ void operator delete(void* ptr)
 {
     heap.free(ptr);
 }
+
+void operator delete(void* ptr, size_t size)
+{
+    heap.free(ptr);
+}

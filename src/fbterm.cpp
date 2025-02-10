@@ -1,23 +1,23 @@
 #include <fbterm.h>
 
-#define FOREGROUND          0xF0FFFF
+#define FOREGROUND          0xf0ffff
 #define BACKGROUND          0x192840
-#define BLACK               0x1A1C1F
-#define RED                 0xC50F1F
-#define GREEN               0x34A116
-#define YELLOW              0xF2A623
-#define BLUE                0x2B5CB3
-#define MAGENTA             0x8A155E
-#define CYAN                0x3DBAB5
-#define WHITE               0xCCCCCC
-#define BRIGHT_BLACK        0x8D95A3
-#define BRIGHT_RED          0xFF4A4A
-#define BRIGHT_GREEN        0x89FF64
-#define BRIGHT_YELLOW       0xFFEA3A
-#define BRIGHT_BLUE         0x6FA3FF
-#define BRIGHT_MAGENTA      0xB53083
-#define BRIGHT_CYAN         0x79F9DE
-#define BRIGHT_WHITE        0xF2F2F2
+#define BLACK               0x1a1c1f
+#define RED                 0xc50f1f
+#define GREEN               0x34a116
+#define YELLOW              0xf2a623
+#define BLUE                0x2b5cb3
+#define MAGENTA             0x8a155e
+#define CYAN                0x3dbab5
+#define WHITE               0xcccccc
+#define BRIGHT_BLACK        0x8d95a3
+#define BRIGHT_RED          0xff4a4a
+#define BRIGHT_GREEN        0x89ff64
+#define BRIGHT_YELLOW       0xffea3a
+#define BRIGHT_BLUE         0x6fa3ff
+#define BRIGHT_MAGENTA      0xb53083
+#define BRIGHT_CYAN         0x79f9de
+#define BRIGHT_WHITE        0xf2f2f2
 
 uint32_t colors[] =
 {

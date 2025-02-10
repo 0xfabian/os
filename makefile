@@ -63,6 +63,8 @@ clean:
 	rm -rf $(OBJDIR)
 
 run:
+	@ sudo umount disk 2> /dev/null || true
 	@ powershell.exe -Command "qemu-system-x86_64 $(QEMU_FLAGS)"
+	@ sudo mount -o loop disk.img disk
 
 all: kernel updateimg run

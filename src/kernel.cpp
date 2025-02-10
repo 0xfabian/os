@@ -2,7 +2,7 @@
 #include <mem/heap.h>
 #include <arch/gdt.h>
 #include <arch/idt.h>
-#include <ds/list.h>
+#include <ds/table.h>
 
 extern "C" void kmain(void)
 {
@@ -20,14 +20,6 @@ extern "C" void kmain(void)
     idt.init();
 
     heap.init(2000);
-
-    List<int> list;
-
-    list.add(21);
-    list.add(23);
-
-    for (auto& a : list)
-        kprintf("%d\n", a);
 
     idle();
 }
