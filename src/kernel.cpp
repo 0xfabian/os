@@ -5,7 +5,7 @@
 
 extern "C" void kmain(void)
 {
-    if (LIMINE_BASE_REVISION_SUPPORTED == false)
+    if (!LIMINE_BASE_REVISION_SUPPORTED)
         idle();
 
     fbterm.init();
