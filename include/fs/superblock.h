@@ -1,6 +1,6 @@
 #pragma once
 
-#include <fs/fstype.h>
+#include <fs/filesystem.h>
 
 struct SuperblockOperations
 {
