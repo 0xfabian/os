@@ -1,27 +1,60 @@
-// #pragma once
+#pragma once
 
+#include <cstdint>
+#include <cstddef>
+#include <print.h>
 // #include <superblock.h>
 
-// struct InodeOps
-// {
-//     int (*create) (Inode* inode, const char* name, uint32_t mode);
-//     int (*lookup) (Inode* inode, const char* name, Inode* result);
-//     int (*link) (Inode* inode, const char* name);
-//     int (*unlink) (Inode* inode);
-//     int (*mkdir) (Inode* inode, const char* name);
-//     int (*rmdir) (Inode* inode, const char* name);
-//     int (*mknod) (Inode* inode, const char* name, uint32_t mode, uint64_t dev);
-// };
+struct Superblock;
+struct Inode;
 
-// struct Inode
-// {
-//     Superblock* sb;
-//     uint64_t ino;
-//     uint32_t mode;
-//     size_t size;
-//     int refs;
+struct InodeOps
+{
+    int (*lookup) (Inode* inode, const char* name, Inode* result);
+};
 
-//     InodeOps ops;
+#define IT_FIFO 0x1000
+#define IT_CDEV 0x2000
+#define IT_DIR  0x4000
+#define IT_BDEV 0x6000
+#define IT_REG  0x8000
+#define IT_LINK 0xA000
+#define IT_SOCK 0xC000
 
-//     bool is_device();
-// };
+struct Inode
+{
+    Superblock* sb;
+    uint64_t ino;
+    uint32_t type;
+    size_t size;
+    int refs;
+
+    InodeOps ops;
+
+    bool is_reg();
+    bool is_dir();
+    bool is_device();
+    bool is_block_device();
+    bool is_char_device();
+
+    static Inode* get(const char* path);
+
+    Inode* lookup(const char* name);
+    void put();
+};
+
+#define INODE_TABLE_SIZE 256
+
+struct InodeTable
+{
+    Inode inodes[INODE_TABLE_SIZE];
+
+    Inode* insert(Inode* inode);
+
+    void debug();
+};
+
+extern InodeTable inode_table;
+
+// this should not be here
+char* path_read_next(const char*& ptr);

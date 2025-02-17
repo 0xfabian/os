@@ -1,5 +1,6 @@
 #pragma once
 
+#include <print.h>
 #include <fs/file.h>
 
 #define FD_TABLE_SIZE 64
