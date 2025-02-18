@@ -2,6 +2,64 @@
 
 InodeTable inode_table;
 
+Inode* Inode::get(const char* path)
+{
+    // this sould be running->fs.get_root() or .get_cwd()
+    Inode* inode = nullptr;
+
+    if (!inode)
+        return nullptr;
+
+    char* name;
+    while ((name = path_read_next(path)))
+    {
+        // no need to search for .
+        if (name[0] == '.' && name[1] == '\0')
+            continue;
+
+        // // is this inode a mountpoint?
+        // Mount* mnt = lookup_mount(inode);
+
+        // if (mnt)
+        // {
+        //     // yes, so we switch to the mounts root
+        //     inode->put();
+        //     inode = mnt->get_root();
+        // }
+
+        Inode* next = inode->lookup(name);
+
+        // switch to the next
+        inode->put();
+        inode = next;
+
+        // no entry found
+        if (!next)
+            return nullptr;
+
+        // check for symlink here
+
+        // path is not finished so next should be a directory
+        if (*path != '\0' && !next->is_dir())
+        {
+            next->put();
+            return nullptr;
+        }
+    }
+
+    return inode;
+}
+
+void Inode::put()
+{
+    refs--;
+
+    if (refs > 0)
+        return;
+
+    // check if the inode needs updating and write it to disk
+}
+
 bool Inode::is_reg()
 {
     return (type & IT_REG) == IT_REG;
@@ -58,55 +116,13 @@ char* path_read_next(const char*& ptr)
     return path_read_data;
 }
 
-Inode* Inode::get(const char* path)
-{
-    Inode* inode = nullptr;
-
-    if (!inode)
-        return nullptr;
-
-    char* name;
-    while ((name = path_read_next(path)))
-    {
-        // no need to search for .
-        if (name[0] == '.' && name[1] == '\0')
-            continue;
-
-        // // is this inode a mountpoint?
-        // Mount* mnt = lookup_mount(inode);
-
-        // if (mnt)
-        // {
-        //     // yes, so we switch to the mounts root
-        //     inode->put();
-        //     inode = mnt->get_root(); // use function to auto increase refs
-        // }
-
-        Inode* next = inode->lookup(name);
-
-        // switch to the next
-        inode->put();
-        inode = next;
-
-        // no entry found
-        if (!next)
-            return nullptr;
-
-        // path is not finished so next should be a directory
-        if (*path != '\0' && !next->is_dir())
-        {
-            next->put();
-            return nullptr;
-        }
-    }
-
-    return inode;
-}
-
 Inode* Inode::lookup(const char* name)
 {
     if (!ops.lookup)
+    {
+        kprintf(WARN "lookup(): called but not implemented\n");
         return nullptr;
+    }
 
     Inode temp;
 
@@ -114,16 +130,6 @@ Inode* Inode::lookup(const char* name)
         return nullptr;
 
     return inode_table.insert(&temp);
-}
-
-void Inode::put()
-{
-    refs--;
-
-    if (refs > 0)
-        return;
-
-    // update disk inode or smth
 }
 
 Inode* InodeTable::insert(Inode* inode)

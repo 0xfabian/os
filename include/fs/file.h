@@ -23,10 +23,9 @@ struct File
 
     FileOps ops;
 
-    static File* get(const char* path, uint32_t flags);
-
-    int open();
+    static File* open(const char* path, uint32_t flags);
     int close();
+
     int read(char* buf, size_t size);
     int write(const char* buf, size_t size);
     int seek(size_t offset, int whence);

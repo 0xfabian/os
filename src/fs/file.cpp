@@ -2,11 +2,11 @@
 
 FileTable file_table;
 
-File* File::get(const char* path, uint32_t flags)
+File* File::open(const char* path, uint32_t flags)
 {
     // Inode* inode = namei(path);
 
-    // should probably check if is O_CREAT
+    // // should probably check if is O_CREAT
     // if (!inode)
     //     return nullptr;
 
@@ -14,7 +14,7 @@ File* File::get(const char* path, uint32_t flags)
 
     // if (!file)
     // {
-    //     inode->put();    
+    //     inode->put();
     //     return nullptr;
     // }
 
@@ -22,10 +22,27 @@ File* File::get(const char* path, uint32_t flags)
     // file->flags = flags;
     // file->refs = 1;
     // file->inode = inode;
-    // file->ops = inode->fops;
 
-    // // this calls the driver open on device files, which could fail
-    // file->open();
+    // if (inode->is_device())
+    // {
+    //     Device* dev = inode->get_device();
+
+    //     // more care here
+    //     if (!dev)
+    //     {
+    //         file->refs = 0;
+    //         inode->put();
+    //         return nullptr;
+    //     }
+
+    //     file->ops = dev->ops;
+
+    //     // call the driver open function, should probably check for failure
+    //     if (file->ops.open)
+    //         file->ops.open(file);
+    // }
+    // else
+    //     file->ops = inode->fops;
 
     // return file;
 
@@ -41,15 +58,6 @@ File* File::get(const char* path, uint32_t flags)
     file->ops = { nullptr, nullptr, nullptr, nullptr, nullptr };
 
     return file;
-}
-
-int File::open()
-{
-    // if is device and there is some open function call it
-    // if (inode->is_device() && ops.open)
-    //     return ops.open(this);
-
-    return 0;
 }
 
 int File::close()

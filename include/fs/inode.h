@@ -31,16 +31,16 @@ struct Inode
 
     InodeOps ops;
 
+    static Inode* get(const char* path);
+    void put();
+
     bool is_reg();
     bool is_dir();
     bool is_device();
     bool is_block_device();
     bool is_char_device();
 
-    static Inode* get(const char* path);
-
     Inode* lookup(const char* name);
-    void put();
 };
 
 #define INODE_TABLE_SIZE 256
