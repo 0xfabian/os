@@ -31,6 +31,11 @@ struct Heap
     void init(size_t pages);
     void* alloc(size_t size);
     void free(void* ptr);
+
+    void debug();
 };
 
 extern Heap heap;
+
+void* kmalloc(size_t size);
+void kfree(void* ptr);
