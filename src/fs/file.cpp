@@ -4,7 +4,7 @@ FileTable file_table;
 
 File* File::open(const char* path, uint32_t flags)
 {
-    // Inode* inode = namei(path);
+    // Inode* inode = Inode::get(path);
 
     // // should probably check if is O_CREAT
     // if (!inode)
