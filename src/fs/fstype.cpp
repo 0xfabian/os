@@ -40,7 +40,7 @@ int unregister_fs(FilesystemType* fs)
             else
                 head = current->next;
 
-            if (current == tail)
+            if (tail == current)
                 tail = prev;
 
             return 0;
