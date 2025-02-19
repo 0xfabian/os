@@ -1,13 +1,25 @@
-// #pragma once
+#pragma once
 
-// struct Mount
-// {
-//     Mount* parent;
-//     Mount* next;
-//     Mount* children;
+struct Filesystem;
+struct Superblock;
+struct Inode;
+struct Device;
 
-//     const char* mountpoint;
-//     Superblock* sb;
-// };
+struct Mount
+{
+    Inode* mountpoint;
+    Superblock* sb;
 
-// Mount* root_mount;
+    static Mount* mount(Inode* target, Device* dev, Filesystem* fs);
+    void unmount();
+
+    static Mount* from_mountpoint(Inode* inode);
+    static Mount* from_superblock(Superblock* sb);
+
+    Inode* get_mountpoint();
+};
+
+struct MountTable
+{
+
+};
