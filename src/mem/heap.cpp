@@ -109,17 +109,66 @@ void Heap::free(void* ptr)
     hdr->combine_backward();
 }
 
-void* operator new(size_t size)
+void Heap::debug()
+{
+    Header* hdr = start;
+
+    size_t free = 0;
+    size_t used = 0;
+    size_t entries = 0;
+
+    while (hdr)
+    {
+        kprintf("%p: ", hdr);
+
+        if (hdr->is_free())
+        {
+            free += hdr->size();
+            kprintf("\e[92mfree\e[m");
+        }
+        else
+        {
+            used += hdr->size();
+            kprintf("\e[91mused\e[m");
+        }
+
+        kprintf(" %lu\n", hdr->size());
+
+        if (hdr->next && hdr->next->prev != hdr)
+            kprintf(WARN "this->next->prev != this\n");
+
+        if (hdr->prev && hdr->prev->next != hdr)
+            kprintf(WARN "this->prev->next != this\n");
+
+        entries++;
+
+        hdr = hdr->next;
+    }
+
+    kprintf("entries=%lu    total=%lu    used=%lu    free=%lu\n", entries, used + free + entries * sizeof(Header), used, free);
+}
+
+void* kmalloc(size_t size)
 {
     return heap.alloc(size);
 }
 
-void operator delete(void* ptr)
+void kfree(void* ptr)
 {
     heap.free(ptr);
 }
 
-void operator delete(void* ptr, size_t size)
-{
-    heap.free(ptr);
-}
+// void* operator new(size_t size)
+// {
+//     return heap.alloc(size);
+// }
+
+// void operator delete(void* ptr)
+// {
+//     heap.free(ptr);
+// }
+
+// void operator delete(void* ptr, size_t size)
+// {
+//     heap.free(ptr);
+// }
