@@ -3,14 +3,24 @@
 #include <cstdint>
 #include <cstddef>
 #include <print.h>
-// #include <superblock.h>
 
 struct Superblock;
 struct Inode;
+struct File;
 
 struct InodeOps
 {
     int (*lookup) (Inode* inode, const char* name, Inode* result);
+    int (*sync) (Inode* inode);
+};
+
+struct FileOps
+{
+    int (*open) (File* file);
+    int (*close) (File* file);
+    int (*read) (File* file, char* buf, size_t size, size_t offset);
+    int (*write) (File* file, const char* buf, size_t size, size_t offset);
+    int (*seek) (File* file, size_t offset, int whence);
 };
 
 #define IT_FIFO 0x1000
@@ -30,6 +40,7 @@ struct Inode
     int refs;
 
     InodeOps ops;
+    FileOps fops;
 
     static Inode* get(const char* path);
     void put();
