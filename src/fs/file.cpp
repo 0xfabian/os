@@ -4,58 +4,52 @@ FileTable file_table;
 
 File* File::open(const char* path, uint32_t flags)
 {
-    // Inode* inode = Inode::get(path);
+    Inode* inode = Inode::get(path);
 
     // // should probably check if is O_CREAT
-    // if (!inode)
-    //     return nullptr;
-
-    // File* file = file_table.alloc();
-
-    // if (!file)
-    // {
-    //     inode->put();
-    //     return nullptr;
-    // }
-
-    // file->offset = 0;
-    // file->flags = flags;
-    // file->refs = 1;
-    // file->inode = inode;
-
-    // if (inode->is_device())
-    // {
-    //     Device* dev = inode->get_device();
-
-    //     // more care here
-    //     if (!dev)
-    //     {
-    //         file->refs = 0;
-    //         inode->put();
-    //         return nullptr;
-    //     }
-
-    //     file->ops = dev->ops;
-
-    //     // call the driver open function, should probably check for failure
-    //     if (file->ops.open)
-    //         file->ops.open(file);
-    // }
-    // else
-    //     file->ops = inode->fops;
-
-    // return file;
+    if (!inode)
+        return nullptr;
 
     File* file = file_table.alloc();
 
     if (!file)
+    {
+        inode->put();
         return nullptr;
+    }
 
     file->offset = 0;
-    file->inode = nullptr;
-    file->flags = 0;
+    file->flags = flags;
     file->refs = 1;
-    file->ops = { nullptr, nullptr, nullptr, nullptr, nullptr };
+    file->inode = inode;
+
+    if (inode->is_device())
+    {
+        // Device* dev = inode->get_device();
+
+        // // more care here
+        // if (!dev)
+        // {
+        //     file->refs = 0;
+        //     inode->put();
+        //     return nullptr;
+        // }
+
+        // file->ops = dev->ops;
+
+        // // call the driver open function, should probably check for failure
+        // if (file->ops.open)
+        //     file->ops.open(file);
+
+        kprintf(WARN "open(): device files not implemented\n");
+
+        file->refs = 0;
+        inode->put();
+
+        return nullptr;
+    }
+    else
+        file->ops = inode->fops;
 
     return file;
 }
@@ -79,7 +73,7 @@ int File::close()
     //     ops.close(this);
 
     // now the file is gone so we should release the inode
-    // inode->put();
+    inode->put();
 
     return 0;
 }
