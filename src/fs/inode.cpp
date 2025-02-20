@@ -3,6 +3,37 @@
 
 InodeTable inode_table;
 
+#define PATH_MAX 256
+char path_read_data[PATH_MAX];
+
+// hacky path reading function
+char* path_read_next(const char*& ptr)
+{
+    while (*ptr == '/')
+        ptr++;
+
+    if (*ptr == '\0')
+        return nullptr;
+
+    char* output = path_read_data;
+    size_t len = 0;
+
+    while (*ptr != '/' && *ptr != '\0')
+    {
+        if (len >= PATH_MAX - 1)
+        {
+            kprintf(WARN "path_read_next(): path too long\n");
+            break;
+        }
+
+        output[len++] = *ptr++;
+    }
+
+    output[len] = '\0';
+
+    return path_read_data;
+}
+
 Inode* Inode::get(const char* path)
 {
     // this sould be running->fs.get_root() or .get_cwd()
@@ -58,7 +89,8 @@ void Inode::put()
     if (refs > 0)
         return;
 
-    // check if the inode needs updating and write it to disk
+    // should probably sync only if dirty
+    sync();
 }
 
 bool Inode::is_reg()
@@ -86,37 +118,6 @@ bool Inode::is_char_device()
     return (type & IT_CDEV) == IT_CDEV;
 }
 
-#define PATH_MAX 256
-char path_read_data[PATH_MAX];
-
-// hacky path reading function
-char* path_read_next(const char*& ptr)
-{
-    while (*ptr == '/')
-        ptr++;
-
-    if (*ptr == '\0')
-        return nullptr;
-
-    char* output = path_read_data;
-    size_t len = 0;
-
-    while (*ptr != '/' && *ptr != '\0')
-    {
-        if (len >= PATH_MAX - 1)
-        {
-            kprintf(WARN "path_read_next(): path too long\n");
-            break;
-        }
-
-        output[len++] = *ptr++;
-    }
-
-    output[len] = '\0';
-
-    return path_read_data;
-}
-
 Inode* Inode::lookup(const char* name)
 {
     if (!ops.lookup)
@@ -131,6 +132,14 @@ Inode* Inode::lookup(const char* name)
         return nullptr;
 
     return inode_table.insert(&temp);
+}
+
+bool Inode::sync()
+{
+    if (ops.sync)
+        return ops.sync(this);
+
+    return false;
 }
 
 Inode* InodeTable::insert(Inode* inode)
@@ -184,6 +193,9 @@ void InodeTable::debug()
 
         if (inode->ops.lookup)
             kprintf("lookup ");
+
+        if (inode->ops.sync)
+            kprintf("sync ");
 
         kprintf("\n");
     }

@@ -4,6 +4,14 @@
 #include <cstddef>
 #include <print.h>
 
+#define IT_FIFO 0x1000
+#define IT_CDEV 0x2000
+#define IT_DIR  0x4000
+#define IT_BDEV 0x6000
+#define IT_REG  0x8000
+#define IT_LINK 0xA000
+#define IT_SOCK 0xC000
+
 struct Superblock;
 struct Inode;
 struct File;
@@ -20,16 +28,9 @@ struct FileOps
     int (*close) (File* file);
     int (*read) (File* file, char* buf, size_t size, size_t offset);
     int (*write) (File* file, const char* buf, size_t size, size_t offset);
-    int (*seek) (File* file, size_t offset, int whence);
+    size_t(*seek) (File* file, size_t offset, int whence);
+    int (*iterate) (File* file, void* buf, size_t size);
 };
-
-#define IT_FIFO 0x1000
-#define IT_CDEV 0x2000
-#define IT_DIR  0x4000
-#define IT_BDEV 0x6000
-#define IT_REG  0x8000
-#define IT_LINK 0xA000
-#define IT_SOCK 0xC000
 
 struct Inode
 {
@@ -52,6 +53,7 @@ struct Inode
     bool is_char_device();
 
     Inode* lookup(const char* name);
+    bool sync();
 };
 
 #define INODE_TABLE_SIZE 256
@@ -66,6 +68,3 @@ struct InodeTable
 };
 
 extern InodeTable inode_table;
-
-// this should not be here
-char* path_read_next(const char*& ptr);
