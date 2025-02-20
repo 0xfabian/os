@@ -23,49 +23,26 @@ extern "C" void kmain(void)
 
     heap.init(2000);
 
-    heap.debug();
-
     ramfs.register_self();
 
     Mount::mount_root(nullptr, &ramfs);
 
-    mount_table.debug();
+    File* file = File::open("/", 0);
 
-    inode_table.debug();
+    if (file)
+    {
+        char buf[256];
 
-    file_table.debug();
+        while (file->iterate(buf, 256) > 0)
+            kprintf("%s\n", buf);
 
-    kprintf("File::open(\"/hello.txt\", 0)\n");
-    File* file = File::open("/hello.txt", 0);
+        file->seek(0, SEEK_SET);
 
-    inode_table.debug();
-    file_table.debug();
+        while (file->iterate(buf, 256) > 0)
+            kprintf("%s\n", buf);
 
-    char buf[256];
-
-    kprintf("File::read(buf, 100)\n");
-    size_t bytes = file->read(buf, 100);
-    kprintf("returned %d bytes\n", bytes);
-
-    for (size_t i = 0; i < bytes; i++)
-        kprintf("%c", buf[i]);
-
-    kprintf("file->close()\n");
-    file->close();
-
-    inode_table.debug();
-    file_table.debug();
-
-    heap.debug();
-
-    kprintf("root_mount->unmount()\n");
-    root_mount->unmount();
-
-    heap.debug();
-
-    ramfs.unregister();
-
-    heap.debug();
+        file->close();
+    }
 
     idle();
 }
