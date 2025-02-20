@@ -18,7 +18,7 @@ Inode* Inode::get(const char* path)
             continue;
 
         // // is this inode a mountpoint?
-        // Mount* mnt = lookup_mount(inode);
+        // Mount* mnt = Mount::find(inode);
 
         // if (mnt)
         // {
