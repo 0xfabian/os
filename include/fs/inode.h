@@ -18,6 +18,15 @@ struct File;
 
 struct InodeOps
 {
+    // create
+    // mknod
+    // rename
+    // link
+    // unlink
+    // rmdir
+    // update_time
+    // truncate
+
     int (*mkdir) (Inode* dir, const char* name);
     int (*lookup) (Inode* dir, const char* name, Inode* result);
     int (*sync) (Inode* inode);
@@ -31,6 +40,8 @@ struct FileOps
     int (*write) (File* file, const char* buf, size_t size, size_t offset);
     size_t(*seek) (File* file, size_t offset, int whence);
     int (*iterate) (File* file, void* buf, size_t size);
+    // ioctl
+    // mmap
 };
 
 struct Inode

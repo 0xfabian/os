@@ -6,7 +6,7 @@ File* File::open(const char* path, uint32_t flags)
 {
     Inode* inode = Inode::get(path);
 
-    // // should probably check if is O_CREAT
+    // should probably check if is O_CREAT
     if (!inode)
     {
         kprintf(WARN "open(): `%s` not found\n", path);
