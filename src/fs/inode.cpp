@@ -118,6 +118,24 @@ bool Inode::is_char_device()
     return (type & IT_CDEV) == IT_CDEV;
 }
 
+// this should handle only name, not path
+// and the name should already be valid
+int Inode::mkdir(const char* name)
+{
+    if (!ops.mkdir)
+    {
+        kprintf(WARN "mkdir(): called but not implemented\n");
+        return -1;
+    }
+
+    if (!is_dir())
+        return -1;
+
+    // should check for existance with lookup
+
+    return ops.mkdir(this, name);
+}
+
 Inode* Inode::lookup(const char* name)
 {
     if (!ops.lookup)
@@ -125,6 +143,9 @@ Inode* Inode::lookup(const char* name)
         kprintf(WARN "lookup(): called but not implemented\n");
         return nullptr;
     }
+
+    if (!is_dir())
+        return nullptr;
 
     Inode temp;
 
@@ -134,12 +155,12 @@ Inode* Inode::lookup(const char* name)
     return inode_table.insert(&temp);
 }
 
-bool Inode::sync()
+int Inode::sync()
 {
     if (ops.sync)
         return ops.sync(this);
 
-    return false;
+    return 0;
 }
 
 Inode* InodeTable::insert(Inode* inode)
@@ -190,6 +211,9 @@ void InodeTable::debug()
             continue;
 
         kprintf("    %d: sb=%a ino=%lu type=%x size=%lu refs=%d ", i, inode->sb, inode->ino, inode->type, inode->size, inode->refs);
+
+        if (inode->ops.mkdir)
+            kprintf("mkdir ");
 
         if (inode->ops.lookup)
             kprintf("lookup ");

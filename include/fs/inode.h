@@ -18,7 +18,8 @@ struct File;
 
 struct InodeOps
 {
-    int (*lookup) (Inode* inode, const char* name, Inode* result);
+    int (*mkdir) (Inode* dir, const char* name);
+    int (*lookup) (Inode* dir, const char* name, Inode* result);
     int (*sync) (Inode* inode);
 };
 
@@ -52,8 +53,9 @@ struct Inode
     bool is_block_device();
     bool is_char_device();
 
+    int mkdir(const char* name);
     Inode* lookup(const char* name);
-    bool sync();
+    int sync();
 };
 
 #define INODE_TABLE_SIZE 256

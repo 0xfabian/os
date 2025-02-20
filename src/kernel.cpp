@@ -27,21 +27,24 @@ extern "C" void kmain(void)
 
     Mount::mount_root(nullptr, &ramfs);
 
-    File* file = File::open("/", 0);
+    File* dir = File::open("/", 0);
 
-    if (file)
+    if (dir)
     {
         char buf[256];
 
-        while (file->iterate(buf, 256) > 0)
+        while (dir->iterate(buf, 256) > 0)
             kprintf("%s\n", buf);
 
-        file->seek(0, SEEK_SET);
+        dir->inode->mkdir("dev");
+        dir->inode->mkdir("proc");
 
-        while (file->iterate(buf, 256) > 0)
+        dir->seek(0, SEEK_SET);
+
+        while (dir->iterate(buf, 256) > 0)
             kprintf("%s\n", buf);
 
-        file->close();
+        dir->close();
     }
 
     idle();

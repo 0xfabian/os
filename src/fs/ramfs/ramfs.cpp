@@ -43,10 +43,12 @@ void ramfs_init(Superblock* sb)
     RamDirent* dirents = (RamDirent*)root->data;
 
     dirents[0].ino = 1;
+    root->nlinks++;
     strcpy(dirents[0].name, ".");
     dirents[0].type = IT_DIR;
 
     dirents[1].ino = 1;
+    root->nlinks++;
     strcpy(dirents[1].name, "..");
     dirents[1].type = IT_DIR;
 
@@ -56,7 +58,7 @@ void ramfs_init(Superblock* sb)
     _root.type = root->type;
     _root.size = root->size;
     _root.refs = 1;
-    _root.ops = { ramfs_lookup, nullptr };
+    _root.ops = { ramfs_mkdir, ramfs_lookup, nullptr };
     _root.fops = { nullptr, nullptr, ramfs_read, nullptr, generic_seek, ramfs_iterate };
 
     sb->root = inode_table.insert(&_root);
@@ -115,14 +117,64 @@ Inode to_inode(RamInode* inode, Inode* like)
     return ret;
 }
 
-int ramfs_lookup(Inode* _dir, const char* name, Inode* result)
+int add_dirent(Inode* _dir, const char* name, RamInode* inode)
 {
     RamInode* dir = from_inode(_dir);
 
-    // it should never be null
+    RamDirent* newdirent = (RamDirent*)kmalloc(dir->size + sizeof(RamDirent));
+    memcpy(newdirent, dir->data, dir->size);
 
-    if (dir->type != IT_DIR)
+    RamDirent* last = newdirent + dir->size / sizeof(RamDirent);
+    strcpy(last->name, name);
+    last->ino = inode->ino;
+    inode->nlinks++;
+    last->type = inode->type;
+
+    kfree(dir->data);
+    dir->data = newdirent;
+    dir->size += sizeof(RamDirent);
+    _dir->size = dir->size;
+
+    return 0;
+}
+
+int ramfs_mkdir(Inode* _dir, const char* name)
+{
+    RamInode* newdir = ramfs_alloc_inode(_dir->sb);
+
+    if (!newdir)
         return -1;
+
+    newdir->type = IT_DIR;
+
+    if (add_dirent(_dir, name, newdir) < 0)
+        return -1;
+
+    // nlinks should be 1 so now its allocated
+
+    newdir->size = 2 * sizeof(RamDirent);
+    newdir->data = kmalloc(newdir->size);
+
+    RamDirent* dirents = (RamDirent*)newdir->data;
+
+    dirents[0].ino = newdir->ino;
+    newdir->nlinks++;
+    strcpy(dirents[0].name, ".");
+    dirents[0].type = IT_DIR;
+
+    RamInode* dir = from_inode(_dir);
+
+    dirents[1].ino = dir->ino;
+    dir->nlinks++;
+    strcpy(dirents[1].name, "..");
+    dirents[1].type = IT_DIR;
+
+    return 0;
+}
+
+int ramfs_lookup(Inode* _dir, const char* name, Inode* result)
+{
+    RamInode* dir = from_inode(_dir);
 
     RamDirent* dirents = (RamDirent*)dir->data;
     int count = dir->size / sizeof(RamDirent);
