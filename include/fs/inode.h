@@ -76,6 +76,7 @@ struct InodeTable
     Inode inodes[INODE_TABLE_SIZE];
 
     Inode* insert(Inode* inode);
+    size_t get_sb_refs(Superblock* sb);
 
     void debug();
 };

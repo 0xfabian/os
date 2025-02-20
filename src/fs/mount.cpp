@@ -120,32 +120,9 @@ int Mount::mount_root(Device* dev, Filesystem* fs)
 
 int Mount::unmount()
 {
-    if (root_mount == this)
+    if (this == root_mount || submounts || inode_table.get_sb_refs(sb) > 1)
     {
-        kprintf(WARN "unmount(): cannot unmount root mount\n");
-        return -1;
-    }
-
-    if (submounts)
-    {
-        kprintf(WARN "unmount(): mount has submounts\n");
-        return -1;
-    }
-
-    // this should probably be a function on the inode table
-    size_t refs = 0;
-
-    for (int i = 0; i < INODE_TABLE_SIZE; i++)
-    {
-        Inode* inode = &inode_table.inodes[i];
-
-        if (inode->sb == sb)
-            refs += inode->refs;
-    }
-
-    if (refs > 1)
-    {
-        kprintf(WARN "unmount(): mount has %d references\n", refs);
+        kprintf(WARN "unmount(): mount is busy\n");
         return -1;
     }
 

@@ -199,6 +199,17 @@ Inode* InodeTable::insert(Inode* inode)
     return free;
 }
 
+size_t InodeTable::get_sb_refs(Superblock* sb)
+{
+    size_t refs = 0;
+
+    for (Inode* i = &inodes[0]; i < &inodes[INODE_TABLE_SIZE]; i++)
+        if (i->refs && i->sb == sb)
+            refs += i->refs;
+
+    return refs;
+}
+
 void InodeTable::debug()
 {
     kprintf("Inode table:\n{\n");
