@@ -1,15 +1,22 @@
-// #pragma once
+#pragma once
 
-// #include <fs/filesystem.h>
+#include <fs/fstype.h>
 
-// struct SuperblockOps
-// {
+struct Inode;
 
-// };
+struct SuperblockOps
+{
+    int (*sync) (struct Superblock* sb);
+};
 
-// struct Superblock
-// {
-//     Filesystem* fs;
-//     Inode* root;
-//     void* data;
-// };
+struct Superblock
+{
+    Filesystem* fs;
+    Device* dev;
+    Inode* root;
+    void* data;
+
+    SuperblockOps ops;
+
+    void destroy();
+};
