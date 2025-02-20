@@ -4,17 +4,7 @@
 #include <arch/idt.h>
 
 #include <fs/mount.h>
-
-Superblock* ext2_mount(Device* dev)
-{
-    return (Superblock*)1;
-}
-
-Filesystem ext2 =
-{
-    .name = "ext2",
-    .mount = ext2_mount
-};
+#include <fs/ramfs/ramfs.h>
 
 extern "C" void kmain(void)
 {
@@ -33,13 +23,49 @@ extern "C" void kmain(void)
 
     heap.init(2000);
 
-    ext2.register_self();
+    heap.debug();
 
-    fs_table.debug();
+    ramfs.register_self();
 
-    Mount::mount_root(nullptr, &ext2);
+    Mount::mount_root(nullptr, &ramfs);
 
     mount_table.debug();
+
+    inode_table.debug();
+
+    file_table.debug();
+
+    kprintf("File::open(\"/hello.txt\", 0)\n");
+    File* file = File::open("/hello.txt", 0);
+
+    inode_table.debug();
+    file_table.debug();
+
+    char buf[256];
+
+    kprintf("File::read(buf, 100)\n");
+    size_t bytes = file->read(buf, 100);
+    kprintf("returned %d bytes\n", bytes);
+
+    for (size_t i = 0; i < bytes; i++)
+        kprintf("%c", buf[i]);
+
+    kprintf("file->close()\n");
+    file->close();
+
+    inode_table.debug();
+    file_table.debug();
+
+    heap.debug();
+
+    kprintf("root_mount->unmount()\n");
+    root_mount->unmount();
+
+    heap.debug();
+
+    ramfs.unregister();
+
+    heap.debug();
 
     idle();
 }
