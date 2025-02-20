@@ -1,70 +1,77 @@
 #include <fs/fstype.h>
 
-FilesystemType* head = nullptr;
-FilesystemType* tail = nullptr;
+FilesystemTable fs_table;
 
-void register_fs(FilesystemType* fs)
+Filesystem* Filesystem::find(const char* name)
 {
-    fs->next = nullptr;
-    fs->active_mounts = 0;
-
-    if (!head)
-    {
-        head = fs;
-        tail = head;
-    }
-    else
-    {
-        tail->next = fs;
-        tail = fs;
-    }
+    return fs_table.find(name);
 }
 
-int unregister_fs(FilesystemType* fs)
+bool Filesystem::requires_device()
 {
-    FilesystemType* prev = nullptr;
-    FilesystemType* current = head;
+    return flags & FS_REQUIRES_DEV;
+}
 
-    while (current)
+void Filesystem::register_self()
+{
+    fs_table.add(this);
+}
+
+void Filesystem::unregister()
+{
+    if (active_mounts)
     {
-        if (current == fs)
+        kprintf(WARN "unregister(): filesystem still has active mounts\n");
+        return;
+    }
+
+    fs_table.remove(this);
+}
+
+void FilesystemTable::add(Filesystem* fs)
+{
+    for (int i = 0; i < FS_TABLE_SIZE; i++)
+    {
+        if (!filesystems[i])
         {
-            if (fs->active_mounts)
-            {
-                kprintf(WARN "unregister_fs(): filesystem has active mounts\n");
-                return -1;
-            }
-
-            if (prev)
-                prev->next = current->next;
-            else
-                head = current->next;
-
-            if (tail == current)
-                tail = prev;
-
-            return 0;
+            filesystems[i] = fs;
+            return;
         }
+    }
 
-        prev = current;
-        current = current->next;
+    kprintf(WARN "register_fs(): filesystem table full\n");
+}
+
+void  FilesystemTable::remove(Filesystem* fs)
+{
+    for (int i = 0; i < FS_TABLE_SIZE; i++)
+    {
+        if (filesystems[i] == fs)
+        {
+            filesystems[i] = nullptr;
+            return;
+        }
     }
 
     kprintf(WARN "unregister_fs(): filesystem not found\n");
-    return -1;
 }
 
-FilesystemType* find_fs(const char* name)
+Filesystem* FilesystemTable::find(const char* name)
 {
-    FilesystemType* fs = head;
-
-    while (fs)
-    {
-        if (strcmp(fs->name, name) == 0)
-            return fs;
-
-        fs = fs->next;
-    }
+    for (int i = 0; i < FS_TABLE_SIZE; i++)
+        if (filesystems[i] && !strcmp(filesystems[i]->name, name))
+            return filesystems[i];
 
     return nullptr;
+}
+
+void FilesystemTable::debug()
+{
+    kprintf("Filesystem table:\n{\n");
+
+    for (int i = 0; i < FS_TABLE_SIZE; i++)
+        if (filesystems[i])
+            kprintf("    %s\n", filesystems[i]->name);
+
+    kprintf("}\n");
 }

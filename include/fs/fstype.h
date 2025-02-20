@@ -2,21 +2,40 @@
 
 #include <cstdint>
 #include <cstddef>
-#include <utils.h>
+#include <string.h>
 #include <print.h>
-// #include <ds/table.h>
+
+#define FS_REQUIRES_DEV 1
 
 struct Superblock;
+struct Device;
 
-struct FilesystemType
+struct Filesystem
 {
     const char* name;
+    uint32_t flags;
     size_t active_mounts;
-    Superblock* (*mount)(const char* dev);
 
-    FilesystemType* next;
+    Superblock* (*mount)(Device* dev);
+
+    static Filesystem* find(const char* name);
+
+    bool requires_device();
+    void register_self();
+    void unregister();
 };
 
-void register_fs(FilesystemType* fs);
-int unregister_fs(FilesystemType* fs);
-FilesystemType* find_fs(const char* name);
+#define FS_TABLE_SIZE 16
+
+struct FilesystemTable
+{
+    Filesystem* filesystems[FS_TABLE_SIZE];
+
+    void add(Filesystem* fs);
+    void remove(Filesystem* fs);
+    Filesystem* find(const char* name);
+
+    void debug();
+};
+
+extern FilesystemTable fs_table;
