@@ -22,9 +22,18 @@ int strcmp(const char* s1, const char* s2)
     return *(unsigned char*)s1 - *(unsigned char*)s2;
 }
 
+char* strcpy(char* dest, const char* src)
+{
+    size_t len = strlen(src);
+
+    memcpy((void*)dest, (void*)src, len + 1);
+
+    return dest;
+}
+
 char* strdup(const char* str)
 {
-    int len = strlen(str);
+    size_t len = strlen(str);
 
     char* dup = (char*)kmalloc(len + 1);
 
