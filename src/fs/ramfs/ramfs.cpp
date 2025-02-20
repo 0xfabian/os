@@ -234,7 +234,7 @@ int ramfs_iterate(File* file, void* buf, size_t size)
     size_t len = strlen(dirent->name);
 
     if (len + 1 > size)
-        return -1;
+        return -2;
 
     strcpy((char*)buf, dirent->name);
 
