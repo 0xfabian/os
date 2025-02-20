@@ -2,6 +2,7 @@
 
 #include <fs/fstype.h>
 #include <fs/inode.h>
+#include <fs/superblock.h>
 
 struct Mountpoint
 {
@@ -18,10 +19,13 @@ struct Mount
 
     static Mount* find(Inode* inode);
     static Mount* find(Superblock* sb);
+
     static int fill_mount(Mount* mnt, Device* dev, Filesystem* fs);
     static int mount(const char* target, Device* dev, Filesystem* fs);
     static int mount_root(Device* dev, Filesystem* fs);
     int unmount();
+
+    Inode* get_root();
 };
 
 #define MOUNT_TABLE_SIZE 64

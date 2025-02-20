@@ -1,4 +1,5 @@
 #include <fs/mount.h>
+#include <mem/heap.h>
 
 MountTable mount_table;
 Mount* root_mount;
@@ -24,7 +25,7 @@ int Mount::fill_mount(Mount* mnt, Device* dev, Filesystem* fs)
     // maybe check also warn if fs doesnt require device but dev is provided
     // more care if the device is already in a mount
 
-    Superblock* sb = fs->mount(dev);
+    Superblock* sb = fs->create_sb(fs, dev);
 
     if (!sb)
         return -1;
@@ -46,12 +47,16 @@ int get_target(const char* target, Inode** out)
 
     if (!inode->is_dir())
     {
+        inode->put();
+
         kprintf(WARN "get_target_inode(): target is not a directory\n");
         return -1;
     }
 
     if (Mount::find(inode))
     {
+        inode->put();
+
         kprintf(WARN "get_target_inode(): already existing mount at target\n");
         return -1;
     }
@@ -127,17 +132,44 @@ int Mount::unmount()
         return -1;
     }
 
-    // here should loop through all inodes and get the total ref count for this sb
-    // if it's 1, then we can unmount
+    // this should probably be a function on the inode table
+    size_t refs = 0;
 
-    // sb->unmount() here
+    for (int i = 0; i < INODE_TABLE_SIZE; i++)
+    {
+        Inode* inode = &inode_table.inodes[i];
 
-    // kfree(mp.path);
-    // mp.inode = nullptr;
-    // sb = nullptr;
-    // parent = nullptr;
+        if (inode->sb == sb)
+            refs += inode->refs;
+    }
+
+    if (refs > 1)
+    {
+        kprintf(WARN "unmount(): mount has %d references\n", refs);
+        return -1;
+    }
+
+    // maybe should sync here
+
+    sb->destroy();
+    sb = nullptr;
+
+    kfree(mp.path);
+
+    mp.inode->put();
+    mp.inode = nullptr;
+
+    parent = nullptr;
 
     return 0;
+}
+
+Inode* Mount::get_root()
+{
+    Inode* root = sb->root;
+    root->refs++;
+
+    return root;
 }
 
 Mount* MountTable::alloc()
@@ -179,7 +211,12 @@ void MountTable::debug()
         if (!mnt->sb)
             continue;
 
-        kprintf("    %s (%s) inside %s\n", mnt->mp.path, "fs name", mnt->parent ? mnt->parent->mp.path : "(null)");
+        kprintf("    %s (%s)", mnt->mp.path, mnt->sb->fs->name);
+
+        if (mnt->parent)
+            kprintf(" inside %s", mnt->parent->mp.path);
+
+        kprintf("\n");
     }
 
     kprintf("}\n");
