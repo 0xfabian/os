@@ -223,18 +223,15 @@ int ramfs_iterate(File* file, void* buf, size_t size)
     if (file->offset >= file->inode->size)
         return 0;
 
-    RamInode* inode = from_inode(file->inode);
+    RamInode* dir = from_inode(file->inode);
 
-    if (inode->type != IT_DIR)
-        return -1;
-
-    RamDirent* dirents = (RamDirent*)inode->data;
+    RamDirent* dirents = (RamDirent*)dir->data;
     RamDirent* dirent = &dirents[file->offset / sizeof(RamDirent)];
 
     size_t len = strlen(dirent->name);
 
     if (len + 1 > size)
-        return -2;
+        return -1;
 
     strcpy((char*)buf, dirent->name);
 

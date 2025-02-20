@@ -130,6 +130,9 @@ int File::iterate(void* buf, size_t size)
 {
     if (ops.iterate)
     {
+        if (!inode->is_dir())
+            return -1;
+
         int ret = ops.iterate(this, buf, size);
 
         if (ret < 0)
