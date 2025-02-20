@@ -8,7 +8,10 @@ File* File::open(const char* path, uint32_t flags)
 
     // // should probably check if is O_CREAT
     if (!inode)
+    {
+        kprintf(WARN "open(): `%s` not found\n", path);
         return nullptr;
+    }
 
     File* file = file_table.alloc();
 
@@ -81,7 +84,16 @@ int File::close()
 int File::read(char* buf, size_t size)
 {
     if (ops.read)
-        return ops.read(this, buf, size, offset);
+    {
+        int ret = ops.read(this, buf, size, offset);
+
+        if (ret < 0)
+            return ret;
+
+        offset += ret;
+
+        return ret;
+    }
 
     kprintf(WARN "read(): called but not implemented\n");
     return -1;
@@ -90,18 +102,45 @@ int File::read(char* buf, size_t size)
 int File::write(const char* buf, size_t size)
 {
     if (ops.write)
-        return ops.write(this, buf, size, offset);
+    {
+        int ret = ops.write(this, buf, size, offset);
+
+        if (ret < 0)
+            return ret;
+
+        offset += ret;
+
+        return ret;
+    }
 
     kprintf(WARN "write(): called but not implemented\n");
     return -1;
 }
 
-int File::seek(size_t offset, int whence)
+size_t File::seek(size_t offset, int whence)
 {
     if (ops.seek)
         return ops.seek(this, offset, whence);
 
     kprintf(WARN "seek(): called but not implemented\n");
+    return -1;
+}
+
+int File::iterate(void* buf, size_t size)
+{
+    if (ops.iterate)
+    {
+        int ret = ops.iterate(this, buf, size);
+
+        if (ret < 0)
+            return ret;
+
+        offset += ret;
+
+        return ret;
+    }
+
+    kprintf(WARN "iterate(): called but not implemented\n");
     return -1;
 }
 
@@ -143,8 +182,34 @@ void FileTable::debug()
         if (file->ops.seek)
             kprintf("seek ");
 
+        if (file->ops.iterate)
+            kprintf("iterate ");
+
         kprintf("\n");
     }
 
     kprintf("}\n");
+}
+
+size_t generic_seek(File* file, size_t offset, int whence)
+{
+    switch (whence)
+    {
+    case SEEK_SET:
+        file->offset = offset;
+        break;
+
+    case SEEK_CUR:
+        file->offset += offset;
+        break;
+
+    case SEEK_END:
+        file->offset = file->inode->size + offset;
+        break;
+
+    default:
+        return -1;
+    }
+
+    return file->offset;
 }

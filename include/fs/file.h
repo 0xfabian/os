@@ -3,6 +3,10 @@
 #include <print.h>
 #include <fs/inode.h>
 
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 struct File
 {
     size_t offset;
@@ -17,7 +21,8 @@ struct File
 
     int read(char* buf, size_t size);
     int write(const char* buf, size_t size);
-    int seek(size_t offset, int whence);
+    size_t seek(size_t offset, int whence);
+    int iterate(void* buf, size_t size);
 };
 
 #define FILE_TABLE_SIZE 256
@@ -32,3 +37,5 @@ struct FileTable
 };
 
 extern FileTable file_table;
+
+size_t generic_seek(File* file, size_t offset, int whence);
