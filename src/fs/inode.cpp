@@ -1,11 +1,12 @@
 #include <fs/inode.h>
+#include <fs/mount.h>
 
 InodeTable inode_table;
 
 Inode* Inode::get(const char* path)
 {
     // this sould be running->fs.get_root() or .get_cwd()
-    Inode* inode = nullptr;
+    Inode* inode = root_mount->get_root();
 
     if (!inode)
         return nullptr;
@@ -17,15 +18,15 @@ Inode* Inode::get(const char* path)
         if (name[0] == '.' && name[1] == '\0')
             continue;
 
-        // // is this inode a mountpoint?
-        // Mount* mnt = Mount::find(inode);
+        // is this inode a mountpoint?
+        Mount* mnt = Mount::find(inode);
 
-        // if (mnt)
-        // {
-        //     // yes, so we switch to the mounts root
-        //     inode->put();
-        //     inode = mnt->get_root();
-        // }
+        if (mnt)
+        {
+            // yes, so we switch to the mounts root
+            inode->put();
+            inode = mnt->get_root();
+        }
 
         Inode* next = inode->lookup(name);
 
