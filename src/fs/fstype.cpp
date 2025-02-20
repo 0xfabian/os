@@ -19,9 +19,9 @@ void Filesystem::register_self()
 
 void Filesystem::unregister()
 {
-    if (active_mounts)
+    if (num_sb)
     {
-        kprintf(WARN "unregister(): filesystem still has active mounts\n");
+        kprintf(WARN "unregister(): filesystem still has active superblocks\n");
         return;
     }
 

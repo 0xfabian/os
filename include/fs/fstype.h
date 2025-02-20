@@ -14,9 +14,10 @@ struct Filesystem
 {
     const char* name;
     uint32_t flags;
-    size_t active_mounts;
+    size_t num_sb;
 
-    Superblock* (*mount)(Device* dev);
+    Superblock* (*create_sb)(Filesystem* fs, Device* dev);
+    void (*destroy_sb)(Superblock* sb);
 
     static Filesystem* find(const char* name);
 
