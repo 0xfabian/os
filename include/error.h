@@ -7,7 +7,10 @@ enum ErrorCode
     ERR_SUCCESS = 0,
     ERR_NOT_FOUND,
     ERR_NOT_DIR,
+    ERR_BAD_ARG,
     ERR_BAD_FD,
+    ERR_INODE_TABLE_FULL,
+    ERR_FILE_TABLE_FULL,
     ERR_FD_TABLE_FULL,
     ERR_MNT_EXISTS,
     ERR_NOT_IMPL,
@@ -47,5 +50,10 @@ struct result_ptr
             panic("result_ptr dereference");
 
         return ptr;
+    }
+
+    T* or_nullptr()
+    {
+        return is_error() ? nullptr : ptr;
     }
 };

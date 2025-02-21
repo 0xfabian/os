@@ -61,7 +61,7 @@ void ramfs_init(Superblock* sb)
     _root.ops = { ramfs_mkdir, ramfs_lookup, nullptr };
     _root.fops = { nullptr, nullptr, ramfs_read, nullptr, generic_seek, ramfs_iterate };
 
-    sb->root = inode_table.insert(&_root);
+    sb->root = inode_table.insert(&_root).or_nullptr();
 }
 
 void ramfs_free_all(Superblock* sb)

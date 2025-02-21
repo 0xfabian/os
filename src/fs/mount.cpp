@@ -45,14 +45,12 @@ int get_target(const char* target, Inode** out)
     if (!inode->is_dir())
     {
         inode->put();
-
         return -ERR_NOT_DIR;
     }
 
     if (Mount::find(inode.ptr))
     {
         inode->put();
-
         return -ERR_MNT_EXISTS;
     }
 
