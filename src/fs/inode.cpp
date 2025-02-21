@@ -48,16 +48,6 @@ result_ptr<Inode> Inode::get(const char* path)
         if (name[0] == '.' && name[1] == '\0')
             continue;
 
-        // is this inode a mountpoint?
-        Mount* mnt = Mount::find(inode);
-
-        if (mnt)
-        {
-            // yes, so we switch to the mounts root
-            inode->put();
-            inode = mnt->get_root();
-        }
-
         result_ptr<Inode> next = inode->lookup(name);
 
         if (!next)
@@ -74,6 +64,16 @@ result_ptr<Inode> Inode::get(const char* path)
         {
             next->put();
             return -ERR_NOT_DIR;
+        }
+
+        // is this inode a mountpoint?
+        Mount* mnt = Mount::find(inode);
+
+        if (mnt)
+        {
+            // yes, so we switch to the mounts root
+            inode->put();
+            inode = mnt->get_root();
         }
     }
 
