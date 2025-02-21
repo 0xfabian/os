@@ -10,8 +10,8 @@ struct FDTable
     File* files[FD_TABLE_SIZE] = { nullptr };
 
     int get_unused();
-    File* get(unsigned int fd);
+    result_ptr<File> get(unsigned int fd);
 
     int install(unsigned int fd, File* file);
-    File* uninstall(unsigned int fd);
+    result_ptr<File> uninstall(unsigned int fd);
 };
