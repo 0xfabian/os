@@ -36,10 +36,6 @@ char* path_read_next(const char*& ptr)
 
 result_ptr<Inode> Inode::get(const char* path)
 {
-    // this is temporary
-    if (!root_mount)
-        return -ERR_NOT_FOUND;
-
     // this sould be running->fs.get_root() or .get_cwd()
     Inode* inode = root_mount->get_root();
 
@@ -49,7 +45,6 @@ result_ptr<Inode> Inode::get(const char* path)
     char* name;
     while ((name = path_read_next(path)))
     {
-        // no need to search for .
         if (name[0] == '.' && name[1] == '\0')
             continue;
 
@@ -126,13 +121,10 @@ bool Inode::is_char_device()
 int Inode::mkdir(const char* name)
 {
     if (!ops.mkdir)
-    {
-        kprintf(WARN "mkdir(): called but not implemented\n");
-        return -1;
-    }
+        return -ERR_NOT_IMPL;
 
     if (!is_dir())
-        return -1;
+        return -ERR_NOT_DIR;
 
     // should check for existance with lookup
 
@@ -159,13 +151,13 @@ result_ptr<Inode> Inode::lookup(const char* name)
 
 int Inode::sync()
 {
-    if (ops.sync)
-        return ops.sync(this);
+    if (!ops.sync)
+        return 0;
 
-    return 0;
+    return ops.sync(this);
 }
 
-Inode* InodeTable::insert(Inode* inode)
+result_ptr<Inode> InodeTable::insert(Inode* inode)
 {
     // pointer to a free entry in the table
     Inode* free = nullptr;
@@ -191,10 +183,7 @@ Inode* InodeTable::insert(Inode* inode)
     // inode is not in the table so we create a new one
 
     if (!free)
-    {
-        kprintf(WARN "insert(): inode table is full\n");
-        return nullptr;
-    }
+        return -ERR_INODE_TABLE_FULL;
 
     *free = *inode;
 
