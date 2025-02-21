@@ -23,7 +23,6 @@ struct Filesystem
     Filesystem* next;
 
     static Filesystem* find(const char* name);
-    static void debug();
 
     int register_self();
     int unregister();
@@ -32,3 +31,5 @@ struct Filesystem
 };
 
 extern Filesystem* fs_list;
+
+void debug_filesystems();

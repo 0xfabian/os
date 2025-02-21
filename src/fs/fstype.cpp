@@ -13,16 +13,6 @@ Filesystem* Filesystem::find(const char* name)
     return nullptr;
 }
 
-void Filesystem::debug()
-{
-    kprintf("Filesystems:\n{\n");
-
-    for (Filesystem* fs = fs_list; fs; fs = fs->next)
-        kprintf("    %s\n", fs->name);
-
-    kprintf("}\n");
-}
-
 int Filesystem::register_self()
 {
     Filesystem* fs = find(name);
@@ -86,4 +76,14 @@ int Filesystem::unregister()
 bool Filesystem::requires_device()
 {
     return flags & FS_REQUIRES_DEV;
+}
+
+void debug_filesystems()
+{
+    kprintf("Filesystems:\n{\n");
+
+    for (Filesystem* fs = fs_list; fs; fs = fs->next)
+        kprintf("    %s\n", fs->name);
+
+    kprintf("}\n");
 }
