@@ -5,6 +5,7 @@
 enum ErrorCode
 {
     ERR_SUCCESS = 0,
+    ERR_NO_MEM,
     ERR_NOT_FOUND,
     ERR_NOT_DIR,
     ERR_BAD_ARG,
@@ -13,6 +14,9 @@ enum ErrorCode
     ERR_FILE_TABLE_FULL,
     ERR_FD_TABLE_FULL,
     ERR_MNT_EXISTS,
+    ERR_FS_EXISTS,
+    ERR_FS_BUSY,
+    ERR_MNT_BUSY,
     ERR_NOT_IMPL,
     ERR_MAX_CODE = 4095
 };
