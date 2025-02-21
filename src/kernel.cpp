@@ -6,8 +6,6 @@
 #include <fs/mount.h>
 #include <fs/ramfs/ramfs.h>
 
-#include <error.h>
-
 extern "C" void kmain(void)
 {
     if (!LIMINE_BASE_REVISION_SUPPORTED)
