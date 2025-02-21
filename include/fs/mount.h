@@ -21,8 +21,8 @@ struct Mount
     static Mount* find(Superblock* sb);
 
     static int fill_mount(Mount* mnt, Device* dev, Filesystem* fs);
-    static int mount(const char* target, Device* dev, Filesystem* fs);
-    static int mount_root(Device* dev, Filesystem* fs);
+    static result_ptr<Mount> mount(const char* target, Device* dev, Filesystem* fs);
+    static result_ptr<Mount> mount_root(Device* dev, Filesystem* fs);
     int unmount();
 
     Inode* get_root();
@@ -30,16 +30,7 @@ struct Mount
 
 #define MOUNT_TABLE_SIZE 64
 
-struct MountTable
-{
-    Mount mounts[MOUNT_TABLE_SIZE];
-
-    Mount* alloc();
-    Mount* find(Inode* inode);
-    Mount* find(Superblock* sb);
-
-    void debug();
-};
-
-extern MountTable mount_table;
+extern Mount mounts[MOUNT_TABLE_SIZE];
 extern Mount* root_mount;
+
+void debug_mounts();

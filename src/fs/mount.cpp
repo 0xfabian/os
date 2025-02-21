@@ -1,26 +1,40 @@
 #include <fs/mount.h>
 #include <mem/heap.h>
 
-MountTable mount_table;
+Mount mounts[MOUNT_TABLE_SIZE];
 Mount* root_mount;
+
+result_ptr<Mount> alloc()
+{
+    for (Mount* mnt = &mounts[0]; mnt < &mounts[MOUNT_TABLE_SIZE]; mnt++)
+        if (!mnt->sb)
+            return mnt;
+
+    return -ERR_MNT_TABLE_FULL;
+}
 
 Mount* Mount::find(Inode* inode)
 {
-    return mount_table.find(inode);
+    for (Mount* mnt = &mounts[0]; mnt < &mounts[MOUNT_TABLE_SIZE]; mnt++)
+        if (mnt->sb && mnt->mp.inode == inode)
+            return mnt;
+
+    return nullptr;
 }
 
 Mount* Mount::find(Superblock* sb)
 {
-    return mount_table.find(sb);
+    for (Mount* mnt = &mounts[0]; mnt < &mounts[MOUNT_TABLE_SIZE]; mnt++)
+        if (mnt->sb && mnt->sb == sb)
+            return mnt;
+
+    return nullptr;
 }
 
 int Mount::fill_mount(Mount* mnt, Device* dev, Filesystem* fs)
 {
     if (fs->requires_device() && !dev)
-    {
-        kprintf(WARN "mount_root(): filesystem requires device\n");
-        return -1;
-    }
+        return -ERR_NO_DEV;
 
     // maybe check also warn if fs doesnt require device but dev is provided
     // more care if the device is already in a mount
@@ -35,9 +49,9 @@ int Mount::fill_mount(Mount* mnt, Device* dev, Filesystem* fs)
     return 0;
 }
 
-int get_target(const char* target, Inode** out)
+result_ptr<Inode> get_target(const char* target)
 {
-    result_ptr<Inode> inode = Inode::get(target);
+    auto inode = Inode::get(target);
 
     if (!inode)
         return inode.error();
@@ -54,70 +68,69 @@ int get_target(const char* target, Inode** out)
         return -ERR_MNT_EXISTS;
     }
 
-    *out = inode.ptr;
-
-    return 0;
+    return inode;
 }
 
-int Mount::mount(const char* target, Device* dev, Filesystem* fs)
+result_ptr<Mount> Mount::mount(const char* target, Device* dev, Filesystem* fs)
 {
-    Inode* inode;
+    // this gives a new reference so we need to ->put on error
+    auto inode = get_target(target);
 
-    int err = get_target(target, &inode);
+    if (!inode)
+        return inode.error();
 
-    if (err)
-        return err;
-
-    Mount* mnt = mount_table.alloc();
+    auto mnt = alloc();
 
     if (!mnt)
-        return -1;
+    {
+        inode->put();
+        return mnt.error();
+    }
 
-    err = fill_mount(mnt, dev, fs);
+    int err = fill_mount(mnt.ptr, dev, fs);
 
     if (err)
+    {
+        inode->put();
         return err;
+    }
 
     mnt->mp.path = strdup(target);
-    mnt->mp.inode = inode;
+    mnt->mp.inode = inode.ptr;
     mnt->parent = Mount::find(inode->sb);
     mnt->parent->submounts++;
 
-    return 0;
+    return mnt;
 }
 
-int Mount::mount_root(Device* dev, Filesystem* fs)
+result_ptr<Mount> Mount::mount_root(Device* dev, Filesystem* fs)
 {
     if (root_mount)
-    {
-        kprintf(WARN "mount_root(): root mount already exists\n");
-        return -1;
-    }
+        return -ERR_MNT_EXISTS;
 
-    root_mount = mount_table.alloc();
+    auto mnt = alloc();
 
-    if (!root_mount)
-        return -1;
+    if (!mnt)
+        return mnt.error();
 
-    int err = fill_mount(root_mount, dev, fs);
+    int err = fill_mount(mnt.ptr, dev, fs);
 
     if (err)
         return err;
 
-    root_mount->mp.path = strdup("/");
-    root_mount->mp.inode = nullptr;
-    root_mount->parent = nullptr;
+    mnt->mp.path = strdup("/");
+    mnt->mp.inode = nullptr;
+    mnt->parent = nullptr;
 
-    return 0;
+    root_mount = mnt.ptr;
+
+    return mnt;
 }
 
 int Mount::unmount()
 {
     if (this == root_mount || submounts || inode_table.get_sb_refs(sb) > 1)
-    {
-        kprintf(WARN "unmount(): mount is busy\n");
-        return -1;
-    }
+        return -ERR_MNT_BUSY;
 
     // maybe should sync here
 
@@ -129,6 +142,7 @@ int Mount::unmount()
     mp.inode->put();
     mp.inode = nullptr;
 
+    parent->submounts--;
     parent = nullptr;
 
     return 0;
@@ -142,35 +156,7 @@ Inode* Mount::get_root()
     return root;
 }
 
-Mount* MountTable::alloc()
-{
-    for (Mount* mnt = &mounts[0]; mnt < &mounts[MOUNT_TABLE_SIZE]; mnt++)
-        if (!mnt->sb)
-            return mnt;
-
-    kprintf(WARN "alloc(): mount table is full\n");
-    return nullptr;
-}
-
-Mount* MountTable::find(Inode* inode)
-{
-    for (Mount* mnt = &mounts[0]; mnt < &mounts[MOUNT_TABLE_SIZE]; mnt++)
-        if (mnt->sb && mnt->mp.inode == inode)
-            return mnt;
-
-    return nullptr;
-}
-
-Mount* MountTable::find(Superblock* sb)
-{
-    for (Mount* mnt = &mounts[0]; mnt < &mounts[MOUNT_TABLE_SIZE]; mnt++)
-        if (mnt->sb && mnt->sb == sb)
-            return mnt;
-
-    return nullptr;
-}
-
-void MountTable::debug()
+void debug_mounts()
 {
     kprintf("Mount table:\n{\n");
 
