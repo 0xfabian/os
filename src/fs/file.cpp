@@ -2,16 +2,13 @@
 
 FileTable file_table;
 
-File* File::open(const char* path, uint32_t flags)
+result_ptr<File> File::open(const char* path, uint32_t flags)
 {
-    Inode* inode = Inode::get(path);
+    result_ptr<Inode> inode = Inode::get(path);
 
     // should probably check if is O_CREAT
     if (!inode)
-    {
-        kprintf(WARN "open(): `%s` not found\n", path);
-        return nullptr;
-    }
+        return inode.error();
 
     File* file = file_table.alloc();
 
@@ -24,7 +21,7 @@ File* File::open(const char* path, uint32_t flags)
     file->offset = 0;
     file->flags = flags;
     file->refs = 1;
-    file->inode = inode;
+    file->inode = inode.ptr;
 
     if (inode->is_device())
     {
@@ -49,7 +46,7 @@ File* File::open(const char* path, uint32_t flags)
         file->refs = 0;
         inode->put();
 
-        return nullptr;
+        return -ERR_NOT_IMPL;
     }
     else
         file->ops = inode->fops;

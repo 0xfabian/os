@@ -37,31 +37,26 @@ int Mount::fill_mount(Mount* mnt, Device* dev, Filesystem* fs)
 
 int get_target(const char* target, Inode** out)
 {
-    Inode* inode = Inode::get(target);
+    result_ptr<Inode> inode = Inode::get(target);
 
     if (!inode)
-    {
-        kprintf(WARN "get_target_inode(): target not found\n");
-        return -1;
-    }
+        return inode.error();
 
     if (!inode->is_dir())
     {
         inode->put();
 
-        kprintf(WARN "get_target_inode(): target is not a directory\n");
-        return -1;
+        return -ERR_NOT_DIR;
     }
 
-    if (Mount::find(inode))
+    if (Mount::find(inode.ptr))
     {
         inode->put();
 
-        kprintf(WARN "get_target_inode(): already existing mount at target\n");
-        return -1;
+        return -ERR_MNT_EXISTS;
     }
 
-    *out = inode;
+    *out = inode.ptr;
 
     return 0;
 }

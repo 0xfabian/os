@@ -16,7 +16,7 @@ struct File
 
     FileOps ops;
 
-    static File* open(const char* path, uint32_t flags);
+    static result_ptr<File> open(const char* path, uint32_t flags);
     int close();
 
     int read(char* buf, size_t size);

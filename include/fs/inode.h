@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <print.h>
+#include <error.h>
 
 #define IT_FIFO 0x1000
 #define IT_CDEV 0x2000
@@ -55,7 +56,7 @@ struct Inode
     InodeOps ops;
     FileOps fops;
 
-    static Inode* get(const char* path);
+    static result_ptr<Inode> get(const char* path);
     void put();
 
     bool is_reg();
@@ -65,7 +66,7 @@ struct Inode
     bool is_char_device();
 
     int mkdir(const char* name);
-    Inode* lookup(const char* name);
+    result_ptr<Inode> lookup(const char* name);
     int sync();
 };
 

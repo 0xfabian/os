@@ -34,13 +34,17 @@ char* path_read_next(const char*& ptr)
     return path_read_data;
 }
 
-Inode* Inode::get(const char* path)
+result_ptr<Inode> Inode::get(const char* path)
 {
+    // this is temporary
+    if (!root_mount)
+        return -ERR_NOT_FOUND;
+
     // this sould be running->fs.get_root() or .get_cwd()
     Inode* inode = root_mount->get_root();
 
     if (!inode)
-        return nullptr;
+        return -ERR_NOT_FOUND;
 
     char* name;
     while ((name = path_read_next(path)))
@@ -59,15 +63,14 @@ Inode* Inode::get(const char* path)
             inode = mnt->get_root();
         }
 
-        Inode* next = inode->lookup(name);
+        result_ptr<Inode> next = inode->lookup(name);
+
+        if (!next)
+            return next.error();
 
         // switch to the next
         inode->put();
-        inode = next;
-
-        // no entry found
-        if (!next)
-            return nullptr;
+        inode = next.ptr;
 
         // check for symlink here
 
@@ -75,7 +78,7 @@ Inode* Inode::get(const char* path)
         if (*path != '\0' && !next->is_dir())
         {
             next->put();
-            return nullptr;
+            return -ERR_NOT_DIR;
         }
     }
 
@@ -136,21 +139,20 @@ int Inode::mkdir(const char* name)
     return ops.mkdir(this, name);
 }
 
-Inode* Inode::lookup(const char* name)
+result_ptr<Inode> Inode::lookup(const char* name)
 {
     if (!ops.lookup)
-    {
-        kprintf(WARN "lookup(): called but not implemented\n");
-        return nullptr;
-    }
+        return -ERR_NOT_IMPL;
 
     if (!is_dir())
-        return nullptr;
+        return -ERR_NOT_DIR;
 
     Inode temp;
 
-    if (ops.lookup(this, name, &temp) < 0)
-        return nullptr;
+    int err = ops.lookup(this, name, &temp);
+
+    if (err < 0)
+        return err;
 
     return inode_table.insert(&temp);
 }
