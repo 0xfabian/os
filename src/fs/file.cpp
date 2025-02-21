@@ -4,18 +4,18 @@ FileTable file_table;
 
 result_ptr<File> File::open(const char* path, uint32_t flags)
 {
-    result_ptr<Inode> inode = Inode::get(path);
+    auto inode = Inode::get(path);
 
     // should probably check if is O_CREAT
     if (!inode)
         return inode.error();
 
-    File* file = file_table.alloc();
+    auto file = file_table.alloc();
 
     if (!file)
     {
         inode->put();
-        return nullptr;
+        return file.error();
     }
 
     file->offset = 0;
@@ -80,78 +80,67 @@ int File::close()
 
 int File::read(char* buf, size_t size)
 {
-    if (ops.read)
-    {
-        int ret = ops.read(this, buf, size, offset);
+    if (!ops.read)
+        return -ERR_NOT_IMPL;
 
-        if (ret < 0)
-            return ret;
+    int ret = ops.read(this, buf, size, offset);
 
-        offset += ret;
-
+    if (ret < 0)
         return ret;
-    }
 
-    kprintf(WARN "read(): called but not implemented\n");
-    return -1;
+    offset += ret;
+
+    return ret;
 }
 
 int File::write(const char* buf, size_t size)
 {
-    if (ops.write)
-    {
-        int ret = ops.write(this, buf, size, offset);
+    if (!ops.write)
+        return -ERR_NOT_IMPL;
 
-        if (ret < 0)
-            return ret;
+    int ret = ops.write(this, buf, size, offset);
 
-        offset += ret;
-
+    if (ret < 0)
         return ret;
-    }
 
-    kprintf(WARN "write(): called but not implemented\n");
-    return -1;
+    offset += ret;
+
+    return ret;
 }
 
 size_t File::seek(size_t offset, int whence)
 {
-    if (ops.seek)
-        return ops.seek(this, offset, whence);
+    if (!ops.seek)
+        return -ERR_NOT_IMPL;
 
-    kprintf(WARN "seek(): called but not implemented\n");
-    return -1;
+    return ops.seek(this, offset, whence);
 }
 
 int File::iterate(void* buf, size_t size)
 {
-    if (ops.iterate)
-    {
-        if (!inode->is_dir())
-            return -1;
+    if (!ops.iterate)
+        return -ERR_NOT_IMPL;
 
-        int ret = ops.iterate(this, buf, size);
+    if (!inode->is_dir())
+        return -ERR_NOT_DIR;
 
-        if (ret < 0)
-            return ret;
+    int ret = ops.iterate(this, buf, size);
 
-        offset += ret;
-
+    if (ret < 0)
         return ret;
-    }
 
-    kprintf(WARN "iterate(): called but not implemented\n");
-    return -1;
+    offset += ret;
+
+    return ret;
 }
 
-File* FileTable::alloc()
+result_ptr<File> FileTable::alloc()
 {
     for (File* file = &files[0]; file < &files[FILE_TABLE_SIZE]; file++)
         if (file->refs == 0)
             return file;
 
-    kprintf(WARN "alloc(): file table is full\n");
-    return nullptr;
+    return -ERR_FILE_TABLE_FULL;
 }
 
 void FileTable::debug()
@@ -208,7 +197,7 @@ size_t generic_seek(File* file, size_t offset, int whence)
         break;
 
     default:
-        return -1;
+        return -ERR_BAD_ARG;
     }
 
     return file->offset;

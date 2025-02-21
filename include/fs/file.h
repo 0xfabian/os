@@ -31,7 +31,7 @@ struct FileTable
 {
     File files[FILE_TABLE_SIZE];
 
-    File* alloc();
+    result_ptr<File> alloc();
 
     void debug();
 };
