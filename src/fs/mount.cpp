@@ -4,7 +4,7 @@
 Mount mounts[MOUNT_TABLE_SIZE];
 Mount* root_mount;
 
-result_ptr<Mount> alloc()
+result_ptr<Mount> mnt_alloc()
 {
     for (Mount* mnt = &mounts[0]; mnt < &mounts[MOUNT_TABLE_SIZE]; mnt++)
         if (!mnt->sb)
@@ -79,7 +79,7 @@ result_ptr<Mount> Mount::mount(const char* target, Device* dev, Filesystem* fs)
     if (!inode)
         return inode.error();
 
-    auto mnt = alloc();
+    auto mnt = mnt_alloc();
 
     if (!mnt)
     {
@@ -108,7 +108,7 @@ result_ptr<Mount> Mount::mount_root(Device* dev, Filesystem* fs)
     if (root_mount)
         return -ERR_MNT_EXISTS;
 
-    auto mnt = alloc();
+    auto mnt = mnt_alloc();
 
     if (!mnt)
         return mnt.error();
