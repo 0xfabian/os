@@ -1,77 +1,89 @@
 #include <fs/fstype.h>
 
-FilesystemTable fs_table;
+Filesystem* fs_list = nullptr;
+Filesystem* tail = nullptr;
 
+// name should be unique for each filesystem
 Filesystem* Filesystem::find(const char* name)
 {
-    return fs_table.find(name);
+    for (Filesystem* fs = fs_list; fs; fs = fs->next)
+        if (strcmp(fs->name, name) == 0)
+            return fs;
+
+    return nullptr;
+}
+
+void Filesystem::debug()
+{
+    kprintf("Filesystems:\n{\n");
+
+    for (Filesystem* fs = fs_list; fs; fs = fs->next)
+        kprintf("    %s\n", fs->name);
+
+    kprintf("}\n");
+}
+
+int Filesystem::register_self()
+{
+    Filesystem* fs = find(name);
+
+    if (fs)
+        return (fs == this) ? 0 : -ERR_FS_EXISTS;
+
+    registered = true;
+    num_sb = 0;
+    next = nullptr;
+
+    if (fs_list)
+    {
+        tail->next = this;
+        tail = this;
+    }
+    else
+    {
+        fs_list = this;
+        tail = this;
+    }
+
+    return 0;
+}
+
+int Filesystem::unregister()
+{
+    if (!registered)
+        return 0;
+
+    if (num_sb)
+        return -ERR_FS_BUSY;
+
+    Filesystem* prev = nullptr;
+    Filesystem* fs = fs_list;
+
+    while (fs)
+    {
+        if (fs == this)
+        {
+            if (prev)
+                prev->next = next;
+            else
+                fs_list = next;
+
+            if (tail == this)
+                tail = prev;
+
+            registered = false;
+
+            return 0;
+        }
+
+        prev = fs;
+        fs = fs->next;
+    }
+
+    return -ERR_NOT_FOUND;
 }
 
 bool Filesystem::requires_device()
 {
     return flags & FS_REQUIRES_DEV;
-}
-
-void Filesystem::register_self()
-{
-    fs_table.add(this);
-}
-
-void Filesystem::unregister()
-{
-    if (num_sb)
-    {
-        kprintf(WARN "unregister(): filesystem still has active superblocks\n");
-        return;
-    }
-
-    fs_table.remove(this);
-}
-
-void FilesystemTable::add(Filesystem* fs)
-{
-    for (int i = 0; i < FS_TABLE_SIZE; i++)
-    {
-        if (!filesystems[i])
-        {
-            filesystems[i] = fs;
-            return;
-        }
-    }
-
-    kprintf(WARN "register_fs(): filesystem table full\n");
-}
-
-void  FilesystemTable::remove(Filesystem* fs)
-{
-    for (int i = 0; i < FS_TABLE_SIZE; i++)
-    {
-        if (filesystems[i] == fs)
-        {
-            filesystems[i] = nullptr;
-            return;
-        }
-    }
-
-    kprintf(WARN "unregister_fs(): filesystem not found\n");
-}
-
-Filesystem* FilesystemTable::find(const char* name)
-{
-    for (int i = 0; i < FS_TABLE_SIZE; i++)
-        if (filesystems[i] && !strcmp(filesystems[i]->name, name))
-            return filesystems[i];
-
-    return nullptr;
-}
-
-void FilesystemTable::debug()
-{
-    kprintf("Filesystem table:\n{\n");
-
-    for (int i = 0; i < FS_TABLE_SIZE; i++)
-        if (filesystems[i])
-            kprintf("    %s\n", filesystems[i]->name);
-
-    kprintf("}\n");
 }
