@@ -8,7 +8,7 @@
 
 extern Filesystem ramfs;
 
-Superblock* ramfs_create_sb(Filesystem* fs, Device* dev);
+result_ptr<Superblock> ramfs_create_sb(Filesystem* fs, Device* dev);
 void ramfs_destroy_sb(Superblock* sb);
 
 int ramfs_mkdir(Inode* dir, const char* name);

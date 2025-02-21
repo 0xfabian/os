@@ -25,12 +25,12 @@ int Mount::fill_mount(Mount* mnt, Device* dev, Filesystem* fs)
     // maybe check also warn if fs doesnt require device but dev is provided
     // more care if the device is already in a mount
 
-    Superblock* sb = fs->create_sb(fs, dev);
+    auto sb = fs->create_sb(fs, dev);
 
     if (!sb)
-        return -1;
+        return sb.error();
 
-    mnt->sb = sb;
+    mnt->sb = sb.ptr;
 
     return 0;
 }

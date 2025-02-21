@@ -238,7 +238,7 @@ int ramfs_iterate(File* file, void* buf, size_t size)
     return sizeof(RamDirent);
 }
 
-Superblock* ramfs_create_sb(Filesystem* fs, Device* dev)
+result_ptr<Superblock> ramfs_create_sb(Filesystem* fs, Device* dev)
 {
     Superblock* sb = (Superblock*)kmalloc(sizeof(Superblock));
     fs->num_sb++;
