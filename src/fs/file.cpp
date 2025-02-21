@@ -69,8 +69,8 @@ int File::close()
     //     wakeup_process();
 
     // if the file is a device call the devices close function
-    // if (inode->is_device() && ops.close)
-    //     ops.close(this);
+    if (inode->is_device() && ops.close)
+        ops.close(this);
 
     // now the file is gone so we should release the inode
     inode->put();
