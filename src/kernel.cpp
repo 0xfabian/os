@@ -6,6 +6,75 @@
 #include <fs/mount.h>
 #include <fs/ramfs/ramfs.h>
 
+void mount(const char* target, const char* dev, const char* fs_name)
+{
+    Filesystem* fs = Filesystem::find(fs_name);
+
+    if (!fs)
+    {
+        kprintf("Failed to find filesystem %s\n", fs_name);
+        return;
+    }
+
+    Device* bdev = nullptr;
+
+    if (dev[0] == '\0')
+        bdev = nullptr;
+    else if (root_mount)
+        bdev = (Device*)Inode::get(dev).or_nullptr();
+
+    if (target[0] == '/' && target[1] == '\0')
+        Mount::mount_root(bdev, fs);
+    else
+        Mount::mount(target, bdev, fs);;
+}
+
+void umount(const char* target)
+{
+    auto inode = Inode::get(target);
+
+    auto mnt = Mount::find(inode->sb);
+
+    inode->put();
+
+    mnt->unmount();
+}
+
+void list(const char* path)
+{
+    auto dir = File::open(path, 0);
+
+    if (!dir || !dir->inode->is_dir())
+    {
+        kprintf("Failed to open directory %s\n", path);
+        return;
+    }
+
+    kprintf("Listing %s:\n", path);
+
+    char buf[256];
+    while (dir->iterate(buf, sizeof(buf)))
+    {
+        kprintf("    %s\n", buf);
+    }
+
+    dir->close();
+}
+
+void mkdirat(const char* path, const char* name)
+{
+    auto dir = File::open(path, 0);
+
+    if (!dir || !dir->inode->is_dir())
+    {
+        kprintf("Failed to open directory %s\n", path);
+        return;
+    }
+
+    dir->inode->mkdir(name);
+    dir->close();
+}
+
 extern "C" void kmain(void)
 {
     if (!LIMINE_BASE_REVISION_SUPPORTED)
@@ -25,27 +94,35 @@ extern "C" void kmain(void)
 
     ramfs.register_self();
 
-    Mount::mount_root(nullptr, &ramfs);
+    kprintf("mounting root...\n");
+    mount("/", "", "ramfs");
 
-    result_ptr<File> dir = File::open("/", 0);
+    debug_mounts();
 
-    if (dir)
-    {
-        char buf[256];
+    kprintf("creating directories...\n");
+    mkdirat("/", "dev");
+    mkdirat("/dev", "root mount");
 
-        while (dir->iterate(buf, 256) > 0)
-            kprintf("%s\n", buf);
+    list("/dev");
 
-        dir->inode->mkdir("dev");
-        dir->inode->mkdir("proc");
+    kprintf("mounting /dev...\n");
+    mount("/dev/", "/", "ramfs");
 
-        dir->seek(0, SEEK_SET);
+    debug_mounts();
 
-        while (dir->iterate(buf, 256) > 0)
-            kprintf("%s\n", buf);
+    list("/dev");
 
-        dir->close();
-    }
+    kprintf("creating dir inside mount...\n");
+    mkdirat("/dev", "inside new mount");
+
+    list("/dev");
+
+    kprintf("umounting /dev...\n");
+    umount("/dev");
+
+    debug_mounts();
+
+    list("/dev");
 
     idle();
 }
