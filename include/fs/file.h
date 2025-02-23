@@ -23,6 +23,7 @@ struct File
     int write(const char* buf, size_t size);
     size_t seek(size_t offset, int whence);
     int iterate(void* buf, size_t size);
+    int ioctl(int cmd, void* arg);
 };
 
 #define FILE_TABLE_SIZE 256

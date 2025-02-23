@@ -134,6 +134,14 @@ int File::iterate(void* buf, size_t size)
     return ret;
 }
 
+int File::ioctl(int cmd, void* arg)
+{
+    if (!ops.ioctl)
+        return -ERR_NOT_IMPL;
+
+    return ops.ioctl(this, cmd, arg);
+}
+
 result_ptr<File> FileTable::alloc()
 {
     for (File* file = &files[0]; file < &files[FILE_TABLE_SIZE]; file++)
@@ -173,6 +181,9 @@ void FileTable::debug()
 
         if (file->ops.iterate)
             kprintf("iterate ");
+
+        if (file->ops.ioctl)
+            kprintf("ioctl ");
 
         kprintf("\n");
     }

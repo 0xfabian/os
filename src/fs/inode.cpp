@@ -116,8 +116,88 @@ bool Inode::is_char_device()
     return (type & IT_CDEV) == IT_CDEV;
 }
 
-// this should handle only name, not path
-// and the name should already be valid
+int Inode::create(const char* name)
+{
+    if (!ops.create)
+        return -ERR_NOT_IMPL;
+
+    if (!is_dir())
+        return -ERR_NOT_DIR;
+
+    auto found = lookup(name);
+
+    if (found)
+    {
+        found->put();
+        return -ERR_EXISTS;
+    }
+
+    return ops.create(this, name);
+}
+
+int Inode::mknod(const char* name, uint32_t dev)
+{
+    if (!ops.mknod)
+        return -ERR_NOT_IMPL;
+
+    if (!is_dir())
+        return -ERR_NOT_DIR;
+
+    auto found = lookup(name);
+
+    if (found)
+    {
+        found->put();
+        return -ERR_EXISTS;
+    }
+
+    return ops.mknod(this, name, dev);
+}
+
+int Inode::link(const char* name, Inode* inode)
+{
+    if (!ops.link)
+        return -ERR_NOT_IMPL;
+
+    if (!is_dir())
+        return -ERR_NOT_DIR;
+
+    if (inode->is_dir())
+        return -ERR_IS_DIR;
+
+    if (this->sb != inode->sb)
+        return -ERR_NOT_SAME_FS;
+
+    auto found = lookup(name);
+
+    if (found)
+    {
+        found->put();
+        return -ERR_EXISTS;
+    }
+
+    return ops.link(this, name, inode);
+}
+
+int Inode::unlink(const char* name)
+{
+    if (!ops.unlink)
+        return -ERR_NOT_IMPL;
+
+    if (!is_dir())
+        return -ERR_NOT_DIR;
+
+    auto inode = lookup(name);
+
+    if (!inode)
+        return inode.error();
+
+    inode->put();
+
+    return ops.unlink(this, name);
+}
+
+// just name, not path, also assumed to be valid
 int Inode::mkdir(const char* name)
 {
     if (!ops.mkdir)
@@ -126,9 +206,41 @@ int Inode::mkdir(const char* name)
     if (!is_dir())
         return -ERR_NOT_DIR;
 
-    // should check for existance with lookup
+    auto found = lookup(name);
+
+    if (found)
+    {
+        found->put();
+        return -ERR_EXISTS;
+    }
 
     return ops.mkdir(this, name);
+}
+
+int Inode::rmdir(const char* name)
+{
+    if (!ops.rmdir)
+        return -ERR_NOT_IMPL;
+
+    if (!is_dir())
+        return -ERR_NOT_DIR;
+
+    auto inode = lookup(name);
+
+    if (!inode)
+        return inode.error();
+
+    inode->put();
+
+    return ops.rmdir(this, name);
+}
+
+int Inode::truncate(size_t size)
+{
+    if (!ops.truncate)
+        return -ERR_NOT_IMPL;
+
+    return ops.truncate(this, size);
 }
 
 result_ptr<Inode> Inode::lookup(const char* name)
@@ -190,6 +302,15 @@ result_ptr<Inode> InodeTable::insert(Inode* inode)
     return free;
 }
 
+result_ptr<Inode> InodeTable::find(Superblock* sb, uint64_t ino)
+{
+    for (Inode* i = &inodes[0]; i < &inodes[INODE_TABLE_SIZE]; i++)
+        if (i->refs && i->sb == sb && i->ino == ino)
+            return i;
+
+    return -ERR_NOT_FOUND;
+}
+
 size_t InodeTable::get_sb_refs(Superblock* sb)
 {
     size_t refs = 0;
@@ -209,13 +330,31 @@ void InodeTable::debug()
     {
         Inode* inode = &inodes[i];
 
-        if (inode->refs == 0)
+        if (inode->refs == 0 && inode->nlinks == 0)
             continue;
 
-        kprintf("    %d: sb=%a ino=%lu type=%x size=%lu refs=%d ", i, inode->sb, inode->ino, inode->type, inode->size, inode->refs);
+        kprintf("    %d: sb=%a ino=%lu type=%x size=%lu refs=%d nlinks=%d ", i, inode->sb, inode->ino, inode->type, inode->size, inode->refs, inode->nlinks);
+
+        if (inode->ops.create)
+            kprintf("create ");
+
+        if (inode->ops.mknod)
+            kprintf("mknod ");
+
+        if (inode->ops.link)
+            kprintf("link ");
+
+        if (inode->ops.unlink)
+            kprintf("unlink ");
 
         if (inode->ops.mkdir)
             kprintf("mkdir ");
+
+        if (inode->ops.rmdir)
+            kprintf("rmdir ");
+
+        if (inode->ops.truncate)
+            kprintf("truncate ");
 
         if (inode->ops.lookup)
             kprintf("lookup ");

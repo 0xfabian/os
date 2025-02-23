@@ -19,16 +19,13 @@ struct File;
 
 struct InodeOps
 {
-    // create
-    // mknod
-    // rename
-    // link
-    // unlink
-    // rmdir
-    // update_time
-    // truncate
-
+    int (*create) (Inode* dir, const char* name);
+    int (*mknod) (Inode* dir, const char* name, uint32_t dev);
+    int (*link) (Inode* dir, const char* name, Inode* inode);
+    int (*unlink) (Inode* dir, const char* name);
     int (*mkdir) (Inode* dir, const char* name);
+    int (*rmdir) (Inode* dir, const char* name);
+    int (*truncate) (Inode* inode, size_t size);
     int (*lookup) (Inode* dir, const char* name, Inode* result);
     int (*sync) (Inode* inode);
 };
@@ -41,8 +38,7 @@ struct FileOps
     int (*write) (File* file, const char* buf, size_t size, size_t offset);
     size_t(*seek) (File* file, size_t offset, int whence);
     int (*iterate) (File* file, void* buf, size_t size);
-    // ioctl
-    // mmap
+    int (*ioctl) (File* file, int cmd, void* arg);
 };
 
 struct Inode
@@ -50,7 +46,10 @@ struct Inode
     Superblock* sb;
     uint64_t ino;
     uint32_t type;
+    uint32_t dev;
     size_t size;
+    void* data;
+    int nlinks;
     int refs;
 
     InodeOps ops;
@@ -65,7 +64,13 @@ struct Inode
     bool is_block_device();
     bool is_char_device();
 
+    int create(const char* name);
+    int mknod(const char* name, uint32_t dev);
+    int link(const char* name, Inode* inode);
+    int unlink(const char* name);
     int mkdir(const char* name);
+    int rmdir(const char* name);
+    int truncate(size_t size);
     result_ptr<Inode> lookup(const char* name);
     int sync();
 };
@@ -77,6 +82,7 @@ struct InodeTable
     Inode inodes[INODE_TABLE_SIZE];
 
     result_ptr<Inode> insert(Inode* inode);
+    result_ptr<Inode> find(Superblock* sb, uint64_t ino);
     size_t get_sb_refs(Superblock* sb);
 
     void debug();

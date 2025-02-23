@@ -46,17 +46,15 @@ void list(const char* path)
 
     if (!dir || !dir->inode->is_dir())
     {
-        kprintf("Failed to open directory %s\n", path);
+        kprintf("Failed to open directory %s %d\n", path, dir.error());
         return;
     }
 
     kprintf("Listing %s:\n", path);
 
     char buf[256];
-    while (dir->iterate(buf, sizeof(buf)))
-    {
+    while (dir->iterate(buf, sizeof(buf)) > 0)
         kprintf("    %s\n", buf);
-    }
 
     dir->close();
 }
@@ -67,7 +65,7 @@ void mkdirat(const char* path, const char* name)
 
     if (!dir || !dir->inode->is_dir())
     {
-        kprintf("Failed to open directory %s\n", path);
+        kprintf("Failed to open directory %s %d\n", path, dir.error());
         return;
     }
 
@@ -97,11 +95,18 @@ extern "C" void kmain(void)
     kprintf("mounting root...\n");
     mount("/", "", "ramfs");
 
+    inode_table.debug();
+
     debug_mounts();
 
     kprintf("creating directories...\n");
     mkdirat("/", "dev");
+
+    inode_table.debug();
+
     mkdirat("/dev", "root mount");
+
+    inode_table.debug();
 
     list("/dev");
 
@@ -123,6 +128,8 @@ extern "C" void kmain(void)
     debug_mounts();
 
     list("/dev");
+
+    inode_table.debug();
 
     idle();
 }
