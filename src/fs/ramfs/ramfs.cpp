@@ -17,6 +17,9 @@ int ramfs_writei(Inode* inode, const void* buf, size_t size, size_t offset)
         size_t newsize = offset + size;
         void* newdata = kmalloc(newsize);
 
+        if (!newdata)
+            return -ERR_NO_MEM;
+
         if (inode->data)
         {
             memcpy(newdata, inode->data, inode->size);
@@ -56,14 +59,26 @@ Inode* ramfs_alloc_inode()
     {
         Inode* inode = &inode_table.inodes[i];
 
-        if (inode->refs == 0 && inode->nlinks == 0)
-        {
-            inode->ino = i;
-            return inode;
-        }
+        if (inode->flags & IF_ALLOC)
+            continue;
+
+        memset(inode, 0, sizeof(Inode));
+
+        inode->ino = i;
+        inode->flags |= IF_ALLOC | IF_PERSISTENT;
+
+        return inode;
     }
 
     return nullptr;
+}
+
+void ramfs_free_inode(Inode* inode)
+{
+    if (inode->data)
+        kfree(inode->data);
+
+    inode->flags &= ~IF_ALLOC;
 }
 
 void ramfs_init(Superblock* sb)
@@ -72,14 +87,11 @@ void ramfs_init(Superblock* sb)
 
     root->sb = sb;
     root->type = IT_DIR;
-    root->dev = 0;
-    root->nlinks = 0;
-    root->refs = 1;
-    root->size = 0;
-    root->data = nullptr;
+    root->refs = 1; // referenced by sb
     root->ops = ramfs_dir_inode_ops;
     root->fops = ramfs_dir_file_ops;
 
+    // these could fail
     ramfs_link(root, ".", root);
     ramfs_link(root, "..", root);
 
@@ -94,11 +106,9 @@ void ramfs_free_all(Superblock* sb)
     {
         Inode* inode = &inode_table.inodes[i];
 
-        if (inode->refs && inode->sb == sb)
-            inode->put();
+        if ((inode->flags & IF_ALLOC) && inode->sb == sb)
+            ramfs_free_inode(inode);
     }
-
-    kfree(sb->data);
 }
 
 result_ptr<Superblock> ramfs_create_sb(Filesystem* fs, Device* dev)
@@ -108,6 +118,8 @@ result_ptr<Superblock> ramfs_create_sb(Filesystem* fs, Device* dev)
 
     sb->fs = fs;
     sb->dev = dev;
+    sb->root = nullptr;
+    sb->data = nullptr;
     sb->ops = { nullptr };
 
     ramfs_init(sb);
@@ -129,15 +141,16 @@ int ramfs_create(Inode* dir, const char* name)
 
     inode->sb = dir->sb;
     inode->type = IT_REG;
-    inode->dev = 0;
-    inode->nlinks = 0;
-    inode->refs = 0;
-    inode->size = 0;
-    inode->data = nullptr;
     inode->ops = ramfs_reg_inode_ops;
     inode->fops = ramfs_reg_file_ops;
 
-    ramfs_link(dir, name, inode);
+    int err = ramfs_link(dir, name, inode);
+
+    if (err)
+    {
+        inode->flags &= ~IF_ALLOC;
+        return err;
+    }
 
     return 0;
 }
@@ -149,48 +162,19 @@ int ramfs_mknod(Inode* dir, const char* name, uint32_t dev)
     inode->sb = dir->sb;
     inode->type = IT_CDEV;
     inode->dev = dev;
-    inode->nlinks = 0;
-    inode->refs = 0;
-    inode->size = 0;
-    inode->data = nullptr;
-    inode->ops = { nullptr };
-    inode->fops = { nullptr };
 
-    ramfs_link(dir, name, inode);
+    int err = ramfs_link(dir, name, inode);
 
-    return 0;
-}
-
-int ramfs_link(Inode* dir, const char* name, Inode* inode)
-{
-    RamDirent* dirents = (RamDirent*)dir->data;
-    int count = dir->size / sizeof(RamDirent);
-
-    for (int i = 0; i < count; i++)
+    if (err)
     {
-        if (dirents[i].name[0] == 0)
-        {
-            strcpy(dirents[i].name, name);
-            dirents[i].ino = inode->ino;
-            dirents[i].type = inode->type;
-            inode->nlinks++;
-
-            return 0;
-        }
+        inode->flags &= ~IF_ALLOC;
+        return err;
     }
 
-    RamDirent newdirent;
-    strcpy(newdirent.name, name);
-    newdirent.ino = inode->ino;
-    newdirent.type = inode->type;
-    inode->nlinks++;
-
-    ramfs_writei(dir, &newdirent, sizeof(RamDirent), dir->size);
-
     return 0;
 }
 
-int ramfs_unlink(Inode* dir, const char* name)
+RamDirent* ramfs_find_dirent(Inode* dir, const char* name)
 {
     RamDirent* dirents = (RamDirent*)dir->data;
     int count = dir->size / sizeof(RamDirent);
@@ -198,21 +182,54 @@ int ramfs_unlink(Inode* dir, const char* name)
     for (int i = 0; i < count; i++)
     {
         if (strcmp(dirents[i].name, name) == 0)
-        {
-            dirents[i].name[0] = 0;
-
-            auto inode = dir->lookup(name);
-
-            if (inode->nlinks > 0)
-                inode->nlinks--;
-
-            inode->put();
-
-            return 0;
-        }
+            return &dirents[i];
     }
 
-    return -ERR_NOT_FOUND;
+    return nullptr;
+}
+
+int ramfs_link(Inode* dir, const char* name, Inode* inode)
+{
+    RamDirent* free = ramfs_find_dirent(dir, "");
+
+    if (free)
+    {
+        strcpy(free->name, name);
+        free->ino = inode->ino;
+        free->type = inode->type;
+        inode->nlinks++;
+
+        return 0;
+    }
+
+    RamDirent dirent;
+    strcpy(dirent.name, name);
+    dirent.ino = inode->ino;
+    dirent.type = inode->type;
+    inode->nlinks++;
+
+    return ramfs_writei(dir, &dirent, sizeof(RamDirent), dir->size);
+}
+
+int ramfs_unlink(Inode* dir, const char* name)
+{
+    RamDirent* dirent = ramfs_find_dirent(dir, name);
+
+    if (!dirent)
+        return -ERR_NOT_FOUND;
+
+    dirent->name[0] = 0;
+
+    // this should always be found
+    auto inode = inode_table.find(dir->sb, dirent->ino);
+
+    // should be > 0 since we found it
+    inode->nlinks--;
+
+    if (inode->nlinks == 0 && inode->refs == 0)
+        ramfs_free_inode(inode.ptr);
+
+    return 0;
 }
 
 int ramfs_mkdir(Inode* dir, const char* name)
@@ -221,39 +238,71 @@ int ramfs_mkdir(Inode* dir, const char* name)
 
     inode->sb = dir->sb;
     inode->type = IT_DIR;
-    inode->dev = 0;
-    inode->nlinks = 0;
-    inode->refs = 0;
-    inode->size = 0;
-    inode->data = nullptr;
     inode->ops = ramfs_dir_inode_ops;
     inode->fops = ramfs_dir_file_ops;
 
-    ramfs_link(dir, name, inode);
-    ramfs_link(inode, ".", inode);
-    ramfs_link(inode, "..", dir);
+    int err = ramfs_link(dir, name, inode);
 
-    hexdump(inode->data, inode->size);
+    if (!err)
+        ramfs_link(inode, ".", inode);
+
+    if (!err)
+        ramfs_link(inode, "..", dir);
+
+    if (err)
+    {
+        inode->flags &= ~IF_ALLOC;
+        return err;
+    }
 
     return 0;
 }
 
 int ramfs_rmdir(Inode* dir, const char* name)
 {
-    if (dir->size <= 2 * sizeof(RamDirent))
-        return -1;
+    RamDirent* dirent = ramfs_find_dirent(dir, name);
 
-    kfree(dir->data);
-    dir->size = 0;
+    if (!dirent)
+        return -ERR_NOT_FOUND;
 
-    ramfs_unlink(dir, name);
+    if (dirent->type != IT_DIR)
+        return -ERR_NOT_DIR;
+
+    auto inode = inode_table.find(dir->sb, dirent->ino);
+
+    if (inode->nlinks > 2)
+        return -ERR_DIR_NOT_EMPTY;
+
+    // directories dont have hard links other than . or ..
+
+    dirent->name[0] = 0;
+    dir->nlinks--;
+
+    if (inode->refs)
+        inode->nlinks = 0; // removed later by sync
+    else
+        ramfs_free_inode(inode.ptr);
 
     return 0;
 }
 
 int ramfs_truncate(Inode* inode, size_t size)
 {
+    if (size == 0)
+    {
+        if (inode->data)
+            kfree(inode->data);
+
+        inode->data = nullptr;
+        inode->size = 0;
+
+        return 0;
+    }
+
     void* newdata = kmalloc(size);
+
+    if (!newdata)
+        return -ERR_NO_MEM;
 
     if (inode->data)
     {
@@ -278,32 +327,24 @@ int ramfs_truncate(Inode* inode, size_t size)
 
 int ramfs_lookup(Inode* dir, const char* name, Inode* result)
 {
-    RamDirent* dirents = (RamDirent*)dir->data;
-    int count = dir->size / sizeof(RamDirent);
+    RamDirent* dirent = ramfs_find_dirent(dir, name);
 
-    for (int i = 0; i < count; i++)
-    {
-        kprintf("strcmp(dirents[i].name = %s, name = %s) == 0\n", dirents[i].name, name);
-        if (strcmp(dirents[i].name, name) == 0)
-        {
-            auto found = inode_table.find(dir->sb, dirents[i].ino);
+    if (!dirent)
+        return -ERR_NOT_FOUND;
 
-            if (!found)
-                return found.error();
+    auto found = inode_table.find(dir->sb, dirent->ino);
 
-            *result = *(found.ptr);
+    *result = *(found.ptr);
 
-            return 0;
-        }
-    }
-
-    return -ERR_NOT_FOUND;
+    return 0;
 }
 
 int ramfs_sync(Inode* inode)
 {
+    // dont need to sync anything for ramfs inode
+
     if (inode->nlinks == 0)
-        kfree(inode->data);
+        ramfs_free_inode(inode);
 
     return 0;
 }
@@ -324,7 +365,10 @@ int ramfs_iterate(File* file, void* buf, size_t size)
         return 0;
 
     RamDirent* dirents = (RamDirent*)file->inode->data;
-    RamDirent* dirent = &dirents[file->offset / sizeof(RamDirent)];
+    int count = file->inode->size / sizeof(RamDirent);
+    int index = file->offset / sizeof(RamDirent);
+
+    RamDirent* dirent = &dirents[index];
 
     size_t len = strlen(dirent->name);
 
@@ -333,7 +377,17 @@ int ramfs_iterate(File* file, void* buf, size_t size)
 
     strcpy((char*)buf, dirent->name);
 
-    return sizeof(RamDirent);
+    int skip = 1;
+
+    for (int i = index + 1; i < count; i++)
+    {
+        if (dirents[i].name[0] != 0)
+            break;
+
+        skip++;
+    }
+
+    return skip * sizeof(RamDirent);
 }
 
 Filesystem ramfs =
