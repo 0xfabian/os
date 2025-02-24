@@ -89,6 +89,9 @@ void Inode::put()
 
     // should probably sync only if dirty
     sync();
+
+    if ((flags & IF_PERSISTENT) == 0)
+        flags &= ~IF_ALLOC;
 }
 
 bool Inode::is_reg()
@@ -121,17 +124,6 @@ int Inode::create(const char* name)
     if (!ops.create)
         return -ERR_NOT_IMPL;
 
-    if (!is_dir())
-        return -ERR_NOT_DIR;
-
-    auto found = lookup(name);
-
-    if (found)
-    {
-        found->put();
-        return -ERR_EXISTS;
-    }
-
     return ops.create(this, name);
 }
 
@@ -139,17 +131,6 @@ int Inode::mknod(const char* name, uint32_t dev)
 {
     if (!ops.mknod)
         return -ERR_NOT_IMPL;
-
-    if (!is_dir())
-        return -ERR_NOT_DIR;
-
-    auto found = lookup(name);
-
-    if (found)
-    {
-        found->put();
-        return -ERR_EXISTS;
-    }
 
     return ops.mknod(this, name, dev);
 }
@@ -159,23 +140,6 @@ int Inode::link(const char* name, Inode* inode)
     if (!ops.link)
         return -ERR_NOT_IMPL;
 
-    if (!is_dir())
-        return -ERR_NOT_DIR;
-
-    if (inode->is_dir())
-        return -ERR_IS_DIR;
-
-    if (this->sb != inode->sb)
-        return -ERR_NOT_SAME_FS;
-
-    auto found = lookup(name);
-
-    if (found)
-    {
-        found->put();
-        return -ERR_EXISTS;
-    }
-
     return ops.link(this, name, inode);
 }
 
@@ -184,35 +148,13 @@ int Inode::unlink(const char* name)
     if (!ops.unlink)
         return -ERR_NOT_IMPL;
 
-    if (!is_dir())
-        return -ERR_NOT_DIR;
-
-    auto inode = lookup(name);
-
-    if (!inode)
-        return inode.error();
-
-    inode->put();
-
     return ops.unlink(this, name);
 }
 
-// just name, not path, also assumed to be valid
 int Inode::mkdir(const char* name)
 {
     if (!ops.mkdir)
         return -ERR_NOT_IMPL;
-
-    if (!is_dir())
-        return -ERR_NOT_DIR;
-
-    auto found = lookup(name);
-
-    if (found)
-    {
-        found->put();
-        return -ERR_EXISTS;
-    }
 
     return ops.mkdir(this, name);
 }
@@ -221,16 +163,6 @@ int Inode::rmdir(const char* name)
 {
     if (!ops.rmdir)
         return -ERR_NOT_IMPL;
-
-    if (!is_dir())
-        return -ERR_NOT_DIR;
-
-    auto inode = lookup(name);
-
-    if (!inode)
-        return inode.error();
-
-    inode->put();
 
     return ops.rmdir(this, name);
 }
@@ -248,14 +180,11 @@ result_ptr<Inode> Inode::lookup(const char* name)
     if (!ops.lookup)
         return -ERR_NOT_IMPL;
 
-    if (!is_dir())
-        return -ERR_NOT_DIR;
-
     Inode temp;
 
     int err = ops.lookup(this, name, &temp);
 
-    if (err < 0)
+    if (err)
         return err;
 
     return inode_table.insert(&temp);
@@ -276,7 +205,7 @@ result_ptr<Inode> InodeTable::insert(Inode* inode)
 
     for (Inode* i = &inodes[0]; i < &inodes[INODE_TABLE_SIZE]; i++)
     {
-        if (i->refs == 0)
+        if ((i->flags & IF_ALLOC) == 0)
         {
             if (!free)
                 free = i;
@@ -299,13 +228,16 @@ result_ptr<Inode> InodeTable::insert(Inode* inode)
 
     *free = *inode;
 
+    free->refs = 1;
+    free->flags |= IF_ALLOC;
+
     return free;
 }
 
 result_ptr<Inode> InodeTable::find(Superblock* sb, uint64_t ino)
 {
     for (Inode* i = &inodes[0]; i < &inodes[INODE_TABLE_SIZE]; i++)
-        if (i->refs && i->sb == sb && i->ino == ino)
+        if ((i->flags & IF_ALLOC) && i->sb == sb && i->ino == ino)
             return i;
 
     return -ERR_NOT_FOUND;
@@ -316,7 +248,7 @@ size_t InodeTable::get_sb_refs(Superblock* sb)
     size_t refs = 0;
 
     for (Inode* i = &inodes[0]; i < &inodes[INODE_TABLE_SIZE]; i++)
-        if (i->refs && i->sb == sb)
+        if ((i->flags & IF_ALLOC) && i->sb == sb)
             refs += i->refs;
 
     return refs;
@@ -330,10 +262,10 @@ void InodeTable::debug()
     {
         Inode* inode = &inodes[i];
 
-        if (inode->refs == 0 && inode->nlinks == 0)
+        if ((inode->flags & IF_ALLOC) == 0)
             continue;
 
-        kprintf("    %d: sb=%a ino=%lu type=%x size=%lu refs=%d nlinks=%d ", i, inode->sb, inode->ino, inode->type, inode->size, inode->refs, inode->nlinks);
+        kprintf("    %d: sb=%a ino=%lu type=%x size=%lu refs=%d nlinks=%d flags=%hhx ", i, inode->sb, inode->ino, inode->type, inode->size, inode->refs, inode->nlinks, inode->flags);
 
         if (inode->ops.create)
             kprintf("create ");

@@ -13,6 +13,9 @@
 #define IT_LINK 0xA000
 #define IT_SOCK 0xC000
 
+#define IF_ALLOC        1
+#define IF_PERSISTENT   2
+
 struct Superblock;
 struct Inode;
 struct File;
@@ -51,6 +54,7 @@ struct Inode
     void* data;
     int nlinks;
     int refs;
+    uint8_t flags;
 
     InodeOps ops;
     FileOps fops;
