@@ -18,11 +18,6 @@ void mount(const char* target, const char* dev, const char* fs_name)
 
     Device* bdev = nullptr;
 
-    if (dev[0] == '\0')
-        bdev = nullptr;
-    else if (root_mount)
-        bdev = (Device*)Inode::get(dev).or_nullptr();
-
     if (target[0] == '/' && target[1] == '\0')
         Mount::mount_root(bdev, fs);
     else
@@ -73,6 +68,20 @@ void mkdirat(const char* path, const char* name)
     dir->close();
 }
 
+void rmdirat(const char* path, const char* name)
+{
+    auto dir = File::open(path, 0);
+
+    if (!dir || !dir->inode->is_dir())
+    {
+        kprintf("Failed to open directory %s %d\n", path, dir.error());
+        return;
+    }
+
+    dir->inode->rmdir(name);
+    dir->close();
+}
+
 extern "C" void kmain(void)
 {
     if (!LIMINE_BASE_REVISION_SUPPORTED)
@@ -99,11 +108,10 @@ extern "C" void kmain(void)
 
     debug_mounts();
 
-    kprintf("creating directories...\n");
+    kprintf("creating /dev\n");
     mkdirat("/", "dev");
 
-    inode_table.debug();
-
+    kprintf("creating /dev/root mount\n");
     mkdirat("/dev", "root mount");
 
     inode_table.debug();
@@ -112,6 +120,8 @@ extern "C" void kmain(void)
 
     kprintf("mounting /dev...\n");
     mount("/dev/", "/", "ramfs");
+
+    inode_table.debug();
 
     debug_mounts();
 
@@ -122,12 +132,28 @@ extern "C" void kmain(void)
 
     list("/dev");
 
+    inode_table.debug();
+
     kprintf("umounting /dev...\n");
     umount("/dev");
 
     debug_mounts();
 
     list("/dev");
+
+    inode_table.debug();
+
+    rmdirat("/dev", "root mount");
+
+    inode_table.debug();
+
+    rmdirat("/", "dev");
+
+    inode_table.debug();
+
+    root_mount->sb->destroy();
+
+    heap.debug();
 
     inode_table.debug();
 
