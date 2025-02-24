@@ -10,6 +10,7 @@ enum ErrorCode
     ERR_NOT_FOUND,
     ERR_NOT_DIR,
     ERR_IS_DIR,
+    ERR_DIR_NOT_EMPTY,
     ERR_BAD_ARG,
     ERR_BAD_FD,
     ERR_MNT_TABLE_FULL,
