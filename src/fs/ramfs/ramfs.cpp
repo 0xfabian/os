@@ -81,8 +81,13 @@ void ramfs_free_inode(Inode* inode)
     inode->flags &= ~IF_ALLOC;
 }
 
-void ramfs_init(Superblock* sb)
+result_ptr<Superblock> ramfs_create_sb(Filesystem* fs, Device* dev)
 {
+    Superblock* sb = (Superblock*)kmalloc(sizeof(Superblock));
+
+    sb->fs = fs;
+    sb->dev = dev;
+
     Inode* root = ramfs_alloc_inode();
 
     root->sb = sb;
@@ -96,9 +101,13 @@ void ramfs_init(Superblock* sb)
     ramfs_link(root, "..", root);
 
     sb->root = root;
+    sb->data = nullptr;
+    sb->ops = { nullptr };
+
+    return sb;
 }
 
-void ramfs_free_all(Superblock* sb)
+void ramfs_destroy_sb(Superblock* sb)
 {
     sb->root->put();
 
@@ -109,29 +118,7 @@ void ramfs_free_all(Superblock* sb)
         if ((inode->flags & IF_ALLOC) && inode->sb == sb)
             ramfs_free_inode(inode);
     }
-}
 
-result_ptr<Superblock> ramfs_create_sb(Filesystem* fs, Device* dev)
-{
-    Superblock* sb = (Superblock*)kmalloc(sizeof(Superblock));
-    fs->num_sb++;
-
-    sb->fs = fs;
-    sb->dev = dev;
-    sb->root = nullptr;
-    sb->data = nullptr;
-    sb->ops = { nullptr };
-
-    ramfs_init(sb);
-
-    return sb;
-}
-
-void ramfs_destroy_sb(Superblock* sb)
-{
-    ramfs_free_all(sb);
-
-    sb->fs->num_sb--;
     kfree(sb);
 }
 

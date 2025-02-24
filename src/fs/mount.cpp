@@ -44,6 +44,7 @@ int Mount::fill_mount(Mount* mnt, Device* dev, Filesystem* fs)
     if (!sb)
         return sb.error();
 
+    fs->num_sb++;
     mnt->sb = sb.ptr;
 
     return 0;
