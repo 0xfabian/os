@@ -147,15 +147,43 @@ extern "C" void kmain(void)
 
     inode_table.debug();
 
-    rmdirat("/", "dev");
+    list("/dev");
+
+    auto dir = File::open("/dev", 0);
+
+    if (dir)
+    {
+        dir->inode->create("a.txt");
+        dir->close();
+    }
+
+    auto file = File::open("/dev/a.txt", 0);
+
+    if (file)
+    {
+        file_table.debug();
+
+        file->write("Hello, world!\n", 14);
+        file->close();
+    }
 
     inode_table.debug();
 
-    root_mount->sb->destroy();
+    list("/dev");
 
-    heap.debug();
+    char buf[256];
+    file = File::open("/dev/a.txt", 0);
 
-    inode_table.debug();
+    if (file)
+    {
+        int bytes = file->read(buf, 256);
+        buf[bytes] = '\0';
+
+        kprintf("Read %d bytes\n", bytes);
+        file->close();
+    }
+
+    kprintf("%s\n", buf);
 
     idle();
 }
