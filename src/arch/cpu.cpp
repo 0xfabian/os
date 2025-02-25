@@ -75,15 +75,13 @@ void idle()
 #define MSR_STAR    0xC0000081
 #define MSR_LSTAR   0xC0000082
 #define MSR_FMASK   0xC0000084
-#define KERNEL_CS   0x08ul
-#define USER_CS     0x18ul
 
 void setup_syscall(uint64_t syscall_handler_address)
 {
     uint64_t efer = rdmsr(MSR_EFER);
     wrmsr(MSR_EFER, efer | 1);
 
-    uint64_t star = KERNEL_CS << 48 | USER_CS << 32;
+    uint64_t star = (uint64_t)KERNEL_CS << 48 | (uint64_t)USER_CS << 32;
     wrmsr(MSR_STAR, star);
     wrmsr(MSR_LSTAR, syscall_handler_address);
     wrmsr(MSR_FMASK, 1 << 9);   // mask interrupt flag
@@ -111,4 +109,14 @@ bool check_x2apic_support()
     cpuid(1, &eax, &ebx, &ecx, &edx);
 
     return ecx & (1 << 21);
+}
+
+void cli()
+{
+    asm volatile("cli");
+}
+
+void sti()
+{
+    asm volatile("sti");
 }

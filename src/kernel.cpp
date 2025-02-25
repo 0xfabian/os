@@ -5,82 +5,69 @@
 
 #include <fs/mount.h>
 #include <fs/ramfs/ramfs.h>
+#include <task.h>
 
-void mount(const char* target, const char* dev, const char* fs_name)
+void ls(const char* path)
 {
-    Filesystem* fs = Filesystem::find(fs_name);
+    kprintf("> ls %s\n", path);
 
-    if (!fs)
-    {
-        kprintf("Failed to find filesystem %s\n", fs_name);
-        return;
-    }
-
-    Device* bdev = nullptr;
-
-    if (target[0] == '/' && target[1] == '\0')
-        Mount::mount_root(bdev, fs);
-    else
-        Mount::mount(target, bdev, fs);;
-}
-
-void umount(const char* target)
-{
-    auto inode = Inode::get(target);
-
-    auto mnt = Mount::find(inode->sb);
-
-    inode->put();
-
-    mnt->unmount();
-}
-
-void list(const char* path)
-{
     auto dir = File::open(path, 0);
 
-    if (!dir || !dir->inode->is_dir())
+    if (!dir)
     {
-        kprintf("Failed to open directory %s %d\n", path, dir.error());
+        kprintf("Failed to open `%s`: %d\n", path, dir.error());
         return;
     }
-
-    kprintf("Listing %s:\n", path);
 
     char buf[256];
     while (dir->iterate(buf, sizeof(buf)) > 0)
-        kprintf("    %s\n", buf);
+        kprintf("%s  ", buf);
+
+    kprintf("\n");
 
     dir->close();
 }
 
-void mkdirat(const char* path, const char* name)
+extern "C" void task1()
 {
-    auto dir = File::open(path, 0);
+    int n = 0;
 
-    if (!dir || !dir->inode->is_dir())
+    while (true)
     {
-        kprintf("Failed to open directory %s %d\n", path, dir.error());
-        return;
-    }
+        if (n % 1000000 == 0)
+            kprintf("\e[91m%d\e[m\n", n);
 
-    dir->inode->mkdir(name);
-    dir->close();
+        n++;
+    }
 }
 
-void rmdirat(const char* path, const char* name)
+extern "C" void task3()
 {
-    auto dir = File::open(path, 0);
+    int n = 0;
 
-    if (!dir || !dir->inode->is_dir())
+    while (true)
     {
-        kprintf("Failed to open directory %s %d\n", path, dir.error());
-        return;
-    }
+        if (n % 1000000 == 0)
+            kprintf("\e[94m%d\e[m\n", n);
 
-    dir->inode->rmdir(name);
-    dir->close();
+        n++;
+    }
 }
+
+extern "C" void task2()
+{
+    int n = 0;
+
+    while (true)
+    {
+        if (n % 1000000 == 0)
+            kprintf("\e[92m%d\e[m\n", n);
+
+        n++;
+    }
+}
+
+extern "C" void first_switch();
 
 extern "C" void kmain(void)
 {
@@ -101,89 +88,57 @@ extern "C" void kmain(void)
 
     ramfs.register_self();
 
-    kprintf("mounting root...\n");
-    mount("/", "", "ramfs");
+    Mount::mount_root(nullptr, &ramfs);
 
-    inode_table.debug();
+    ls("/");
 
-    debug_mounts();
+    auto inode = Inode::get("/");
 
-    kprintf("creating /dev\n");
-    mkdirat("/", "dev");
-
-    kprintf("creating /dev/root mount\n");
-    mkdirat("/dev", "root mount");
-
-    inode_table.debug();
-
-    list("/dev");
-
-    kprintf("mounting /dev...\n");
-    mount("/dev/", "/", "ramfs");
-
-    inode_table.debug();
-
-    debug_mounts();
-
-    list("/dev");
-
-    kprintf("creating dir inside mount...\n");
-    mkdirat("/dev", "inside new mount");
-
-    list("/dev");
-
-    inode_table.debug();
-
-    kprintf("umounting /dev...\n");
-    umount("/dev");
-
-    debug_mounts();
-
-    list("/dev");
-
-    inode_table.debug();
-
-    rmdirat("/dev", "root mount");
-
-    inode_table.debug();
-
-    list("/dev");
-
-    auto dir = File::open("/dev", 0);
-
-    if (dir)
+    if (inode)
     {
-        dir->inode->create("a.txt");
-        dir->close();
+        inode->create("a.txt");
+        inode->create("sh");
+        inode->mkdir("bin");
+        inode->put();
     }
 
-    auto file = File::open("/dev/a.txt", 0);
+    ls("/");
+    ls("/bin");
 
-    if (file)
+    inode = Inode::get("/");
+
+    if (inode)
     {
-        file_table.debug();
-
-        file->write("Hello, world!\n", 14);
-        file->close();
+        inode->unlink("a.txt");
+        inode->put();
     }
+
+    ls("/");
 
     inode_table.debug();
+    heap.debug();
 
-    list("/dev");
+    Task* t1 = Task::from(task1);
+    Task* t2 = Task::from(task2);
+    Task* t3 = Task::from(task3);
 
-    char buf[256];
-    file = File::open("/dev/a.txt", 0);
+    t1->ready();
+    t2->ready();
+    t3->ready();
 
-    if (file)
+    Task* t = task_list;
+
+    do
     {
-        int bytes = file->read(buf, 256);
-        buf[bytes] = '\0';
+        kprintf("Task: %p -> %p\n", t, t->next);
+        t = t->next;
+    } while (t != task_list);
 
-        kprintf("Read %d bytes\n", bytes);
-        file->close();
-    }
+    pic::set_irq(0, false);
+    // sti();
 
-    kprintf("%s\n", buf);
+    running = task_list;
+    first_switch();
 
     idle();
 }
