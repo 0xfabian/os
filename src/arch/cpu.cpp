@@ -81,6 +81,7 @@ void setup_syscall(uint64_t syscall_handler_address)
     uint64_t efer = rdmsr(MSR_EFER);
     wrmsr(MSR_EFER, efer | 1);
 
+    // This is probably wrong, i think it should be KERNEL_SS << 48 | KERNEL_CS << 32
     uint64_t star = (uint64_t)KERNEL_CS << 48 | (uint64_t)USER_CS << 32;
     wrmsr(MSR_STAR, star);
     wrmsr(MSR_LSTAR, syscall_handler_address);
@@ -111,12 +112,12 @@ bool check_x2apic_support()
     return ecx & (1 << 21);
 }
 
-void cli()
-{
-    asm volatile("cli");
-}
+// void cli()
+// {
+//     asm volatile("cli");
+// }
 
-void sti()
-{
-    asm volatile("sti");
-}
+// void sti()
+// {
+//     asm volatile("sti");
+// }

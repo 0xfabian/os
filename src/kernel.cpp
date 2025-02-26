@@ -33,25 +33,7 @@ extern "C" void task1()
     int n = 0;
 
     while (true)
-    {
-        if (n % 1000000 == 0)
-            kprintf("\e[91m%d\e[m\n", n);
-
-        n++;
-    }
-}
-
-extern "C" void task3()
-{
-    int n = 0;
-
-    while (true)
-    {
-        if (n % 1000000 == 0)
-            kprintf("\e[94m%d\e[m\n", n);
-
-        n++;
-    }
+        kprintf("\e[91m%d\e[m\n", n++);
 }
 
 extern "C" void task2()
@@ -59,12 +41,15 @@ extern "C" void task2()
     int n = 0;
 
     while (true)
-    {
-        if (n % 1000000 == 0)
-            kprintf("\e[92m%d\e[m\n", n);
+        kprintf("\e[92m%d\e[m\n", n++);
+}
 
-        n++;
-    }
+extern "C" void task3()
+{
+    int n = 0;
+
+    while (true)
+        kprintf("\e[94m%d\e[m\n", n++);
 }
 
 extern "C" void first_switch();
@@ -86,59 +71,65 @@ extern "C" void kmain(void)
 
     heap.init(2000);
 
-    ramfs.register_self();
+    // ramfs.register_self();
 
-    Mount::mount_root(nullptr, &ramfs);
+    // Mount::mount_root(nullptr, &ramfs);
 
-    ls("/");
+    // ls("/");
 
-    auto inode = Inode::get("/");
+    // auto inode = Inode::get("/");
 
-    if (inode)
-    {
-        inode->create("a.txt");
-        inode->create("sh");
-        inode->mkdir("bin");
-        inode->put();
-    }
+    // if (inode)
+    // {
+    //     inode->create("a.txt");
+    //     inode->create("sh");
+    //     inode->mkdir("bin");
+    //     inode->put();
+    // }
 
-    ls("/");
-    ls("/bin");
+    // ls("/");
+    // ls("/bin");
 
-    inode = Inode::get("/");
+    // inode = Inode::get("/");
 
-    if (inode)
-    {
-        inode->unlink("a.txt");
-        inode->put();
-    }
+    // if (inode)
+    // {
+    //     inode->unlink("a.txt");
+    //     inode->put();
+    // }
 
-    ls("/");
+    // ls("/");
 
-    inode_table.debug();
-    heap.debug();
+    // inode_table.debug();
+    // heap.debug();
 
+    Task* t0 = Task::dummy();
     Task* t1 = Task::from(task1);
     Task* t2 = Task::from(task2);
     Task* t3 = Task::from(task3);
 
+    t0->ready();
     t1->ready();
     t2->ready();
     t3->ready();
 
-    Task* t = task_list;
+    // Task* t = task_list;
 
-    do
-    {
-        kprintf("Task: %p -> %p\n", t, t->next);
-        t = t->next;
-    } while (t != task_list);
-
-    pic::set_irq(0, false);
-    // sti();
+    // do
+    // {
+    //     kprintf("Task: %p -> %p\n", t, t->next);
+    //     t = t->next;
+    // } while (t != task_list);
 
     running = task_list;
-    first_switch();
+
+    pic::set_irq(0, false);
+    sti();
+
+    // first_switch();
+
+    while (true)
+        kprintf("kernel task\n");
 
     idle();
 }

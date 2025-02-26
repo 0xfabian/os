@@ -28,8 +28,8 @@ bool check_pat_support();
 bool check_apic_support();
 bool check_x2apic_support();
 
-void cli();
-void sti();
+// void cli();
+// void sti();
 
 struct CPU
 {
@@ -53,3 +53,13 @@ struct CPU
     uint64_t rip;
     uint64_t rflags;
 };
+
+static inline void cli()
+{
+    asm volatile("cli");
+}
+
+static inline void sti()
+{
+    asm volatile("sti");
+}

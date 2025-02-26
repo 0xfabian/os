@@ -19,6 +19,17 @@ Task* Task::from(void (*func)(void))
     return task;
 }
 
+Task* Task::dummy()
+{
+    // this should be the first task in the queue
+    // at the first switch, the kmain will store the cpu state
+    // to this dummy task so basically this task is kmain
+
+    Task* task = (Task*)kmalloc(sizeof(Task));
+
+    return task;
+}
+
 void Task::ready()
 {
     if (task_list)

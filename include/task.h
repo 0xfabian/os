@@ -9,6 +9,7 @@ struct Task
     Task* next;
 
     static Task* from(void (*func)(void));
+    static Task* dummy();
     void ready();
 };
 

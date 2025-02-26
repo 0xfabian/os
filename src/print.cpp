@@ -103,8 +103,7 @@ void append_binary(uint64_t num, int size)
 
 void kprintf(const char* fmt, ...)
 {
-    if (running)
-        cli();
+    if (running) cli();
 
     va_list args;
     va_start(args, fmt);
@@ -214,8 +213,7 @@ void kprintf(const char* fmt, ...)
     write_buf();
     va_end(args);
 
-    if (running)
-        sti();
+    if (running) sti();
 }
 
 void hexdump(void* data, size_t len)

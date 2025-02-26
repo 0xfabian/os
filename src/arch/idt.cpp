@@ -27,7 +27,7 @@ void IDT::init()
     asm volatile("lidt %0" : : "m"(desc));
 }
 
-void IDT::set(uint8_t index, void (*isr)(interrupt_frame*))
+void IDT::set(uint8_t index, void* isr)
 {
     uint64_t offset = (uint64_t)isr;
 
@@ -40,26 +40,30 @@ void IDT::set(uint8_t index, void (*isr)(interrupt_frame*))
     entries[index].type_attr = 0x8e;    // present, ring 0, interrupt gate
 }
 
+void IDT::set(uint8_t index, void (*isr)(interrupt_frame*))
+{
+    set(index, (void*)isr);
+}
+
+void IDT::set(uint8_t index, void (*isr)(interrupt_frame*, uint64_t))
+{
+    set(index, (void*)isr);
+}
+
 void default_handler(interrupt_frame* frame)
 {
     panic("Unhandled interrupt");
 }
 
-void gp_fault_handler(interrupt_frame* frame)
+void gp_fault_handler(interrupt_frame* frame, uint64_t error_code)
 {
     panic("General Protection Fault");
 }
 
-void page_fault_handler(interrupt_frame* frame)
+void page_fault_handler(interrupt_frame* frame, uint64_t error_code)
 {
     panic("Page Fault");
 }
-
-// void timer_handler(interrupt_frame* frame)
-// {
-//     kprintf("\e[92mtick\e[m\n");
-//     pic::send_eoi(0);
-// }
 
 void keyboard_handler(interrupt_frame* frame)
 {
@@ -70,8 +74,6 @@ void keyboard_handler(interrupt_frame* frame)
 
 extern "C" void context_switch()
 {
-    // kprintf("context switch\n");
-
     running = running->next;
 
     pic::send_eoi(0);
