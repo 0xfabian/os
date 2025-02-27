@@ -57,7 +57,13 @@ void default_handler(interrupt_frame* frame)
 
 void gp_fault_handler(interrupt_frame* frame, uint64_t error_code)
 {
-    panic("General Protection Fault");
+    if (running)
+    {
+        kprintf(PANIC "General Protection Fault in task %lu\n", running->tid);
+        idle();
+    }
+    else
+        panic("General Protection Fault");
 }
 
 void page_fault_handler(interrupt_frame* frame, uint64_t error_code)
