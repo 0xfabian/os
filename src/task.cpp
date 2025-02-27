@@ -4,43 +4,22 @@ Task* running;
 Task* task_list;
 Task* task_list_tail;
 
+uint64_t global_tid = 0;
+
 Task* Task::from(void (*func)(void))
 {
     Task* task = (Task*)kmalloc(sizeof(Task));
-    void* stack = kmalloc(4096);
+
+    task->tid = global_tid++;
 
     memset(&task->cpu, 0, sizeof(CPU));
 
-    task->cpu.rsp = (uint64_t)stack + 4096;
+    task->cpu.rsp = (uint64_t)kmalloc(PAGE_SIZE) + PAGE_SIZE;
     task->cpu.rbp = task->cpu.rsp;
     task->cpu.rip = (uint64_t)func;
     task->cpu.rflags = 0x202;
 
-    kprintf("%p\n", task->cpu.rsp);
-
-    *(uint64_t*)(task->cpu.rsp - 8) = 0x00; // ss
-    *(uint64_t*)(task->cpu.rsp - 16) = task->cpu.rsp; // rsp
-    *(uint64_t*)(task->cpu.rsp - 24) = task->cpu.rflags; // rflags
-    *(uint64_t*)(task->cpu.rsp - 32) = 0x8; // cs
-    *(uint64_t*)(task->cpu.rsp - 40) = task->cpu.rip; // rip
-    *(uint64_t*)(task->cpu.rsp - 48) = 0; // error code
-    *(uint64_t*)(task->cpu.rsp - 56) = task->cpu.rdi;
-    *(uint64_t*)(task->cpu.rsp - 64) = task->cpu.rsi;
-    *(uint64_t*)(task->cpu.rsp - 72) = task->cpu.rdx;
-    *(uint64_t*)(task->cpu.rsp - 80) = task->cpu.rcx;
-    *(uint64_t*)(task->cpu.rsp - 88) = task->cpu.rax;
-    *(uint64_t*)(task->cpu.rsp - 96) = task->cpu.r8;
-    *(uint64_t*)(task->cpu.rsp - 104) = task->cpu.r9;
-    *(uint64_t*)(task->cpu.rsp - 112) = task->cpu.r10;
-    *(uint64_t*)(task->cpu.rsp - 120) = task->cpu.r11;
-    *(uint64_t*)(task->cpu.rsp - 128) = task->cpu.rbx;
-    *(uint64_t*)(task->cpu.rsp - 136) = task->cpu.rbp;
-    *(uint64_t*)(task->cpu.rsp - 144) = task->cpu.r12;
-    *(uint64_t*)(task->cpu.rsp - 152) = task->cpu.r13;
-    *(uint64_t*)(task->cpu.rsp - 160) = task->cpu.r14;
-    *(uint64_t*)(task->cpu.rsp - 168) = task->cpu.r15;
-
-    task->cpu.rsp -= 168;
+    task->init_stack();
 
     return task;
 }
@@ -53,7 +32,47 @@ Task* Task::dummy()
 
     Task* task = (Task*)kmalloc(sizeof(Task));
 
+    task->tid = global_tid++;
+
     return task;
+}
+
+void Task::kpush(uint64_t value)
+{
+    cpu.rsp -= 8;
+    *(uint64_t*)cpu.rsp = value;
+}
+
+void Task::init_stack()
+{
+    // interrupt frame
+    kpush(0x13); // ss
+    kpush(cpu.rsp);
+    kpush(cpu.rflags);
+    kpush(0x08); // cs
+    kpush(cpu.rip);
+
+    // error code
+    kpush(0);
+
+    // general purpose registers
+    kpush(cpu.rdi);
+    kpush(cpu.rsi);
+    kpush(cpu.rdx);
+    kpush(cpu.rcx);
+    kpush(cpu.rax);
+    kpush(cpu.r8);
+    kpush(cpu.r9);
+    kpush(cpu.r10);
+    kpush(cpu.r11);
+
+    // callee-saved registers
+    kpush(cpu.rbx);
+    kpush(cpu.rbp);
+    kpush(cpu.r12);
+    kpush(cpu.r13);
+    kpush(cpu.r14);
+    kpush(cpu.r15);
 }
 
 void Task::ready()
