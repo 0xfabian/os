@@ -52,8 +52,6 @@ extern "C" void task3()
         kprintf("\e[94m%d\e[m\n", n++);
 }
 
-extern "C" void first_switch();
-
 extern "C" void kmain(void)
 {
     if (!LIMINE_BASE_REVISION_SUPPORTED)
@@ -113,23 +111,24 @@ extern "C" void kmain(void)
     t2->ready();
     t3->ready();
 
-    // Task* t = task_list;
+    Task* t = task_list;
 
-    // do
-    // {
-    //     kprintf("Task: %p -> %p\n", t, t->next);
-    //     t = t->next;
-    // } while (t != task_list);
+    do
+    {
+        kprintf("Task %lu: %p -> %p\n", t->tid, t, t->next);
+        t = t->next;
+    } while (t != task_list);
 
     running = task_list;
 
     pic::set_irq(0, false);
     sti();
 
-    // first_switch();
+    // at this kmain continues as t0
 
-    while (true)
-        kprintf("kernel task\n");
+    // while (true)
+    //     kprintf("kernel task\n");
 
+    kprintf("Task %lu: begin idle\n", running->tid);
     idle();
 }
