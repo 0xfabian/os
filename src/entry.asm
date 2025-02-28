@@ -77,67 +77,58 @@ timer_handler:
 
 GLOBAL timer_handler
 
-; extern syscall_handler
+extern syscall_handler
 
-; section .bss
-;     entry_rax resq 1
-;     entry_rsp resq 1
+syscall_handler_asm:
 
-; section .text
+    ; even though we switched from ring 3 to ring 0
+    ; rsp is still the user rsp
+    ; so we need to swap it with the kernel rsp located in tss.rsp0
 
-; syscall_handler_asm:
+    ; we should also form another CPU struct on the stack in case this syscall
+    ; calls sched or something
 
-;     o64 sysret
+    ; use tss.rsp2 for storage
+    mov [gs:20], rsp
+    mov rsp, [gs:4] ; change to kernel stack tss.rsp0
 
-;     ; this should be called from ring 3 so because of the tss mechanism
-;     ; rsp should be the kernel rsp
+    sub rsp, 8
+    mov qword [rsp], 0x1b ; push ss
 
-;     ; we should form another CPU struct on the stack in case this syscall
-;     ; calls sched or something
+    push qword [gs:20] ; push user rsp
 
-;     mov [entry_rax], rax
-;     mov [entry_rsp], rsp
+    push r11 ; push rflags
 
-;     mov rax, 0x10 ; kernel ss
-;     push rax
+    sub rsp, 8
+    mov qword [rsp], 0x23 ; push cs
 
-;     push qword [entry_rsp]
+    push rcx ; push rip
 
-;     push r11 ; rflags
+    PUSH_REGS
 
-;     mov rax, 0x08
-;     push rax ; kernel cs
+    ; at this point CPU struct is saved and rsp is pointing to it
 
-;     push rcx ; rip
+    ; mov rdi, [running]
+    ; mov [rdi], rsp
 
-;     mov rax, [entry_rax]
+    mov rdi, rsp
+    mov rsi, rax
+    call syscall_handler
 
-;     PUSH_REGS
+    ; if we return to the same task
+    ; we just need to restore rcx, r11 and rsp
+    ; else i think we should change rsp to the new task krsp
+    ; and restore the full CPU struct and ireq
 
-;     ; at this point CPU struct is saved and rsp is pointing to it
+    mov rcx, [rsp + 15 * 8] ; rip
+    mov r11, [rsp + 17 * 8] ; rflags
 
-;     mov rdi, rsp
-;     mov rsi, rax
-;     call syscall_handler
+    mov rsp, [gs:20]
 
-;     POP_REGS
+    o64 sysret
 
-;     iretq
+    ; POP_REGS
 
-;     ; mov [entry_rsp], rsp
-;     ; mov rax, 0x10
-;     ; push rax ; ss
+    ; iretq
 
-;     ; push qword [entry_rsp] ; push original rsp
-
-;     ; push r11 ; push rflags
-
-;     ; mov rax, 0x08 
-;     ; push rax ; push cs
-
-;     ; push rcx ; push rip
-
-;     ; iretq
-
-
-; GLOBAL syscall_handler_asm
+GLOBAL syscall_handler_asm

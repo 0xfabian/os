@@ -40,10 +40,20 @@ extern "C" void kernel_thread()
 
 const u8 userspace_code[] =
 {
-    0xFA, 0xEB, 0xFE
+    0xB8, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x05, 0xEB, 0xF7
 };
 
 extern "C" void syscall_handler_asm();
+
+void task2()
+{
+    int n = 0;
+
+    while (true)
+        kprintf("\e[92m%d\e[m\n", n++);
+
+    idle();
+}
 
 extern "C" void kmain(void)
 {
@@ -62,7 +72,7 @@ extern "C" void kmain(void)
 
     heap.init(2000);
 
-    // setup_syscall((uint64_t)syscall_handler_asm);
+    setup_syscall((uint64_t)syscall_handler_asm);
 
     // ramfs.register_self();
 
@@ -99,10 +109,12 @@ extern "C" void kmain(void)
     Task* t0 = Task::dummy();
     Task* t1 = Task::from(kernel_thread);
     Task* t2 = Task::from(userspace_code, sizeof(userspace_code));
+    Task* t3 = Task::from(task2);
 
     t0->ready();
     t1->ready();
     t2->ready();
+    t3->ready();
 
     // Task* t = task_list;
 
@@ -119,8 +131,8 @@ extern "C" void kmain(void)
 
     // at this kmain continues as t0
 
-    // while (true)
-    //     kprintf("kernel task\n");
+    while (true)
+        kprintf("kernel task\n");
 
     // kprintf("Task %lu: begin idle\n", running->tid);
 

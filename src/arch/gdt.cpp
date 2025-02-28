@@ -7,15 +7,17 @@ alignas(16) TSS tss;
 
 void TSSDescriptor::set(u64 base, u32 limit, u8 _acces, u8 flags)
 {
-    base_low = base & 0xffff;
-    base_mid = (base >> 16) & 0xff;
-    base_high = (base >> 24) & 0xff;
+    ((GDTEntry*)this)->set(base, limit, _acces, flags);
+
+    // base_low = base & 0xffff;
+    // base_mid = (base >> 16) & 0xff;
+    // base_high = (base >> 24) & 0xff;
     base_high2 = base >> 32;
 
-    limit_low = limit & 0xffff;
-    flags_and_limit_high = ((limit >> 16) & 0x0f) | (flags << 4);
+    // limit_low = limit & 0xffff;
+    // flags_and_limit_high = ((limit >> 16) & 0x0f) | (flags << 4);
 
-    access = _acces;
+    // access = _acces;
 }
 
 void GDTEntry::set(u32 base, u32 limit, u8 _access, u8 flags)
@@ -56,4 +58,9 @@ void GDT::init()
     tss.iomap_base = sizeof(TSS);
 
     asm volatile("ltr %0" : : "r"((u16)0x28));
+
+    // IA32_KERNEL_GS_BASE
+    wrmsr(0xC0000102, (u64)&tss);
+
+    asm volatile("swapgs");
 }
