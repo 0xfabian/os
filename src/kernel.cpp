@@ -52,7 +52,7 @@ extern "C" void kmain(void)
 
     fbterm.init();
 
-    pfa.init();
+    pmm.init();
 
     fbterm.enable_backbuffer();
 

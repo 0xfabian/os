@@ -28,7 +28,7 @@ struct MemoryRegion
     void free_pages(void* addr, usize count);
 };
 
-struct PageFrameAllocator
+struct PhysicalMemoryManager
 {
     MemoryRegion* regions;
     usize region_count;
@@ -48,4 +48,4 @@ struct PageFrameAllocator
     void free_pages(void* addr, usize count);
 };
 
-extern PageFrameAllocator pfa;
+extern PhysicalMemoryManager pmm;

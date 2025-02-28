@@ -1,6 +1,6 @@
-#include <mem/pfalloc.h>
+#include <mem/pmm.h>
 
-PageFrameAllocator pfa;
+PhysicalMemoryManager pmm;
 
 void* MemoryRegion::alloc_page()
 {
@@ -121,9 +121,9 @@ void compute_allocator_total_size(limine_memmap_response* memmap, usize* region_
     *total_size = sizeof(MemoryRegion) * count + bitmaps_total_size;
 }
 
-void PageFrameAllocator::init()
+void PhysicalMemoryManager::init()
 {
-    kprintf(INFO "Initializing page frame allocator...\n");
+    kprintf(INFO "Initializing physical memory manager...\n");
 
     limine_memmap_response* memmap = memmap_request.response;
 
@@ -217,7 +217,7 @@ void PageFrameAllocator::init()
     lock_pages((void*)((u64)allocator_addr & ~0xffff800000000000), PAGE_COUNT(total_size));
 }
 
-void* PageFrameAllocator::alloc_page()
+void* PhysicalMemoryManager::alloc_page()
 {
     for (usize i = 0; i < region_count; i++)
     {
@@ -233,7 +233,7 @@ void* PageFrameAllocator::alloc_page()
     return nullptr;
 }
 
-void* PageFrameAllocator::alloc_pages(usize count)
+void* PhysicalMemoryManager::alloc_pages(usize count)
 {
     for (usize i = 0; i < region_count; i++)
     {
@@ -249,7 +249,7 @@ void* PageFrameAllocator::alloc_pages(usize count)
     return nullptr;
 }
 
-void PageFrameAllocator::lock_page(void* addr)
+void PhysicalMemoryManager::lock_page(void* addr)
 {
     for (usize i = 0; i < region_count; i++)
     {
@@ -262,7 +262,7 @@ void PageFrameAllocator::lock_page(void* addr)
     }
 }
 
-void PageFrameAllocator::lock_pages(void* addr, usize count)
+void PhysicalMemoryManager::lock_pages(void* addr, usize count)
 {
     for (usize i = 0; i < region_count; i++)
     {
@@ -275,7 +275,7 @@ void PageFrameAllocator::lock_pages(void* addr, usize count)
     }
 }
 
-void PageFrameAllocator::free_page(void* addr)
+void PhysicalMemoryManager::free_page(void* addr)
 {
     for (usize i = 0; i < region_count; i++)
     {
@@ -288,7 +288,7 @@ void PageFrameAllocator::free_page(void* addr)
     }
 }
 
-void PageFrameAllocator::free_pages(void* addr, usize count)
+void PhysicalMemoryManager::free_pages(void* addr, usize count)
 {
     for (usize i = 0; i < region_count; i++)
     {

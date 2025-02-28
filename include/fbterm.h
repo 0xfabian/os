@@ -2,7 +2,7 @@
 
 #include <requests.h>
 #include <font.h>
-#include <mem/pfalloc.h>
+#include <mem/pmm.h>
 #include <print.h>
 
 struct Framebuffer

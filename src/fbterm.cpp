@@ -87,7 +87,7 @@ void FramebufferTerminal::enable_backbuffer()
     kprintf(INFO "Enabling backbuffer...\n");
 
     usize count = PAGE_COUNT(default_fb.width * default_fb.height * sizeof(u32));
-    backbuffer = (u32*)((u64)pfa.alloc_pages(count) | 0xffff800000000000);
+    backbuffer = (u32*)((u64)pmm.alloc_pages(count) | 0xffff800000000000);
 
     if (!backbuffer)
     {
