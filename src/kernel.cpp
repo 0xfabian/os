@@ -30,10 +30,20 @@ void ls(const char* path)
 
 extern "C" void task1()
 {
-    int n = 0;
+    kprintf("Task 1: begin\n");
 
-    while (true)
-        kprintf("\e[91m%d\e[m\n", n++);
+    // int n = 0;
+
+    // while (true)
+    //     kprintf("\e[91m%d\e[m\n", n++);
+
+    // kprintf("Task 1: calling sys_debug()\n");
+
+    // asm volatile("mov $0, %rax; syscall");
+
+    // kprintf("Task 1: back from syscall\n");
+
+    idle();
 }
 
 extern "C" void task2()
@@ -52,6 +62,8 @@ extern "C" void task3()
         kprintf("\e[94m%d\e[m\n", n++);
 }
 
+extern "C" void syscall_handler_asm();
+
 extern "C" void kmain(void)
 {
     if (!LIMINE_BASE_REVISION_SUPPORTED)
@@ -68,6 +80,8 @@ extern "C" void kmain(void)
     idt.init();
 
     heap.init(2000);
+
+    // setup_syscall((uint64_t)syscall_handler_asm);
 
     // ramfs.register_self();
 
@@ -108,8 +122,8 @@ extern "C" void kmain(void)
 
     t0->ready();
     t1->ready();
-    t2->ready();
-    t3->ready();
+    // t2->ready();
+    // t3->ready();
 
     Task* t = task_list;
 
