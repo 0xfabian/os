@@ -40,7 +40,7 @@ extern "C" void kernel_thread()
 
 const u8 userspace_code[] =
 {
-    0xB8, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x05, 0xEB, 0xFE
+    0xFA, 0xEB, 0xFE
 };
 
 extern "C" void syscall_handler_asm();
@@ -52,7 +52,7 @@ extern "C" void kmain(void)
 
     fbterm.init();
 
-    pmm.init();
+    vmm.init();
 
     fbterm.enable_backbuffer();
 
@@ -96,13 +96,13 @@ extern "C" void kmain(void)
     // inode_table.debug();
     // heap.debug();
 
-    // Task* t0 = Task::dummy();
-    // Task* t1 = Task::from(kernel_thread);
-    // Task* t2 = Task::from(userspace_code, sizeof(userspace_code));
+    Task* t0 = Task::dummy();
+    Task* t1 = Task::from(kernel_thread);
+    Task* t2 = Task::from(userspace_code, sizeof(userspace_code));
 
-    // t0->ready();
-    // t1->ready();
-    // t2->ready();
+    t0->ready();
+    t1->ready();
+    t2->ready();
 
     // Task* t = task_list;
 
@@ -112,10 +112,10 @@ extern "C" void kmain(void)
     //     t = t->next;
     // } while (t != task_list);
 
-    // running = task_list;
+    running = task_list;
 
-    // pic::set_irq(0, false);
-    // sti();
+    pic::set_irq(0, false);
+    sti();
 
     // at this kmain continues as t0
 

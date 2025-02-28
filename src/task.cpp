@@ -56,6 +56,21 @@ Task* Task::from(const u8* data, usize size)
     task->mm.user_stack = kmalloc(USER_STACK_SIZE);
     task->mm.kernel_stack = kmalloc(KERNEL_STACK_SIZE);
 
+    u64* value = vmm.get_page_value((u64)task->mm.start);
+    // kprintf("start: %a %lx\n", task->mm.start, *value);
+
+    *value |= PE_USER;
+
+    value = vmm.get_page_value((u64)task->mm.user_stack);
+    // kprintf("stack: %a %lx\n", task->mm.user_stack, *value);
+
+    *value |= PE_USER;
+
+    value = vmm.get_page_value((u64)task->mm.kernel_stack);
+    // kprintf("kstack: %a %lx\n", task->mm.kernel_stack, *value);
+
+    *value |= PE_USER;
+
     memcpy(task->mm.start, data, size);
 
     u64 ustack_top = (u64)task->mm.user_stack + USER_STACK_SIZE;
@@ -66,12 +81,12 @@ Task* Task::from(const u8* data, usize size)
     CPU* cpu = (CPU*)task->krsp;
     memset(cpu, 0, sizeof(CPU));
 
-    cpu->rbp = kstack_top;
+    cpu->rbp = ustack_top;
 
     cpu->rip = (u64)task->mm.start;
     cpu->cs = USER_CS;
     cpu->rflags = 0x202;
-    cpu->rsp = kstack_top;
+    cpu->rsp = ustack_top;
     cpu->ss = USER_DS;
 
     for (int i = 0; i < FD_TABLE_SIZE; i++)

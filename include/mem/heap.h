@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mem/pmm.h>
+#include <mem/vmm.h>
 #include <print.h>
 
 #define HEAP_MIN_ALLOC  8

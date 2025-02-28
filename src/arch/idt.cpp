@@ -1,4 +1,5 @@
 #include <arch/idt.h>
+#include <arch/gdt.h>
 #include <task.h>
 
 alignas(0x1000) IDT idt;
@@ -89,9 +90,22 @@ extern "C" void context_switch()
 
     CPU* cpu = (CPU*)running->krsp;
 
-    ikprintf("cs: %lx    ss: %lx\n", cpu->cs, cpu->ss);
+    ikprintf("from cs: %lx    ss: %lx     rsp: %lx    stack: %lx    kstack: %lx\n", cpu->cs, cpu->ss, cpu->rsp, running->mm.user_stack, running->mm.kernel_stack);
+    u64 rsp;
+    asm volatile ("mov %%rsp, %0" : "=r"(rsp));
+    ikprintf("current rsp: %lx\n", rsp);
 
     running = running->next;
 
+    cpu = (CPU*)running->krsp;
+
+    ikprintf("to cs: %lx    ss: %lx\n", cpu->cs, cpu->ss);
+
+    if (running->mm.user_stack)
+        tss.rsp0 = (u64)running->mm.kernel_stack + 4096;
+
     pic::send_eoi(0);
+
+    // if (running->tid == 2)
+    //     pic::set_irq(0, true);
 }
