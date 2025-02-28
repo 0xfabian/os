@@ -59,7 +59,7 @@ void gp_fault_handler(interrupt_frame* frame, uint64_t error_code)
 {
     if (running)
     {
-        kprintf(PANIC "General Protection Fault in task %lu (%lx)\n", running->tid, error_code);
+        ikprintf(PANIC "General Protection Fault in task %lu (%lx)\n", running->tid, error_code);
         idle();
     }
     else
@@ -78,8 +78,19 @@ void keyboard_handler(interrupt_frame* frame)
     pic::send_eoi(1);
 }
 
+int ncs = 3;
+
 extern "C" void context_switch()
 {
+    if (ncs-- <= 0)
+        idle();
+
+    ikprintf("context_switch(): %lu -> %lu\n", running->tid, running->next->tid);
+
+    CPU* cpu = (CPU*)running->krsp;
+
+    ikprintf("cs: %lx    ss: %lx\n", cpu->cs, cpu->ss);
+
     running = running->next;
 
     pic::send_eoi(0);

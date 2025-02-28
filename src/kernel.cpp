@@ -28,39 +28,20 @@ void ls(const char* path)
     dir->close();
 }
 
-extern "C" void task1()
+extern "C" void kernel_thread()
 {
-    kprintf("Task 1: begin\n");
+    int n = 0;
 
-    // int n = 0;
-
-    // while (true)
-    //     kprintf("\e[91m%d\e[m\n", n++);
-
-    // kprintf("Task 1: calling sys_debug()\n");
-
-    // asm volatile("mov $0, %rax; syscall");
-
-    // kprintf("Task 1: back from syscall\n");
+    while (true)
+        kprintf("\e[91m%d\e[m\n", n++);
 
     idle();
 }
 
-extern "C" void task2()
+const uint8_t userspace_code[] =
 {
-    int n = 0;
-
-    while (true)
-        kprintf("\e[92m%d\e[m\n", n++);
-}
-
-extern "C" void task3()
-{
-    int n = 0;
-
-    while (true)
-        kprintf("\e[94m%d\e[m\n", n++);
-}
+    0xB8, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x05, 0xEB, 0xFE
+};
 
 extern "C" void syscall_handler_asm();
 
@@ -115,34 +96,33 @@ extern "C" void kmain(void)
     // inode_table.debug();
     // heap.debug();
 
-    Task* t0 = Task::dummy();
-    Task* t1 = Task::from(task1);
-    Task* t2 = Task::from(task2);
-    Task* t3 = Task::from(task3);
+    // Task* t0 = Task::dummy();
+    // Task* t1 = Task::from(kernel_thread);
+    // Task* t2 = Task::from(userspace_code, sizeof(userspace_code));
 
-    t0->ready();
-    t1->ready();
+    // t0->ready();
+    // t1->ready();
     // t2->ready();
-    // t3->ready();
 
-    Task* t = task_list;
+    // Task* t = task_list;
 
-    do
-    {
-        kprintf("Task %lu: %p -> %p\n", t->tid, t, t->next);
-        t = t->next;
-    } while (t != task_list);
+    // do
+    // {
+    //     kprintf("Task %lu: %p -> %p\n", t->tid, t, t->next);
+    //     t = t->next;
+    // } while (t != task_list);
 
-    running = task_list;
+    // running = task_list;
 
-    pic::set_irq(0, false);
-    sti();
+    // pic::set_irq(0, false);
+    // sti();
 
     // at this kmain continues as t0
 
     // while (true)
     //     kprintf("kernel task\n");
 
-    kprintf("Task %lu: begin idle\n", running->tid);
+    // kprintf("Task %lu: begin idle\n", running->tid);
+
     idle();
 }

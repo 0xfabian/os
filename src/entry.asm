@@ -80,11 +80,14 @@ GLOBAL timer_handler
 ; extern syscall_handler
 
 ; section .bss
+;     entry_rax resq 1
 ;     entry_rsp resq 1
 
 ; section .text
 
 ; syscall_handler_asm:
+
+;     o64 sysret
 
 ;     ; this should be called from ring 3 so because of the tss mechanism
 ;     ; rsp should be the kernel rsp
@@ -92,22 +95,49 @@ GLOBAL timer_handler
 ;     ; we should form another CPU struct on the stack in case this syscall
 ;     ; calls sched or something
 
-;     ; 
-
+;     mov [entry_rax], rax
 ;     mov [entry_rsp], rsp
-;     mov rax, 0x23
-;     push rax ; ss
 
-;     push qword [entry_rsp] ; push original rsp
+;     mov rax, 0x10 ; kernel ss
+;     push rax
 
-;     push r11 ; push rflags
+;     push qword [entry_rsp]
 
-;     mov rax, 0x1b 
-;     push rax ; push cs
+;     push r11 ; rflags
 
-;     push rcx ; push rip
+;     mov rax, 0x08
+;     push rax ; kernel cs
+
+;     push rcx ; rip
+
+;     mov rax, [entry_rax]
+
+;     PUSH_REGS
+
+;     ; at this point CPU struct is saved and rsp is pointing to it
+
+;     mov rdi, rsp
+;     mov rsi, rax
+;     call syscall_handler
+
+;     POP_REGS
 
 ;     iretq
+
+;     ; mov [entry_rsp], rsp
+;     ; mov rax, 0x10
+;     ; push rax ; ss
+
+;     ; push qword [entry_rsp] ; push original rsp
+
+;     ; push r11 ; push rflags
+
+;     ; mov rax, 0x08 
+;     ; push rax ; push cs
+
+;     ; push rcx ; push rip
+
+;     ; iretq
 
 
 ; GLOBAL syscall_handler_asm
