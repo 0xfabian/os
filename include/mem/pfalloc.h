@@ -11,41 +11,41 @@
 
 struct MemoryRegion
 {
-    uint64_t base;
-    uint64_t end;
+    u64 base;
+    u64 end;
 
-    size_t used_pages;
+    usize used_pages;
 
     BitmapView bitmap;
 
     void* alloc_page();
-    void* alloc_pages(size_t count);
+    void* alloc_pages(usize count);
 
     void lock_page(void* addr);
-    void lock_pages(void* addr, size_t count);
+    void lock_pages(void* addr, usize count);
 
     void free_page(void* addr);
-    void free_pages(void* addr, size_t count);
+    void free_pages(void* addr, usize count);
 };
 
 struct PageFrameAllocator
 {
     MemoryRegion* regions;
-    size_t region_count;
+    usize region_count;
 
-    size_t total_pages;
-    size_t used_pages;
+    usize total_pages;
+    usize used_pages;
 
     void init();
 
     void* alloc_page();
-    void* alloc_pages(size_t count);
+    void* alloc_pages(usize count);
 
     void lock_page(void* addr);
-    void lock_pages(void* addr, size_t count);
+    void lock_pages(void* addr, usize count);
 
     void free_page(void* addr);
-    void free_pages(void* addr, size_t count);
+    void free_pages(void* addr, usize count);
 };
 
 extern PageFrameAllocator pfa;

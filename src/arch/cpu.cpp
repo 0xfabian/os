@@ -5,10 +5,10 @@
 #define MSR_LSTAR   0xC0000082
 #define MSR_FMASK   0xC0000084
 
-void setup_syscall(uint64_t syscall_handler_address)
+void setup_syscall(u64 syscall_handler_address)
 {
     // enable syscall/sysret instructions
-    uint64_t efer = rdmsr(MSR_EFER);
+    u64 efer = rdmsr(MSR_EFER);
     wrmsr(MSR_EFER, efer | 1);
 
     // syscall will change cs to LSTAR[47:32] and ss to LSTAR[47:32] + 8
@@ -23,7 +23,7 @@ void setup_syscall(uint64_t syscall_handler_address)
     // cs will be (USER_DS - 8) + 16 = USER_DS + 8 = USER_CS
     // ss will be (USER_DS - 8) + 8 = USER_DS
 
-    wrmsr(MSR_STAR, (uint64_t)(USER_DS - 8) << 48 | (uint64_t)KERNEL_CS << 32);
+    wrmsr(MSR_STAR, (u64)(USER_DS - 8) << 48 | (u64)KERNEL_CS << 32);
 
     wrmsr(MSR_LSTAR, syscall_handler_address);
 
@@ -37,7 +37,7 @@ void setup_syscall(uint64_t syscall_handler_address)
 
 bool check_pat_support()
 {
-    uint32_t eax, ecx, edx, ebx;
+    u32 eax, ecx, edx, ebx;
     cpuid(1, &eax, &ebx, &ecx, &edx);
 
     return edx & (1 << 16);
@@ -45,7 +45,7 @@ bool check_pat_support()
 
 bool check_apic_support()
 {
-    uint32_t eax, ecx, edx, ebx;
+    u32 eax, ecx, edx, ebx;
     cpuid(1, &eax, &ebx, &ecx, &edx);
 
     return edx & (1 << 9);
@@ -53,7 +53,7 @@ bool check_apic_support()
 
 bool check_x2apic_support()
 {
-    uint32_t eax, ecx, edx, ebx;
+    u32 eax, ecx, edx, ebx;
     cpuid(1, &eax, &ebx, &ecx, &edx);
 
     return ecx & (1 << 21);

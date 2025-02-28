@@ -7,9 +7,9 @@
 
 struct Framebuffer
 {
-    uint32_t width;
-    uint32_t height;
-    uint32_t* addr;
+    u32 width;
+    u32 height;
+    u32* addr;
 
     void init(limine_framebuffer* fb);
 };
@@ -19,12 +19,12 @@ struct FramebufferTerminal
     Framebuffer* fb;
     PSF2* font;
 
-    uint32_t width;
-    uint32_t height;
-    uint32_t cursor;
+    u32 width;
+    u32 height;
+    u32 cursor;
 
-    uint32_t fg;
-    uint32_t bg;
+    u32 fg;
+    u32 bg;
 
     enum EscapeState
     {
@@ -42,7 +42,7 @@ struct FramebufferTerminal
 
     void clear();
     void scroll();
-    void write(const char* buffer, size_t len);
+    void write(const char* buffer, usize len);
     void ansi_function(char name, int arg);
     void putchar(char c);
 
@@ -51,5 +51,5 @@ struct FramebufferTerminal
 };
 
 extern Framebuffer default_fb;
-extern uint32_t* backbuffer;
+extern u32* backbuffer;
 extern FramebufferTerminal fbterm;

@@ -1,7 +1,6 @@
 #pragma once
 
-#include <cstdint>
-#include <cstddef>
+#include <types.h>
 #include <string.h>
 #include <print.h>
 #include <error.h>
@@ -14,12 +13,12 @@ struct Device;
 struct Filesystem
 {
     const char* name;
-    uint32_t flags;
+    u32 flags;
     result_ptr<Superblock>(*create_sb)(Filesystem* fs, Device* dev);
     void (*destroy_sb)(Superblock* sb);
 
     bool registered;
-    size_t num_sb;
+    usize num_sb;
     Filesystem* next;
 
     static Filesystem* find(const char* name);

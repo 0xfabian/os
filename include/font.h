@@ -1,25 +1,24 @@
 #pragma once
 
-#include <cstdint>
-#include <cstddef>
+#include <types.h>
 
 struct PSF2
 {
     struct Header
     {
-        uint8_t magic[4];
-        uint32_t version;
-        uint32_t header_size;
-        uint32_t flags;
-        uint32_t length;
-        uint32_t char_size;
-        uint32_t height;
-        uint32_t width;
+        u8 magic[4];
+        u32 version;
+        u32 header_size;
+        u32 flags;
+        u32 length;
+        u32 char_size;
+        u32 height;
+        u32 width;
     };
 
     Header* header;
-    uint8_t* glyph_buffer;
+    u8* glyph_buffer;
 };
 
-extern uint8_t zap_light20_data[];
+extern u8 zap_light20_data[];
 extern PSF2 zap_light20;

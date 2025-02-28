@@ -4,7 +4,7 @@ extern "C" void load_gdt_desc(GDTDescriptor* desc);
 
 alignas(0x1000) GDT gdt;
 
-void GDTEntry::set(uint32_t base, uint32_t limit, uint8_t _access, uint8_t flags)
+void GDTEntry::set(u32 base, u32 limit, u8 _access, u8 flags)
 {
     base_low = base & 0xffff;
     base_mid = (base >> 16) & 0xff;
@@ -32,7 +32,7 @@ void GDT::init()
 
     GDTDescriptor desc;
     desc.size = sizeof(GDT) - 1;
-    desc.offset = (uint64_t)this;
+    desc.offset = (u64)this;
 
     load_gdt_desc(&desc);
 }

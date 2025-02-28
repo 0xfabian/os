@@ -2,7 +2,7 @@
 
 FileTable file_table;
 
-result_ptr<File> File::open(const char* path, uint32_t flags)
+result_ptr<File> File::open(const char* path, u32 flags)
 {
     auto inode = Inode::get(path);
 
@@ -78,7 +78,7 @@ int File::close()
     return 0;
 }
 
-int File::read(char* buf, size_t size)
+int File::read(char* buf, usize size)
 {
     if (!ops.read)
         return -ERR_NOT_IMPL;
@@ -93,7 +93,7 @@ int File::read(char* buf, size_t size)
     return ret;
 }
 
-int File::write(const char* buf, size_t size)
+int File::write(const char* buf, usize size)
 {
     if (!ops.write)
         return -ERR_NOT_IMPL;
@@ -108,7 +108,7 @@ int File::write(const char* buf, size_t size)
     return ret;
 }
 
-size_t File::seek(size_t offset, int whence)
+usize File::seek(usize offset, int whence)
 {
     if (!ops.seek)
         return -ERR_NOT_IMPL;
@@ -116,7 +116,7 @@ size_t File::seek(size_t offset, int whence)
     return ops.seek(this, offset, whence);
 }
 
-int File::iterate(void* buf, size_t size)
+int File::iterate(void* buf, usize size)
 {
     if (!ops.iterate)
         return -ERR_NOT_IMPL;
@@ -191,7 +191,7 @@ void FileTable::debug()
     kprintf("}\n");
 }
 
-size_t generic_seek(File* file, size_t offset, int whence)
+usize generic_seek(File* file, usize offset, int whence)
 {
     switch (whence)
     {

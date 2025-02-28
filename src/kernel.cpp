@@ -38,7 +38,7 @@ extern "C" void kernel_thread()
     idle();
 }
 
-const uint8_t userspace_code[] =
+const u8 userspace_code[] =
 {
     0xB8, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x05, 0xEB, 0xFE
 };

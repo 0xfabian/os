@@ -9,20 +9,20 @@
 
 struct File
 {
-    size_t offset;
+    usize offset;
     Inode* inode;
-    uint32_t flags;
+    u32 flags;
     int refs;
 
     FileOps ops;
 
-    static result_ptr<File> open(const char* path, uint32_t flags);
+    static result_ptr<File> open(const char* path, u32 flags);
     int close();
 
-    int read(char* buf, size_t size);
-    int write(const char* buf, size_t size);
-    size_t seek(size_t offset, int whence);
-    int iterate(void* buf, size_t size);
+    int read(char* buf, usize size);
+    int write(const char* buf, usize size);
+    usize seek(usize offset, int whence);
+    int iterate(void* buf, usize size);
     int ioctl(int cmd, void* arg);
 };
 
@@ -39,4 +39,4 @@ struct FileTable
 
 extern FileTable file_table;
 
-size_t generic_seek(File* file, size_t offset, int whence);
+usize generic_seek(File* file, usize offset, int whence);

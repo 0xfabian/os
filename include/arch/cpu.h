@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <types.h>
 
 // defined in arch/gdt.cpp
 #define KERNEL_CS   0x08
@@ -10,28 +10,28 @@
 
 struct CPU
 {
-    uint64_t r15;
-    uint64_t r14;
-    uint64_t r13;
-    uint64_t r12;
-    uint64_t rbp;
-    uint64_t rbx;
+    u64 r15;
+    u64 r14;
+    u64 r13;
+    u64 r12;
+    u64 rbp;
+    u64 rbx;
 
-    uint64_t r11;
-    uint64_t r10;
-    uint64_t r9;
-    uint64_t r8;
-    uint64_t rax;
-    uint64_t rcx;
-    uint64_t rdx;
-    uint64_t rsi;
-    uint64_t rdi;
+    u64 r11;
+    u64 r10;
+    u64 r9;
+    u64 r8;
+    u64 rax;
+    u64 rcx;
+    u64 rdx;
+    u64 rsi;
+    u64 rdi;
 
-    uint64_t rip;
-    uint64_t cs;
-    uint64_t rflags;
-    uint64_t rsp;
-    uint64_t ss;
+    u64 rip;
+    u64 cs;
+    u64 rflags;
+    u64 rsp;
+    u64 ss;
 };
 
 static inline void cli()
@@ -50,72 +50,72 @@ static inline void idle()
         asm volatile("hlt");
 }
 
-static inline void cpuid(uint32_t code, uint32_t* eax, uint32_t* ebx, uint32_t* ecx, uint32_t* edx)
+static inline void cpuid(u32 code, u32* eax, u32* ebx, u32* ecx, u32* edx)
 {
     asm volatile("cpuid" : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx) : "a"(code));
 }
 
-static inline uint8_t inb(uint16_t port)
+static inline u8 inb(u16 port)
 {
-    uint8_t ret;
+    u8 ret;
     asm volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
 
     return ret;
 }
 
-static inline uint16_t inw(uint16_t port)
+static inline u16 inw(u16 port)
 {
-    uint16_t ret;
+    u16 ret;
     asm volatile ("inw %1, %0" : "=a"(ret) : "d"(port));
 
     return ret;
 }
 
-static inline uint32_t inl(uint16_t port)
+static inline u32 inl(u16 port)
 {
-    uint32_t ret;
+    u32 ret;
     asm volatile ("inl %1, %0" : "=a"(ret) : "d"(port));
 
     return ret;
 }
 
-static inline void outb(uint16_t port, uint8_t val)
+static inline void outb(u16 port, u8 val)
 {
     asm volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }
 
-static inline void outw(uint16_t port, uint16_t val)
+static inline void outw(u16 port, u16 val)
 {
     asm volatile ("outw %0, %1" : : "a"(val), "d"(port));
 }
 
-static inline void outl(uint16_t port, uint32_t val)
+static inline void outl(u16 port, u32 val)
 {
     asm volatile ("outl %0, %1" : : "a"(val), "d"(port));
 }
 
-static inline uint64_t read_cr3()
+static inline u64 read_cr3()
 {
-    uint64_t cr3;
+    u64 cr3;
     asm volatile("mov %%cr3, %0" : "=r"(cr3));
 
     return cr3;
 }
 
-static inline uint64_t rdmsr(uint64_t msr)
+static inline u64 rdmsr(u64 msr)
 {
-    uint32_t eax, edx;
+    u32 eax, edx;
     asm volatile ("rdmsr" : "=a"(eax), "=d"(edx) : "c"(msr) : "memory");
 
-    return ((uint64_t)edx << 32) | eax;
+    return ((u64)edx << 32) | eax;
 }
 
-static inline void wrmsr(uint64_t msr, uint64_t value)
+static inline void wrmsr(u64 msr, u64 value)
 {
     asm volatile ("wrmsr" : : "c"(msr), "a"(value & 0xffffffff), "d"(value >> 32) : "memory");
 }
 
-void setup_syscall(uint64_t syscall_handler_address);
+void setup_syscall(u64 syscall_handler_address);
 
 bool check_pat_support();
 bool check_apic_support();

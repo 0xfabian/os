@@ -25,7 +25,7 @@ void append_string(const char* str)
         append_char(*str++);
 }
 
-void append_uint(uint64_t num)
+void append_uint(u64 num)
 {
     if (num == 0)
     {
@@ -46,7 +46,7 @@ void append_uint(uint64_t num)
         append_char(temp[--i]);
 }
 
-void append_int(int64_t num)
+void append_int(i64 num)
 {
     if (num < 0)
     {
@@ -57,7 +57,7 @@ void append_int(int64_t num)
     append_uint(num);
 }
 
-void append_hex(uint64_t num, int size)
+void append_hex(u64 num, int size)
 {
     static const char* hex = "0123456789abcdef";
 
@@ -67,7 +67,7 @@ void append_hex(uint64_t num, int size)
 
 void append_address(void* addr)
 {
-    uint64_t num = (uint64_t)addr;
+    u64 num = (u64)addr;
 
     num &= 0x0000ffffffffffff;
 
@@ -95,7 +95,7 @@ void append_address(void* addr)
     }
 }
 
-void append_binary(uint64_t num, int size)
+void append_binary(u64 num, int size)
 {
     for (int i = size * 8 - 1; i >= 0; i--)
         append_char((num >> i) & 1 ? '1' : '0');
@@ -193,7 +193,7 @@ void kprintf(const char* fmt, ...)
         {
             append_char('0');
             append_char('x');
-            append_hex((uint64_t)va_arg(args, void*), 8);
+            append_hex((u64)va_arg(args, void*), 8);
 
             break;
         }
@@ -306,7 +306,7 @@ void ikprintf(const char* fmt, ...)
         {
             append_char('0');
             append_char('x');
-            append_hex((uint64_t)va_arg(args, void*), 8);
+            append_hex((u64)va_arg(args, void*), 8);
 
             break;
         }
@@ -327,11 +327,11 @@ void ikprintf(const char* fmt, ...)
     va_end(args);
 }
 
-void hexdump(void* data, size_t len)
+void hexdump(void* data, usize len)
 {
-    uint8_t* ptr = (uint8_t*)data;
+    u8* ptr = (u8*)data;
 
-    for (size_t i = 0; i < len; i++)
+    for (usize i = 0; i < len; i++)
     {
         if (i % 16 == 0)
             kprintf("\e[92m%p\e[m: ", ptr + i);

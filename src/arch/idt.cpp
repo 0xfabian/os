@@ -22,14 +22,14 @@ void IDT::init()
 
     IDTDescriptor desc;
     desc.size = sizeof(IDT) - 1;
-    desc.offset = (uint64_t)this;
+    desc.offset = (u64)this;
 
     asm volatile("lidt %0" : : "m"(desc));
 }
 
-void IDT::set(uint8_t index, void* isr)
+void IDT::set(u8 index, void* isr)
 {
-    uint64_t offset = (uint64_t)isr;
+    u64 offset = (u64)isr;
 
     entries[index].offset_low = offset & 0xffff;
     entries[index].offset_mid = (offset >> 16) & 0xffff;
@@ -40,12 +40,12 @@ void IDT::set(uint8_t index, void* isr)
     entries[index].type_attr = 0x8e;    // present, ring 0, interrupt gate
 }
 
-void IDT::set(uint8_t index, void (*isr)(interrupt_frame*))
+void IDT::set(u8 index, void (*isr)(interrupt_frame*))
 {
     set(index, (void*)isr);
 }
 
-void IDT::set(uint8_t index, void (*isr)(interrupt_frame*, uint64_t))
+void IDT::set(u8 index, void (*isr)(interrupt_frame*, u64))
 {
     set(index, (void*)isr);
 }
@@ -55,7 +55,7 @@ void default_handler(interrupt_frame* frame)
     panic("Unhandled interrupt");
 }
 
-void gp_fault_handler(interrupt_frame* frame, uint64_t error_code)
+void gp_fault_handler(interrupt_frame* frame, u64 error_code)
 {
     if (running)
     {
@@ -66,14 +66,14 @@ void gp_fault_handler(interrupt_frame* frame, uint64_t error_code)
         panic("General Protection Fault");
 }
 
-void page_fault_handler(interrupt_frame* frame, uint64_t error_code)
+void page_fault_handler(interrupt_frame* frame, u64 error_code)
 {
     panic("Page Fault");
 }
 
 void keyboard_handler(interrupt_frame* frame)
 {
-    uint8_t scancode = inb(0x60);
+    u8 scancode = inb(0x60);
     kprintf("scancode: \e[32m%hhx\e[m\n", scancode);
     pic::send_eoi(1);
 }

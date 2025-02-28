@@ -1,12 +1,12 @@
 #include <ds/bitmap.h>
 
-void BitmapView::from(void* data, size_t _size)
+void BitmapView::from(void* data, usize _size)
 {
-    buffer = (uint8_t*)data;
+    buffer = (u8*)data;
     size = _size;
 }
 
-void BitmapView::set(size_t index)
+void BitmapView::set(usize index)
 {
     if (index >= size)
         return;
@@ -14,7 +14,7 @@ void BitmapView::set(size_t index)
     buffer[index / 8] |= (1 << (index % 8));
 }
 
-void BitmapView::clear(size_t index)
+void BitmapView::clear(usize index)
 {
     if (index >= size)
         return;
@@ -22,7 +22,7 @@ void BitmapView::clear(size_t index)
     buffer[index / 8] &= ~(1 << (index % 8));
 }
 
-bool BitmapView::get(size_t index)
+bool BitmapView::get(usize index)
 {
     if (index >= size)
         return false;

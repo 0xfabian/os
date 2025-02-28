@@ -19,7 +19,7 @@
 #define BRIGHT_CYAN         0x79f9de
 #define BRIGHT_WHITE        0xf2f2f2
 
-uint32_t colors[] =
+u32 colors[] =
 {
     BLACK,
     RED,
@@ -40,14 +40,14 @@ uint32_t colors[] =
 };
 
 Framebuffer default_fb;
-uint32_t* backbuffer;
+u32* backbuffer;
 FramebufferTerminal fbterm;
 
 void Framebuffer::init(limine_framebuffer* fb)
 {
     width = fb->width;
     height = fb->height;
-    addr = (uint32_t*)fb->address;
+    addr = (u32*)fb->address;
 }
 
 void FramebufferTerminal::init()
@@ -86,8 +86,8 @@ void FramebufferTerminal::enable_backbuffer()
 {
     kprintf(INFO "Enabling backbuffer...\n");
 
-    size_t count = PAGE_COUNT(default_fb.width * default_fb.height * sizeof(uint32_t));
-    backbuffer = (uint32_t*)((uint64_t)pfa.alloc_pages(count) | 0xffff800000000000);
+    usize count = PAGE_COUNT(default_fb.width * default_fb.height * sizeof(u32));
+    backbuffer = (u32*)((u64)pfa.alloc_pages(count) | 0xffff800000000000);
 
     if (!backbuffer)
     {
@@ -95,9 +95,9 @@ void FramebufferTerminal::enable_backbuffer()
         return;
     }
 
-    uint64_t* from = (uint64_t*)fb->addr;
-    uint64_t* to = (uint64_t*)backbuffer;
-    uint64_t* end = (uint64_t*)(fb->addr + fb->width * fb->height);
+    u64* from = (u64*)fb->addr;
+    u64* to = (u64*)backbuffer;
+    u64* end = (u64*)(fb->addr + fb->width * fb->height);
 
     while (from < end)
         *to++ = *from++;
@@ -105,11 +105,11 @@ void FramebufferTerminal::enable_backbuffer()
 
 void FramebufferTerminal::clear()
 {
-    uint64_t* start = (uint64_t*)backbuffer;
-    uint64_t* end = (uint64_t*)(backbuffer + fb->width * fb->height);
-    uint64_t value = ((uint64_t)bg << 32) | bg;
+    u64* start = (u64*)backbuffer;
+    u64* end = (u64*)(backbuffer + fb->width * fb->height);
+    u64 value = ((u64)bg << 32) | bg;
 
-    for (uint64_t* ptr = start; ptr < end; ptr++)
+    for (u64* ptr = start; ptr < end; ptr++)
         *ptr = value;
 
     cursor = 0;
@@ -119,15 +119,15 @@ void FramebufferTerminal::clear()
 
 void FramebufferTerminal::scroll()
 {
-    uint64_t* start = (uint64_t*)backbuffer;
-    uint64_t* end = (uint64_t*)(backbuffer + fb->width * (fb->height - font->header->height));
-    uint64_t scroll_offset = fb->width * font->header->height / 2;
-    uint64_t value = ((uint64_t)bg << 32) | bg;
+    u64* start = (u64*)backbuffer;
+    u64* end = (u64*)(backbuffer + fb->width * (fb->height - font->header->height));
+    u64 scroll_offset = fb->width * font->header->height / 2;
+    u64 value = ((u64)bg << 32) | bg;
 
-    for (uint64_t* ptr = start; ptr < end; ptr++)
+    for (u64* ptr = start; ptr < end; ptr++)
         *ptr = *(ptr + scroll_offset);
 
-    for (uint64_t* ptr = end; ptr < end + scroll_offset; ptr++)
+    for (u64* ptr = end; ptr < end + scroll_offset; ptr++)
         *ptr = value;
 
     cursor -= width;
@@ -135,10 +135,10 @@ void FramebufferTerminal::scroll()
     render();
 }
 
-void FramebufferTerminal::write(const char* buffer, size_t len)
+void FramebufferTerminal::write(const char* buffer, usize len)
 {
     const char* ptr = buffer;
-    size_t i = 0;
+    usize i = 0;
 
     while (i < len)
     {
@@ -245,12 +245,12 @@ void FramebufferTerminal::putchar(char c)
 
 void FramebufferTerminal::draw_bitmap(char c)
 {
-    uint32_t x = (cursor % width) * font->header->width;
-    uint32_t y = (cursor / width) * font->header->height;
+    u32 x = (cursor % width) * font->header->width;
+    u32 y = (cursor / width) * font->header->height;
 
-    uint32_t* ptr = backbuffer + x + y * fb->width;
-    uint32_t* ptr2 = fb->addr + x + y * fb->width;
-    uint8_t* font_ptr = font->glyph_buffer + c * font->header->char_size;
+    u32* ptr = backbuffer + x + y * fb->width;
+    u32* ptr2 = fb->addr + x + y * fb->width;
+    u8* font_ptr = font->glyph_buffer + c * font->header->char_size;
 
     for (y = 0; y < font->header->height; y++)
     {
@@ -274,9 +274,9 @@ void FramebufferTerminal::render()
     if (backbuffer == fb->addr)
         return;
 
-    uint64_t* from = (uint64_t*)backbuffer;
-    uint64_t* to = (uint64_t*)fb->addr;
-    uint64_t* end = (uint64_t*)(backbuffer + fb->width * fb->height);
+    u64* from = (u64*)backbuffer;
+    u64* to = (u64*)fb->addr;
+    u64* end = (u64*)(backbuffer + fb->width * fb->height);
 
     while (from < end)
         *to++ = *from++;

@@ -10,5 +10,5 @@
 
 void kprintf(const char* fmt, ...);
 void ikprintf(const char* fmt, ...);
-void hexdump(void* data, size_t len);
+void hexdump(void* data, usize len);
 void panic(const char* msg);

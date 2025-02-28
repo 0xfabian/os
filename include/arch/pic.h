@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <types.h>
 #include <arch/cpu.h>
 
 #define PIC1_COMMAND    0x20
@@ -15,14 +15,14 @@
 
 namespace pic
 {
-    void remap(uint8_t offset1 = 0x20, uint8_t offset2 = 0x28);
+    void remap(u8 offset1 = 0x20, u8 offset2 = 0x28);
     void disable();
 
-    void set_mask(uint16_t mask);
-    uint16_t get_mask();
+    void set_mask(u16 mask);
+    u16 get_mask();
 
-    void set_irq(uint8_t irq, bool masked);
-    bool get_irq(uint8_t irq);
+    void set_irq(u8 irq, bool masked);
+    bool get_irq(u8 irq);
 
-    void send_eoi(uint8_t irq);
+    void send_eoi(u8 irq);
 }

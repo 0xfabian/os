@@ -1,34 +1,34 @@
 #pragma once
 
-#include <cstdint>
+#include <types.h>
 #include <print.h>
 #include <arch/pic.h>
 
 struct interrupt_frame
 {
-    uint64_t rip;
-    uint64_t cs;
-    uint64_t rflags;
-    uint64_t rsp;
-    uint64_t ss;
+    u64 rip;
+    u64 cs;
+    u64 rflags;
+    u64 rsp;
+    u64 ss;
 };
 
 struct IDTDescriptor
 {
-    uint16_t size;
-    uint64_t offset;
+    u16 size;
+    u64 offset;
 }
 __attribute__((packed));
 
 struct IDTEntry
 {
-    uint16_t offset_low;
-    uint16_t selector;
-    uint8_t ist;
-    uint8_t type_attr;
-    uint16_t offset_mid;
-    uint32_t offset_high;
-    uint32_t reserved;
+    u16 offset_low;
+    u16 selector;
+    u8 ist;
+    u8 type_attr;
+    u16 offset_mid;
+    u32 offset_high;
+    u32 reserved;
 }
 __attribute__((packed));
 
@@ -37,15 +37,15 @@ struct IDT
     IDTEntry entries[256];
 
     void init();
-    void set(uint8_t index, void* isr);
-    void set(uint8_t index, void (*isr)(interrupt_frame*));
-    void set(uint8_t index, void (*isr)(interrupt_frame*, uint64_t));
+    void set(u8 index, void* isr);
+    void set(u8 index, void (*isr)(interrupt_frame*));
+    void set(u8 index, void (*isr)(interrupt_frame*, u64));
 }
 __attribute__((packed));
 
 extern IDT idt;
 
 __attribute__((interrupt)) void default_handler(interrupt_frame* frame);
-__attribute__((interrupt)) void gp_fault_handler(interrupt_frame* frame, uint64_t error_code);
-__attribute__((interrupt)) void page_fault_handler(interrupt_frame* frame, uint64_t error_code);
+__attribute__((interrupt)) void gp_fault_handler(interrupt_frame* frame, u64 error_code);
+__attribute__((interrupt)) void page_fault_handler(interrupt_frame* frame, u64 error_code);
 __attribute__((interrupt)) void keyboard_handler(interrupt_frame* frame);

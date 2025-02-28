@@ -15,7 +15,7 @@ struct Mount
     Mountpoint mp;
     Superblock* sb;
     Mount* parent;
-    size_t submounts;
+    usize submounts;
 
     static Mount* find(Inode* inode);
     static Mount* find(Superblock* sb);

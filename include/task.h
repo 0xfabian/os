@@ -13,7 +13,7 @@ enum TaskState
 struct MemoryMap
 {
     void* start;
-    size_t size;
+    usize size;
 
     void* user_stack;
     void* kernel_stack;
@@ -21,9 +21,9 @@ struct MemoryMap
 
 struct Task
 {
-    uint64_t krsp;
+    u64 krsp;
     Task* next;
-    uint64_t tid;
+    u64 tid;
 
     TaskState state;
 
@@ -32,7 +32,7 @@ struct Task
     FDTable fdt;
 
     static Task* from(void (*func)(void));
-    static Task* from(const uint8_t* data, size_t size);
+    static Task* from(const u8* data, usize size);
     static Task* dummy();
     void ready();
 };

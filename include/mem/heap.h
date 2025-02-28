@@ -11,25 +11,25 @@ struct Heap
 {
     struct Header
     {
-        size_t _size;
+        usize _size;
         Header* next;
         Header* prev;
 
-        size_t size();
+        usize size();
 
         void set_free();
         void set_used();
         bool is_free();
 
-        void split(size_t size);
+        void split(usize size);
         void combine_forward();
         void combine_backward();
     };
 
     Header* start;
 
-    void init(size_t pages);
-    void* alloc(size_t size);
+    void init(usize pages);
+    void* alloc(usize size);
     void free(void* ptr);
 
     void debug();
@@ -37,5 +37,5 @@ struct Heap
 
 extern Heap heap;
 
-void* kmalloc(size_t size);
+void* kmalloc(usize size);
 void kfree(void* ptr);

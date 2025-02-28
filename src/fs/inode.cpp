@@ -16,7 +16,7 @@ char* path_read_next(const char*& ptr)
         return nullptr;
 
     char* output = path_read_data;
-    size_t len = 0;
+    usize len = 0;
 
     while (*ptr != '/' && *ptr != '\0')
     {
@@ -127,7 +127,7 @@ int Inode::create(const char* name)
     return ops.create(this, name);
 }
 
-int Inode::mknod(const char* name, uint32_t dev)
+int Inode::mknod(const char* name, u32 dev)
 {
     if (!ops.mknod)
         return -ERR_NOT_IMPL;
@@ -167,7 +167,7 @@ int Inode::rmdir(const char* name)
     return ops.rmdir(this, name);
 }
 
-int Inode::truncate(size_t size)
+int Inode::truncate(usize size)
 {
     if (!ops.truncate)
         return -ERR_NOT_IMPL;
@@ -234,7 +234,7 @@ result_ptr<Inode> InodeTable::insert(Inode* inode)
     return free;
 }
 
-result_ptr<Inode> InodeTable::find(Superblock* sb, uint64_t ino)
+result_ptr<Inode> InodeTable::find(Superblock* sb, u64 ino)
 {
     for (Inode* i = &inodes[0]; i < &inodes[INODE_TABLE_SIZE]; i++)
         if ((i->flags & IF_ALLOC) && i->sb == sb && i->ino == ino)
@@ -243,9 +243,9 @@ result_ptr<Inode> InodeTable::find(Superblock* sb, uint64_t ino)
     return -ERR_NOT_FOUND;
 }
 
-size_t InodeTable::get_sb_refs(Superblock* sb)
+usize InodeTable::get_sb_refs(Superblock* sb)
 {
-    size_t refs = 0;
+    usize refs = 0;
 
     for (Inode* i = &inodes[0]; i < &inodes[INODE_TABLE_SIZE]; i++)
         if ((i->flags & IF_ALLOC) && i->sb == sb)

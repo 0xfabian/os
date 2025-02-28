@@ -1,15 +1,14 @@
 #pragma once
 
-#include <cstdint>
-#include <cstddef>
+#include <types.h>
 
 struct BitmapView
 {
-    size_t size;
-    uint8_t* buffer;
+    usize size;
+    u8* buffer;
 
-    void from(void* data, size_t _size);
-    void set(size_t bit);
-    void clear(size_t bit);
-    bool get(size_t bit);
+    void from(void* data, usize _size);
+    void set(usize bit);
+    void clear(usize bit);
+    bool get(usize bit);
 };

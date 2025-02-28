@@ -2,7 +2,7 @@
 
 Heap heap;
 
-size_t Heap::Header::size()
+usize Heap::Header::size()
 {
     return _size & ~HEAP_MASK;
 }
@@ -42,9 +42,9 @@ void Heap::Header::combine_backward()
     prev->combine_forward();
 }
 
-void Heap::Header::split(size_t size)
+void Heap::Header::split(usize size)
 {
-    Header* hdr = (Header*)((uint64_t)this + size + sizeof(Header));
+    Header* hdr = (Header*)((u64)this + size + sizeof(Header));
 
     hdr->_size = this->_size - size - sizeof(Header);
     hdr->next = this->next;
@@ -57,11 +57,11 @@ void Heap::Header::split(size_t size)
     this->next = hdr;
 }
 
-void Heap::init(size_t pages)
+void Heap::init(usize pages)
 {
     kprintf(INFO "Initializing heap (%lu pages)...\n", pages);
 
-    start = (Header*)((uint64_t)pfa.alloc_pages(pages) | 0xffff800000000000);
+    start = (Header*)((u64)pfa.alloc_pages(pages) | 0xffff800000000000);
 
     if (!start)
         panic("Failed to allocate heap");
@@ -72,7 +72,7 @@ void Heap::init(size_t pages)
     start->set_free();
 }
 
-void* Heap::alloc(size_t size)
+void* Heap::alloc(usize size)
 {
     if (size == 0 || size & HEAP_MASK)
         size = (size & ~HEAP_MASK) + HEAP_MIN_ALLOC;
@@ -113,9 +113,9 @@ void Heap::debug()
 {
     Header* hdr = start;
 
-    size_t free = 0;
-    size_t used = 0;
-    size_t entries = 0;
+    usize free = 0;
+    usize used = 0;
+    usize entries = 0;
 
     while (hdr)
     {
@@ -148,7 +148,7 @@ void Heap::debug()
     kprintf("entries=%lu    total=%lu    used=%lu    free=%lu\n", entries, used + free + entries * sizeof(Header), used, free);
 }
 
-void* kmalloc(size_t size)
+void* kmalloc(usize size)
 {
     return heap.alloc(size);
 }
@@ -158,7 +158,7 @@ void kfree(void* ptr)
     heap.free(ptr);
 }
 
-// void* operator new(size_t size)
+// void* operator new(usize size)
 // {
 //     return heap.alloc(size);
 // }
@@ -168,7 +168,7 @@ void kfree(void* ptr)
 //     heap.free(ptr);
 // }
 
-// void operator delete(void* ptr, size_t size)
+// void operator delete(void* ptr, usize size)
 // {
 //     heap.free(ptr);
 // }

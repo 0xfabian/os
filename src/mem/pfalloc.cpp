@@ -7,13 +7,13 @@ void* MemoryRegion::alloc_page()
     return alloc_pages(1);
 }
 
-void* MemoryRegion::alloc_pages(size_t count)
+void* MemoryRegion::alloc_pages(usize count)
 {
-    for (size_t i = 0; i < bitmap.size; i++)
+    for (usize i = 0; i < bitmap.size; i++)
     {
         bool valid = true;
 
-        for (size_t j = i; j < i + count; j++)
+        for (usize j = i; j < i + count; j++)
         {
             if (j >= bitmap.size || bitmap.get(j))
             {
@@ -24,7 +24,7 @@ void* MemoryRegion::alloc_pages(size_t count)
 
         if (valid)
         {
-            for (size_t j = i; j < i + count; j++)
+            for (usize j = i; j < i + count; j++)
                 bitmap.set(j);
 
             used_pages += count;
@@ -41,11 +41,11 @@ void MemoryRegion::lock_page(void* addr)
     lock_pages(addr, 1);
 }
 
-void MemoryRegion::lock_pages(void* addr, size_t count)
+void MemoryRegion::lock_pages(void* addr, usize count)
 {
-    uint64_t index = ((uint64_t)addr - base) >> PAGE_SHIFT;
+    u64 index = ((u64)addr - base) >> PAGE_SHIFT;
 
-    for (size_t i = index; i < index + count; i++)
+    for (usize i = index; i < index + count; i++)
         bitmap.set(i);
 
     used_pages += count;
@@ -56,27 +56,27 @@ void MemoryRegion::free_page(void* addr)
     free_pages(addr, 1);
 }
 
-void MemoryRegion::free_pages(void* addr, size_t count)
+void MemoryRegion::free_pages(void* addr, usize count)
 {
-    uint64_t index = ((uint64_t)addr - base) >> PAGE_SHIFT;
+    u64 index = ((u64)addr - base) >> PAGE_SHIFT;
 
-    for (size_t i = index; i < index + count; i++)
+    for (usize i = index; i < index + count; i++)
         bitmap.clear(i);
 
     used_pages -= count;
 }
 
-void compute_allocator_total_size(limine_memmap_response* memmap, size_t* region_count, size_t* total_size)
+void compute_allocator_total_size(limine_memmap_response* memmap, usize* region_count, usize* total_size)
 {
-    size_t count = 0;
-    size_t bitmaps_total_size = 0;
+    usize count = 0;
+    usize bitmaps_total_size = 0;
 
-    uint64_t base;
-    uint64_t end;
+    u64 base;
+    u64 end;
 
     bool try_join = false;
 
-    for (size_t i = 0; i < memmap->entry_count; i++)
+    for (usize i = 0; i < memmap->entry_count; i++)
     {
         limine_memmap_entry* entry = memmap->entries[i];
 
@@ -90,8 +90,8 @@ void compute_allocator_total_size(limine_memmap_response* memmap, size_t* region
                 continue;
             }
 
-            size_t pages = PAGE_COUNT(end - base);
-            size_t bitmap_size = (pages + 7) / 8;
+            usize pages = PAGE_COUNT(end - base);
+            usize bitmap_size = (pages + 7) / 8;
 
             count++;
             bitmaps_total_size += bitmap_size;
@@ -110,8 +110,8 @@ void compute_allocator_total_size(limine_memmap_response* memmap, size_t* region
 
     if (try_join)
     {
-        size_t pages = PAGE_COUNT(end - base);
-        size_t bitmap_size = (pages + 7) / 8;
+        usize pages = PAGE_COUNT(end - base);
+        usize bitmap_size = (pages + 7) / 8;
 
         count++;
         bitmaps_total_size += bitmap_size;
@@ -130,12 +130,12 @@ void PageFrameAllocator::init()
     if (!memmap)
         panic("No memory map response\n");
 
-    size_t total_size;
+    usize total_size;
     compute_allocator_total_size(memmap, &region_count, &total_size);
 
     void* allocator_addr = nullptr;
 
-    for (size_t i = 0; i < memmap->entry_count; i++)
+    for (usize i = 0; i < memmap->entry_count; i++)
     {
         limine_memmap_entry* entry = memmap->entries[i];
 
@@ -154,14 +154,14 @@ void PageFrameAllocator::init()
     used_pages = 0;
 
     MemoryRegion* region = regions;
-    uint8_t* bitmap_addr = (uint8_t*)(regions + region_count);
+    u8* bitmap_addr = (u8*)(regions + region_count);
 
-    uint64_t base;
-    uint64_t end;
+    u64 base;
+    u64 end;
 
     bool try_join = false;
 
-    for (size_t i = 0; i < memmap->entry_count; i++)
+    for (usize i = 0; i < memmap->entry_count; i++)
     {
         limine_memmap_entry* entry = memmap->entries[i];
 
@@ -175,8 +175,8 @@ void PageFrameAllocator::init()
                 continue;
             }
 
-            size_t pages = PAGE_COUNT(end - base);
-            size_t bitmap_size = (pages + 7) / 8;
+            usize pages = PAGE_COUNT(end - base);
+            usize bitmap_size = (pages + 7) / 8;
 
             region->base = base;
             region->end = end;
@@ -202,8 +202,8 @@ void PageFrameAllocator::init()
 
     if (try_join)
     {
-        size_t pages = PAGE_COUNT(end - base);
-        size_t bitmap_size = (pages + 7) / 8;
+        usize pages = PAGE_COUNT(end - base);
+        usize bitmap_size = (pages + 7) / 8;
 
         region->base = base;
         region->end = end;
@@ -214,12 +214,12 @@ void PageFrameAllocator::init()
         total_pages += pages;
     }
 
-    lock_pages((void*)((uint64_t)allocator_addr & ~0xffff800000000000), PAGE_COUNT(total_size));
+    lock_pages((void*)((u64)allocator_addr & ~0xffff800000000000), PAGE_COUNT(total_size));
 }
 
 void* PageFrameAllocator::alloc_page()
 {
-    for (size_t i = 0; i < region_count; i++)
+    for (usize i = 0; i < region_count; i++)
     {
         void* page = regions[i].alloc_page();
 
@@ -233,9 +233,9 @@ void* PageFrameAllocator::alloc_page()
     return nullptr;
 }
 
-void* PageFrameAllocator::alloc_pages(size_t count)
+void* PageFrameAllocator::alloc_pages(usize count)
 {
-    for (size_t i = 0; i < region_count; i++)
+    for (usize i = 0; i < region_count; i++)
     {
         void* page = regions[i].alloc_pages(count);
 
@@ -251,9 +251,9 @@ void* PageFrameAllocator::alloc_pages(size_t count)
 
 void PageFrameAllocator::lock_page(void* addr)
 {
-    for (size_t i = 0; i < region_count; i++)
+    for (usize i = 0; i < region_count; i++)
     {
-        if (regions[i].base <= (uint64_t)addr && (uint64_t)addr < regions[i].end)
+        if (regions[i].base <= (u64)addr && (u64)addr < regions[i].end)
         {
             regions[i].lock_page(addr);
             used_pages++;
@@ -262,11 +262,11 @@ void PageFrameAllocator::lock_page(void* addr)
     }
 }
 
-void PageFrameAllocator::lock_pages(void* addr, size_t count)
+void PageFrameAllocator::lock_pages(void* addr, usize count)
 {
-    for (size_t i = 0; i < region_count; i++)
+    for (usize i = 0; i < region_count; i++)
     {
-        if (regions[i].base <= (uint64_t)addr && (uint64_t)addr < regions[i].end)
+        if (regions[i].base <= (u64)addr && (u64)addr < regions[i].end)
         {
             regions[i].lock_pages(addr, count);
             used_pages += count;
@@ -277,9 +277,9 @@ void PageFrameAllocator::lock_pages(void* addr, size_t count)
 
 void PageFrameAllocator::free_page(void* addr)
 {
-    for (size_t i = 0; i < region_count; i++)
+    for (usize i = 0; i < region_count; i++)
     {
-        if (regions[i].base <= (uint64_t)addr && (uint64_t)addr < regions[i].end)
+        if (regions[i].base <= (u64)addr && (u64)addr < regions[i].end)
         {
             regions[i].free_page(addr);
             used_pages--;
@@ -288,11 +288,11 @@ void PageFrameAllocator::free_page(void* addr)
     }
 }
 
-void PageFrameAllocator::free_pages(void* addr, size_t count)
+void PageFrameAllocator::free_pages(void* addr, usize count)
 {
-    for (size_t i = 0; i < region_count; i++)
+    for (usize i = 0; i < region_count; i++)
     {
-        if (regions[i].base <= (uint64_t)addr && (uint64_t)addr < regions[i].end)
+        if (regions[i].base <= (u64)addr && (u64)addr < regions[i].end)
         {
             regions[i].free_pages(addr, count);
             used_pages -= count;

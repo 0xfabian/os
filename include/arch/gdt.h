@@ -1,25 +1,25 @@
 #pragma once
 
-#include <cstdint>
+#include <types.h>
 #include <print.h>
 
 struct GDTDescriptor
 {
-    uint16_t size;
-    uint64_t offset;
+    u16 size;
+    u64 offset;
 }
 __attribute__((packed));
 
 struct GDTEntry
 {
-    uint16_t limit_low;
-    uint16_t base_low;
-    uint8_t base_mid;
-    uint8_t access;
-    uint8_t flags_and_limit_high;
-    uint8_t base_high;
+    u16 limit_low;
+    u16 base_low;
+    u8 base_mid;
+    u8 access;
+    u8 flags_and_limit_high;
+    u8 base_high;
 
-    void set(uint32_t base, uint32_t limit, uint8_t access, uint8_t flags);
+    void set(u32 base, u32 limit, u8 access, u8 flags);
 }
 __attribute__((packed));
 

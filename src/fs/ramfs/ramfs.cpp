@@ -2,19 +2,19 @@
 
 struct RamDirent
 {
-    uint64_t ino;
-    uint32_t type;
+    u64 ino;
+    u32 type;
     char name[32];
 };
 
-int ramfs_writei(Inode* inode, const void* buf, size_t size, size_t offset)
+int ramfs_writei(Inode* inode, const void* buf, usize size, usize offset)
 {
     if (size == 0)
         return 0;
 
     if (offset + size > inode->size)
     {
-        size_t newsize = offset + size;
+        usize newsize = offset + size;
         void* newdata = kmalloc(newsize);
 
         if (!newdata)
@@ -38,12 +38,12 @@ int ramfs_writei(Inode* inode, const void* buf, size_t size, size_t offset)
     return 0;
 }
 
-int ramfs_readi(Inode* inode, void* buf, size_t size, size_t offset)
+int ramfs_readi(Inode* inode, void* buf, usize size, usize offset)
 {
     if (size == 0 || offset >= inode->size)
         return 0;
 
-    size_t remaining = inode->size - offset;
+    usize remaining = inode->size - offset;
 
     if (size > remaining)
         size = remaining;
@@ -142,7 +142,7 @@ int ramfs_create(Inode* dir, const char* name)
     return 0;
 }
 
-int ramfs_mknod(Inode* dir, const char* name, uint32_t dev)
+int ramfs_mknod(Inode* dir, const char* name, u32 dev)
 {
     Inode* inode = ramfs_alloc_inode();
 
@@ -273,7 +273,7 @@ int ramfs_rmdir(Inode* dir, const char* name)
     return 0;
 }
 
-int ramfs_truncate(Inode* inode, size_t size)
+int ramfs_truncate(Inode* inode, usize size)
 {
     if (size == 0)
     {
@@ -336,17 +336,17 @@ int ramfs_sync(Inode* inode)
     return 0;
 }
 
-int ramfs_read(File* file, char* buf, size_t size, size_t offset)
+int ramfs_read(File* file, char* buf, usize size, usize offset)
 {
     return ramfs_readi(file->inode, buf, size, offset);
 }
 
-int ramfs_write(File* file, const char* buf, size_t size, size_t offset)
+int ramfs_write(File* file, const char* buf, usize size, usize offset)
 {
     return ramfs_writei(file->inode, buf, size, offset);
 }
 
-int ramfs_iterate(File* file, void* buf, size_t size)
+int ramfs_iterate(File* file, void* buf, usize size)
 {
     if (file->offset >= file->inode->size)
         return 0;
@@ -357,7 +357,7 @@ int ramfs_iterate(File* file, void* buf, size_t size)
 
     RamDirent* dirent = &dirents[index];
 
-    size_t len = strlen(dirent->name);
+    usize len = strlen(dirent->name);
 
     if (len + 1 > size)
         return -1;

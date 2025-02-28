@@ -7,7 +7,7 @@ Task* running;
 Task* task_list;
 Task* task_list_tail;
 
-uint64_t global_tid = 0;
+u64 global_tid = 0;
 
 Task* Task::from(void (*func)(void))
 {
@@ -22,7 +22,7 @@ Task* Task::from(void (*func)(void))
     task->mm.user_stack = nullptr;
     task->mm.kernel_stack = kmalloc(KERNEL_STACK_SIZE);
 
-    uint64_t kstack_top = (uint64_t)task->mm.kernel_stack + KERNEL_STACK_SIZE;
+    u64 kstack_top = (u64)task->mm.kernel_stack + KERNEL_STACK_SIZE;
 
     task->krsp = kstack_top - sizeof(CPU);
 
@@ -31,7 +31,7 @@ Task* Task::from(void (*func)(void))
 
     cpu->rbp = kstack_top;
 
-    cpu->rip = (uint64_t)func;
+    cpu->rip = (u64)func;
     cpu->cs = KERNEL_CS;
     cpu->rflags = 0x202;
     cpu->rsp = kstack_top;
@@ -43,7 +43,7 @@ Task* Task::from(void (*func)(void))
     return task;
 }
 
-Task* Task::from(const uint8_t* data, size_t size)
+Task* Task::from(const u8* data, usize size)
 {
     Task* task = (Task*)kmalloc(sizeof(Task));
 
@@ -58,8 +58,8 @@ Task* Task::from(const uint8_t* data, size_t size)
 
     memcpy(task->mm.start, data, size);
 
-    uint64_t ustack_top = (uint64_t)task->mm.user_stack + USER_STACK_SIZE;
-    uint64_t kstack_top = (uint64_t)task->mm.kernel_stack + KERNEL_STACK_SIZE;
+    u64 ustack_top = (u64)task->mm.user_stack + USER_STACK_SIZE;
+    u64 kstack_top = (u64)task->mm.kernel_stack + KERNEL_STACK_SIZE;
 
     task->krsp = kstack_top - sizeof(CPU);
 
@@ -68,7 +68,7 @@ Task* Task::from(const uint8_t* data, size_t size)
 
     cpu->rbp = kstack_top;
 
-    cpu->rip = (uint64_t)task->mm.start;
+    cpu->rip = (u64)task->mm.start;
     cpu->cs = USER_CS;
     cpu->rflags = 0x202;
     cpu->rsp = kstack_top;

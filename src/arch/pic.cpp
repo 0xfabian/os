@@ -1,9 +1,9 @@
 #include <arch/pic.h>
 
-void pic::remap(uint8_t offset1, uint8_t offset2)
+void pic::remap(u8 offset1, u8 offset2)
 {
-    uint8_t mask1 = inb(PIC1_DATA);
-    uint8_t mask2 = inb(PIC2_DATA);
+    u8 mask1 = inb(PIC1_DATA);
+    u8 mask2 = inb(PIC2_DATA);
 
     outb(PIC1_COMMAND, ICW1_INIT | ICW1_ICW4);
     outb(PIC2_COMMAND, ICW1_INIT | ICW1_ICW4);
@@ -24,26 +24,26 @@ void pic::disable()
     outb(PIC2_DATA, 0xff);
 }
 
-void pic::set_mask(uint16_t mask)
+void pic::set_mask(u16 mask)
 {
-    uint8_t mask1 = mask & 0xff;
-    uint8_t mask2 = mask >> 8;
+    u8 mask1 = mask & 0xff;
+    u8 mask2 = mask >> 8;
 
     outb(PIC1_DATA, mask1);
     outb(PIC2_DATA, mask2);
 }
 
-uint16_t pic::get_mask()
+u16 pic::get_mask()
 {
-    uint8_t mask1 = inb(PIC1_DATA);
-    uint8_t mask2 = inb(PIC2_DATA);
+    u8 mask1 = inb(PIC1_DATA);
+    u8 mask2 = inb(PIC2_DATA);
 
     return mask1 | (mask2 << 8);
 }
 
-void pic::set_irq(uint8_t irq, bool masked)
+void pic::set_irq(u8 irq, bool masked)
 {
-    uint16_t mask = get_mask();
+    u16 mask = get_mask();
 
     if (masked)
         mask |= 1 << irq;
@@ -53,12 +53,12 @@ void pic::set_irq(uint8_t irq, bool masked)
     set_mask(mask);
 }
 
-bool pic::get_irq(uint8_t irq)
+bool pic::get_irq(u8 irq)
 {
     return get_mask() & (1 << irq);
 }
 
-void pic::send_eoi(uint8_t irq)
+void pic::send_eoi(u8 irq)
 {
     if (irq >= 8)
         outb(PIC2_COMMAND, PIC_EOI);
