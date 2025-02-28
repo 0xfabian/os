@@ -1,76 +1,5 @@
 #include <arch/cpu.h>
 
-void cpuid(uint32_t code, uint32_t* eax, uint32_t* ebx, uint32_t* ecx, uint32_t* edx)
-{
-    asm volatile("cpuid" : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx) : "a"(code));
-}
-
-uint8_t inb(uint16_t port)
-{
-    uint8_t ret;
-    asm volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
-
-    return ret;
-}
-
-uint16_t inw(uint16_t port)
-{
-    uint16_t ret;
-    asm volatile ("inw %1, %0" : "=a"(ret) : "d"(port));
-
-    return ret;
-}
-
-uint32_t inl(uint16_t port)
-{
-    uint32_t ret;
-    asm volatile ("inl %1, %0" : "=a"(ret) : "d"(port));
-
-    return ret;
-}
-
-void outb(uint16_t port, uint8_t val)
-{
-    asm volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
-}
-
-void outw(uint16_t port, uint16_t val)
-{
-    asm volatile ("outw %0, %1" : : "a"(val), "d"(port));
-}
-
-void outl(uint16_t port, uint32_t val)
-{
-    asm volatile ("outl %0, %1" : : "a"(val), "d"(port));
-}
-
-uint64_t read_cr3()
-{
-    uint64_t cr3;
-    asm volatile("mov %%cr3, %0" : "=r"(cr3));
-
-    return cr3;
-}
-
-uint64_t rdmsr(uint64_t msr)
-{
-    uint32_t eax, edx;
-    asm volatile ("rdmsr" : "=a"(eax), "=d"(edx) : "c"(msr) : "memory");
-
-    return ((uint64_t)edx << 32) | eax;
-}
-
-void wrmsr(uint64_t msr, uint64_t value)
-{
-    asm volatile ("wrmsr" : : "c"(msr), "a"(value & 0xffffffff), "d"(value >> 32) : "memory");
-}
-
-void idle()
-{
-    while (true)
-        asm("hlt");
-}
-
 #define MSR_EFER    0xC0000080
 #define MSR_STAR    0xC0000081
 #define MSR_LSTAR   0xC0000082
@@ -78,14 +7,32 @@ void idle()
 
 void setup_syscall(uint64_t syscall_handler_address)
 {
+    // enable syscall/sysret instructions
     uint64_t efer = rdmsr(MSR_EFER);
     wrmsr(MSR_EFER, efer | 1);
 
-    // This is probably wrong, i think it should be KERNEL_SS << 48 | KERNEL_CS << 32
-    uint64_t star = (uint64_t)KERNEL_CS << 48 | (uint64_t)USER_CS << 32;
-    wrmsr(MSR_STAR, star);
+    // syscall will change cs to LSTAR[47:32] and ss to LSTAR[47:32] + 8
+    // so we set LSTAR[47:32] to KERNEL_CS
+
+    // because sysret support both 64 and 32 compatibility mode
+    // this is more difficult then it needs to be
+    //
+    // with 64 bit sysret, cs will be set to LSTAR[63:48] + 16 and ss to LSTAR[63:48] + 8
+    //
+    // so if we set LSTAR[63:48] to (USER_DS - 8)
+    // cs will be (USER_DS - 8) + 16 = USER_DS + 8 = USER_CS
+    // ss will be (USER_DS - 8) + 8 = USER_DS
+
+    wrmsr(MSR_STAR, (uint64_t)(USER_DS - 8) << 48 | (uint64_t)KERNEL_CS << 32);
+
     wrmsr(MSR_LSTAR, syscall_handler_address);
-    wrmsr(MSR_FMASK, 1 << 9);   // mask interrupt flag
+
+    // on syscall, rflags is saved in r11
+    // and clears the bits marked in FMASK
+    // because we dont want interrupts while handling the syscall
+    // we set the IF bit
+
+    wrmsr(MSR_FMASK, 1 << 9);
 }
 
 bool check_pat_support()
@@ -111,13 +58,3 @@ bool check_x2apic_support()
 
     return ecx & (1 << 21);
 }
-
-// void cli()
-// {
-//     asm volatile("cli");
-// }
-
-// void sti()
-// {
-//     asm volatile("sti");
-// }
