@@ -21,10 +21,14 @@ void GDT::init()
     kprintf(INFO "Initializing GDT...\n");
 
     null.set(0, 0, 0, 0);
+
     kernel_code.set(0, 0, 0b10011010, 0b0010);
     kernel_data.set(0, 0, 0b10010010, 0b0000);
-    user_code.set(0, 0, 0b11111010, 0b0010);
+
+    // these two are reversed compared to the kernel
+    // so data before code because of retarded sysret
     user_data.set(0, 0, 0b11110010, 0b0000);
+    user_code.set(0, 0, 0b11111010, 0b0010);
 
     GDTDescriptor desc;
     desc.size = sizeof(GDT) - 1;

@@ -28,8 +28,8 @@ struct GDT
     GDTEntry null;
     GDTEntry kernel_code;
     GDTEntry kernel_data;
-    GDTEntry user_code;
     GDTEntry user_data;
+    GDTEntry user_code;
 
     void init();
 }
