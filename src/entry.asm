@@ -115,20 +115,14 @@ syscall_handler_asm:
     mov rsi, rax
     call syscall_handler
 
-    ; if we return to the same task
-    ; we just need to restore rcx, r11 and rsp
-    ; else i think we should change rsp to the new task krsp
-    ; and restore the full CPU struct and ireq
-
-    mov rcx, [rsp + 15 * 8] ; rip
-    mov r11, [rsp + 17 * 8] ; rflags
+    POP_REGS
 
     mov rsp, [gs:20]
 
     o64 sysret
 
-    ; POP_REGS
-
-    ; iretq
+    ; sometimes maybe we need to reschedule
+    ; so we should change to the new task krsp
+    ; and do iretq
 
 GLOBAL syscall_handler_asm
