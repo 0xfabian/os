@@ -59,7 +59,7 @@ void gp_fault_handler(interrupt_frame* frame, uint64_t error_code)
 {
     if (running)
     {
-        kprintf(PANIC "General Protection Fault in task %lu\n", running->tid);
+        kprintf(PANIC "General Protection Fault in task %lu (%lx)\n", running->tid, error_code);
         idle();
     }
     else
