@@ -28,7 +28,12 @@ void ls(const char* path)
     dir->close();
 }
 
-extern "C" void kernel_thread()
+const u8 userspace_code[] =
+{
+    0xB8, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x05, 0xEB, 0xF7
+};
+
+void task1()
 {
     int n = 0;
 
@@ -37,13 +42,6 @@ extern "C" void kernel_thread()
 
     idle();
 }
-
-const u8 userspace_code[] =
-{
-    0xB8, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x05, 0xEB, 0xF7
-};
-
-extern "C" void syscall_handler_asm();
 
 void task2()
 {
@@ -55,12 +53,16 @@ void task2()
     idle();
 }
 
+extern "C" void syscall_handler_asm();
+
 extern "C" void kmain(void)
 {
     if (!LIMINE_BASE_REVISION_SUPPORTED)
         idle();
 
     fbterm.init();
+
+    pmm.init();
 
     vmm.init();
 
@@ -107,34 +109,21 @@ extern "C" void kmain(void)
     // heap.debug();
 
     Task* t0 = Task::dummy();
-    Task* t1 = Task::from(kernel_thread);
-    Task* t2 = Task::from(userspace_code, sizeof(userspace_code));
-    Task* t3 = Task::from(task2);
+    Task* t1 = Task::from(task1);
+    Task* t2 = Task::from(task2);
+    Task* t3 = Task::from(userspace_code, sizeof(userspace_code));
 
     t0->ready();
     t1->ready();
     t2->ready();
     t3->ready();
 
-    // Task* t = task_list;
-
-    // do
-    // {
-    //     kprintf("Task %lu: %p -> %p\n", t->tid, t, t->next);
-    //     t = t->next;
-    // } while (t != task_list);
-
     running = task_list;
 
     pic::set_irq(0, false);
     sti();
 
-    // at this kmain continues as t0
-
-    while (true)
-        kprintf("kernel task\n");
-
-    // kprintf("Task %lu: begin idle\n", running->tid);
+    // at this point, kmain continues as t0
 
     idle();
 }
