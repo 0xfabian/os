@@ -61,7 +61,7 @@ void Heap::init(usize pages)
 {
     kprintf(INFO "Initializing heap (%lu pages)...\n", pages);
 
-    start = (Header*)((u64)pmm.alloc_pages(pages) | 0xffff800000000000);
+    start = (Header*)vmm.alloc_pages(pages, PE_WRITE);
 
     if (!start)
         panic("Failed to allocate heap");
