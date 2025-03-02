@@ -6,152 +6,128 @@ VirtualMemoryManager vmm;
 
 void VirtualMemoryManager::init()
 {
-    pmm.init();
+    active_pml4 = (PML4*)(read_cr3() | KERNEL_HHDM);
+}
 
-    PML4* pml4 = (PML4*)phys_to_virt(read_cr3());
+void* VirtualMemoryManager::alloc_page(u64 flags)
+{
+    u64 phys = (u64)pmm.alloc_page();
 
-    return;
+    if (!phys)
+        return nullptr;
 
-    for (usize i = 0; i < 512; i++)
+    // return map_page(phys | KERNEL_HHDM, phys, flags);
+
+    return (void*)(phys | KERNEL_HHDM);
+}
+
+void* VirtualMemoryManager::alloc_pages(usize count, u64 flags)
+{
+    u64 phys = (u64)pmm.alloc_pages(count);
+
+    if (!phys)
+        return nullptr;
+
+    // for (u64 off = 0; off < count * PAGE_SIZE; off += PAGE_SIZE)
+    //     map_page((phys | KERNEL_HHDM) + off, phys + off, flags);
+
+    return (void*)(phys | KERNEL_HHDM);
+}
+
+void* VirtualMemoryManager::alloc_page(u64 virt, u64 flags)
+{
+    u64 phys = (u64)pmm.alloc_page();
+
+    if (!phys)
+        return nullptr;
+
+    return map_page(virt, phys, flags);
+}
+
+void* VirtualMemoryManager::alloc_pages(u64 virt, usize count, u64 flags)
+{
+    u64 phys = (u64)pmm.alloc_pages(count);
+
+    if (!phys)
+        return nullptr;
+
+    for (u64 off = 0; off < count * PAGE_SIZE; off += PAGE_SIZE)
+        map_page(virt + off, phys + off, flags);
+
+    return (void*)virt;
+}
+
+void* VirtualMemoryManager::map_page(u64 virt, u64 phys, u64 flags)
+{
+    u32 pml4e = (virt >> 39) & 0x1ff;
+    u32 pdpte = (virt >> 30) & 0x1ff;
+    u32 pde = (virt >> 21) & 0x1ff;
+    u32 pte = (virt >> 12) & 0x1ff;
+
+    PML4* pml4 = active_pml4;
+    PDPT* pdpt;
+    PD* pd;
+    PT* pt;
+
+    if (!pml4->has(pml4e))
     {
-        if (pml4->entries[i].is_present())
-        {
-            kprintf("PML4[%d] = %a\n", i, pml4->entries[i].value);
+        u64 addr = (u64)pmm.alloc_page();
 
-            PDPT* pdpt = (PDPT*)phys_to_virt(pml4->entries[i].value & ~0xfff);
+        if (!addr)
+            return nullptr;
 
-            for (usize j = 0; j < 512; j++)
-            {
-                if (pdpt->entries[j].is_present())
-                {
-                    kprintf("    PDPT[%d] = %a\n", j, pdpt->entries[j].value);
-
-                    if (pdpt->entries[j].is_huge())
-                        continue;
-
-                    PD* pd = (PD*)phys_to_virt(pdpt->entries[j].value & ~0xfff);
-
-                    for (usize k = 0; k < 512; k++)
-                    {
-                        if (pd->entries[k].is_present())
-                        {
-                            kprintf("        PD[%d] = %a\n", k, pd->entries[k].value);
-
-                            if (pd->entries[k].is_huge())
-                                continue;
-
-                            PT* pt = (PT*)phys_to_virt(pd->entries[k].value & ~0xfff);
-
-                            for (usize l = 0; l < 512; l++)
-                            {
-                                if (pt->entries[l].is_present())
-                                {
-                                    kprintf("            PT[%d] = %a\n", l, pt->entries[l].value);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        pml4->set(pml4e, addr | PE_PRESENT | PE_WRITE | PE_USER);
+        pdpt = (PDPT*)(addr | KERNEL_HHDM);
+        memset(pdpt, 0, PAGE_SIZE);
     }
-}
+    else
+        pdpt = (PDPT*)(pml4->get(pml4e) | KERNEL_HHDM);
 
-#define PML4_INDEX(va) ((va >> 39) & 0x1ff)
-#define PDPT_INDEX(va) ((va >> 30) & 0x1ff)
-#define PD_INDEX(va) ((va >> 21) & 0x1ff)
-#define PT_INDEX(va) ((va >> 12) & 0x1ff)
+    if (!pdpt->has(pdpte))
+    {
+        u64 addr = (u64)pmm.alloc_page();
 
-u64 VirtualMemoryManager::phys_to_virt(u64 addr)
-{
-    return addr + KERNEL_HHDM;
-}
+        if (!addr)
+            return nullptr;
 
-u64 VirtualMemoryManager::virt_to_phys(u64 addr)
-{
-    return 0;
+        pdpt->set(pdpte, addr | PE_PRESENT | PE_WRITE | flags);
+        pd = (PD*)(addr | KERNEL_HHDM);
+        memset(pd, 0, PAGE_SIZE);
+    }
+    else
+    {
+        if (pdpt->entries[pdpte].value & PE_HUGE)
+        {
+            kprintf(PANIC "map_page: huge pdpte at %lx\n", virt);
+            idle();
+        }
 
-    // u64 pml4_addr = read_cr3();
-    // PML4* pml4 = (PML4*)phys_to_virt(pml4_addr);
-    // PML4Entry* pml4_entry = pml4->entries + PML4_INDEX(addr);
+        pd = (PD*)(pdpt->get(pdpte) | KERNEL_HHDM);
+    }
 
-    // if (!pml4_entry->is_present())
-    //     return 0;
+    if (!pd->has(pde))
+    {
+        u64 addr = (u64)pmm.alloc_page();
 
-    // u64 pdpt_addr = pml4_entry->get_address();
-    // PDPT* pdpt = (PDPT*)phys_to_virt(pdpt_addr);
-    // PDPTEntry* pdpt_entry = pdpt->entries + PDPT_INDEX(addr);
+        if (!addr)
+            return nullptr;
 
-    // if (!pdpt_entry->is_present())
-    //     return 0;
+        pd->set(pde, addr | PE_PRESENT | PE_WRITE | flags);
+        pt = (PT*)(addr | KERNEL_HHDM);
+        memset(pt, 0, PAGE_SIZE);
+    }
+    else
+    {
+        if (pd->entries[pde].value & PE_HUGE)
+        {
+            kprintf(PANIC "map_page: huge pde at %lx\n", virt);
+            idle();
+        }
 
-    // if (pdpt_entry->is_huge())
-    //     return (void*)()
+        pt = (PT*)(pd->get(pde) | KERNEL_HHDM);
+    }
 
-    //     void* pd_addr = (void*)
+    pt->set(pte, phys | PE_PRESENT | flags);
 
-    //     if (pdpt_entry.value & PE_HUGE)
-    //         return (void*)((pdpt_entry.value & ~0x1fffff) + (va & 0x1fffff));
-
-    // PD* pd = (PD*)phys_to_virt((void*)(pdpt_entry.value & ~0xfff));
-
-    // PDEntry pd_entry = pd->entries[(va >> 21) & 0x1ff];
-
-    // if (pd_entry.value & PE_PRESENT == 0)
-    //     return nullptr;
-
-    // if (pd_entry.value & PE_HUGE)
-    //     return (void*)((pd_entry.value & ~0x1fffff) + (va & 0x1fffff));
-
-    // PT* pt = (PT*)phys_to_virt((void*)(pd_entry.value & ~0xfff));
-
-    // PTEntry pt_entry = pt->entries[(va >> 12) & 0x1ff];
-
-    // if (pt_entry.value & PE_PRESENT == 0)
-    //     return nullptr;
-
-    // return (void*)((pt_entry.value & ~0xfff) + (va & 0xfff));
-}
-
-u64* VirtualMemoryManager::get_page_value(u64 addr)
-{
-    u64 pml4_addr = read_cr3();
-    PML4* pml4 = (PML4*)phys_to_virt(pml4_addr);
-
-    PML4Entry* pml4_entry = pml4->entries + PML4_INDEX(addr);
-
-    if (!pml4_entry->is_present())
-        return nullptr;
-
-    u64 pdpt_addr = pml4_entry->value & ~0xfff;
-    PDPT* pdpt = (PDPT*)phys_to_virt(pdpt_addr);
-
-    PDPTEntry* pdpt_entry = pdpt->entries + PDPT_INDEX(addr);
-
-    if (!pdpt_entry->is_present())
-        return nullptr;
-
-    if (pdpt_entry->is_huge())
-        return &pdpt_entry->value;
-
-    u64 pd_addr = pdpt_entry->value & ~0xfff;
-    PD* pd = (PD*)phys_to_virt(pd_addr);
-
-    PDEntry* pd_entry = pd->entries + PD_INDEX(addr);
-
-    if (!pd_entry->is_present())
-        return nullptr;
-
-    if (pd_entry->is_huge())
-        return &pd_entry->value;
-
-    u64 pt_addr = pd_entry->value & ~0xfff;
-    PT* pt = (PT*)phys_to_virt(pt_addr);
-
-    PTEntry* pt_entry = pt->entries + PT_INDEX(addr);
-
-    if (!pt_entry->is_present())
-        return nullptr;
-
-    return &pt_entry->value;
+    return (void*)virt;
 }

@@ -9,6 +9,8 @@
 #define PAGE_SHIFT      12
 #define PAGE_COUNT(x)   ((x + PAGE_SIZE - 1) / PAGE_SIZE)
 
+#define KERNEL_HHDM     0xffff800000000000
+
 struct MemoryRegion
 {
     u64 base;

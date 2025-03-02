@@ -141,7 +141,7 @@ void PhysicalMemoryManager::init()
 
         if (entry->type == LIMINE_MEMMAP_USABLE && entry->length >= total_size)
         {
-            allocator_addr = (void*)(entry->base | 0xffff800000000000);
+            allocator_addr = (void*)(entry->base | KERNEL_HHDM);
             break;
         }
     }
@@ -214,7 +214,7 @@ void PhysicalMemoryManager::init()
         total_pages += pages;
     }
 
-    lock_pages((void*)((u64)allocator_addr & ~0xffff800000000000), PAGE_COUNT(total_size));
+    lock_pages((void*)((u64)allocator_addr & ~KERNEL_HHDM), PAGE_COUNT(total_size));
 }
 
 void* PhysicalMemoryManager::alloc_page()
