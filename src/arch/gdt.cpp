@@ -9,15 +9,7 @@ void TSSDescriptor::set(u64 base, u32 limit, u8 _acces, u8 flags)
 {
     ((GDTEntry*)this)->set(base, limit, _acces, flags);
 
-    // base_low = base & 0xffff;
-    // base_mid = (base >> 16) & 0xff;
-    // base_high = (base >> 24) & 0xff;
     base_high2 = base >> 32;
-
-    // limit_low = limit & 0xffff;
-    // flags_and_limit_high = ((limit >> 16) & 0x0f) | (flags << 4);
-
-    // access = _acces;
 }
 
 void GDTEntry::set(u32 base, u32 limit, u8 _access, u8 flags)
