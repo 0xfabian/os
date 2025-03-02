@@ -91,33 +91,12 @@ void keyboard_handler(interrupt_frame* frame)
     pic::send_eoi(1);
 }
 
-int ncs = 3;
-
 extern "C" void context_switch()
 {
-    // if (ncs-- <= 0)
-    //     idle();
-
-    // ikprintf("context_switch(): %lu -> %lu\n", running->tid, running->next->tid);
-
-    // CPU* cpu = (CPU*)running->krsp;
-
-    // ikprintf("from cs: %lx    ss: %lx     rsp: %lx    stack: %lx    kstack: %lx\n", cpu->cs, cpu->ss, cpu->rsp, running->mm.user_stack, running->mm.kernel_stack);
-    // u64 rsp;
-    // asm volatile ("mov %%rsp, %0" : "=r"(rsp));
-    // ikprintf("current rsp: %lx\n", rsp);
-
     running = running->next;
 
-    // CPU* cpu = (CPU*)running->krsp;
-
-    // ikprintf("to cs: %lx    ss: %lx\n", cpu->cs, cpu->ss);
-
-    if (running->mm.user_stack)
-        tss.rsp0 = (u64)running->mm.kernel_stack + 4096;
+    if (running->mm->user_stack)
+        tss.rsp0 = (u64)running->mm->kernel_stack + KERNEL_STACK_SIZE;
 
     pic::send_eoi(0);
-
-    // if (running->tid == 2)
-    //     pic::set_irq(0, true);
 }
