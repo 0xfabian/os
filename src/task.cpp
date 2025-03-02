@@ -1,8 +1,5 @@
 #include <task.h>
 
-#define KERNEL_STACK_SIZE   PAGE_SIZE
-#define USER_STACK_SIZE     PAGE_SIZE
-
 Task* running;
 Task* task_list;
 Task* task_list_tail;
@@ -12,17 +9,18 @@ u64 global_tid = 0;
 Task* Task::from(void (*func)(void))
 {
     Task* task = (Task*)kmalloc(sizeof(Task));
+    task->mm = (MemoryMap*)kmalloc(sizeof(MemoryMap));
 
     task->next = nullptr;
     task->tid = global_tid++;
     task->state = TASK_BORN;
 
-    task->mm.start = nullptr;
-    task->mm.size = 0;
-    task->mm.user_stack = nullptr;
-    task->mm.kernel_stack = kmalloc(KERNEL_STACK_SIZE);
+    task->mm->start = nullptr;
+    task->mm->size = 0;
+    task->mm->user_stack = nullptr;
+    task->mm->kernel_stack = vmm.alloc_page(PE_WRITE);
 
-    u64 kstack_top = (u64)task->mm.kernel_stack + KERNEL_STACK_SIZE;
+    u64 kstack_top = (u64)task->mm->kernel_stack + KERNEL_STACK_SIZE;
 
     task->krsp = kstack_top - sizeof(CPU);
 
@@ -46,35 +44,21 @@ Task* Task::from(void (*func)(void))
 Task* Task::from(const u8* data, usize size)
 {
     Task* task = (Task*)kmalloc(sizeof(Task));
+    task->mm = (MemoryMap*)kmalloc(sizeof(MemoryMap));
 
     task->next = nullptr;
     task->tid = global_tid++;
     task->state = TASK_BORN;
 
-    task->mm.start = kmalloc(size);
-    task->mm.size = size;
-    task->mm.user_stack = kmalloc(USER_STACK_SIZE);
-    task->mm.kernel_stack = kmalloc(KERNEL_STACK_SIZE);
+    task->mm->start = vmm.alloc_pages(0x401000, PAGE_COUNT(size), PE_WRITE | PE_USER);
+    task->mm->size = size;
+    task->mm->user_stack = vmm.alloc_page(0x80000, PE_WRITE | PE_USER);
+    task->mm->kernel_stack = vmm.alloc_page(PE_WRITE);
 
-    u64* value = vmm.get_page_value((u64)task->mm.start);
-    // kprintf("start: %a %lx\n", task->mm.start, *value);
+    memcpy(task->mm->start, data, size);
 
-    *value |= PE_USER;
-
-    value = vmm.get_page_value((u64)task->mm.user_stack);
-    // kprintf("stack: %a %lx\n", task->mm.user_stack, *value);
-
-    *value |= PE_USER;
-
-    value = vmm.get_page_value((u64)task->mm.kernel_stack);
-    // kprintf("kstack: %a %lx\n", task->mm.kernel_stack, *value);
-
-    *value |= PE_USER;
-
-    memcpy(task->mm.start, data, size);
-
-    u64 ustack_top = (u64)task->mm.user_stack + USER_STACK_SIZE;
-    u64 kstack_top = (u64)task->mm.kernel_stack + KERNEL_STACK_SIZE;
+    u64 ustack_top = (u64)task->mm->user_stack + USER_STACK_SIZE;
+    u64 kstack_top = (u64)task->mm->kernel_stack + KERNEL_STACK_SIZE;
 
     task->krsp = kstack_top - sizeof(CPU);
 
@@ -83,7 +67,7 @@ Task* Task::from(const u8* data, usize size)
 
     cpu->rbp = ustack_top;
 
-    cpu->rip = (u64)task->mm.start;
+    cpu->rip = (u64)task->mm->start;
     cpu->cs = USER_CS;
     cpu->rflags = 0x202;
     cpu->rsp = ustack_top;
@@ -102,15 +86,16 @@ Task* Task::dummy()
     // to this dummy task so basically this task is kmain
 
     Task* task = (Task*)kmalloc(sizeof(Task));
+    task->mm = (MemoryMap*)kmalloc(sizeof(MemoryMap));
 
     task->next = nullptr;
     task->tid = global_tid++;
     task->state = TASK_BORN;
 
-    task->mm.start = nullptr;
-    task->mm.size = 0;
-    task->mm.user_stack = nullptr;
-    task->mm.kernel_stack = nullptr;
+    task->mm->start = nullptr;
+    task->mm->size = 0;
+    task->mm->user_stack = nullptr;
+    task->mm->kernel_stack = nullptr;
 
     // dont need to initialize krsp or the whole CPU struct
 
