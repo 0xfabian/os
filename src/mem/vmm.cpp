@@ -11,6 +11,14 @@ void VirtualMemoryManager::init()
 
 void* VirtualMemoryManager::alloc_page(u64 flags)
 {
+    // pmm uses only the limine usable memory regions
+    // these regions are already mapped to the higher half
+    // so we can just add the offset
+
+    // this is a temporary solution
+    // because we should also update the flags
+    // and also handle the case where pages could be 2M or 1G
+
     u64 phys = (u64)pmm.alloc_page();
 
     if (!phys)
@@ -96,7 +104,7 @@ void* VirtualMemoryManager::map_page(u64 virt, u64 phys, u64 flags)
     }
     else
     {
-        if (pdpt->entries[pdpte].value & PE_HUGE)
+        if (pdpt->entries[pdpte] & PE_HUGE)
         {
             kprintf(PANIC "map_page: huge pdpte at %lx\n", virt);
             idle();
@@ -118,7 +126,7 @@ void* VirtualMemoryManager::map_page(u64 virt, u64 phys, u64 flags)
     }
     else
     {
-        if (pd->entries[pde].value & PE_HUGE)
+        if (pd->entries[pde] & PE_HUGE)
         {
             kprintf(PANIC "map_page: huge pde at %lx\n", virt);
             idle();
