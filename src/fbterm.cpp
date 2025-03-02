@@ -40,7 +40,6 @@ u32 colors[] =
 };
 
 Framebuffer default_fb;
-u32* backbuffer;
 FramebufferTerminal fbterm;
 
 void Framebuffer::init(limine_framebuffer* fb)
@@ -87,13 +86,18 @@ void FramebufferTerminal::enable_backbuffer()
     kprintf(INFO "Enabling backbuffer...\n");
 
     usize count = PAGE_COUNT(default_fb.width * default_fb.height * sizeof(u32));
-    backbuffer = (u32*)((u64)pmm.alloc_pages(count) | 0xffff800000000000);
+    backbuffer = (u32*)vmm.alloc_pages(count, PE_WRITE);
 
     if (!backbuffer)
     {
+        backbuffer = fb->addr;
+
         kprintf(WARN "Failed to allocate backbuffer\n");
         return;
     }
+
+    // this is very slow because we are reading from the framebuffer
+    // but i don't now any better way to sync the two buffers
 
     u64* from = (u64*)fb->addr;
     u64* to = (u64*)backbuffer;

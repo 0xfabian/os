@@ -17,6 +17,7 @@ struct Framebuffer
 struct FramebufferTerminal
 {
     Framebuffer* fb;
+    u32* backbuffer;
     PSF2* font;
 
     u32 width;
@@ -51,5 +52,4 @@ struct FramebufferTerminal
 };
 
 extern Framebuffer default_fb;
-extern u32* backbuffer;
 extern FramebufferTerminal fbterm;
