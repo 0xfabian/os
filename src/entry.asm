@@ -1,7 +1,7 @@
 [bits 64]
 
 extern running
-extern context_switch
+extern timer_handler
 
 %macro PUSH_REGS 0
 
@@ -45,7 +45,7 @@ extern context_switch
 
 %endmacro
 
-timer_handler:
+timer_handler_asm:
 
     ; at this point rsp should be the kernel rsp
     ; if this is a kernel thread rsp is already kernel rsp
@@ -66,7 +66,7 @@ timer_handler:
     mov rdi, [running]
     mov [rdi], rsp ; save rsp in the current task krsp 
     
-    call context_switch
+    call timer_handler
 
     mov rdi, [running]
     mov rsp, [rdi] ; restore rsp from the new task krsp
@@ -75,7 +75,7 @@ timer_handler:
 
     iretq   ; restore rip, cs, rflags, rsp, ss
 
-GLOBAL timer_handler
+GLOBAL timer_handler_asm
 
 extern syscall_handler
 
@@ -108,8 +108,8 @@ syscall_handler_asm:
 
     ; at this point CPU struct is saved and rsp is pointing to it
 
-    ; mov rdi, [running]
-    ; mov [rdi], rsp
+    mov rdi, [running] ; save krsp
+    mov [rdi], rsp
 
     mov rdi, rsp
     mov rsi, rax
@@ -126,3 +126,14 @@ syscall_handler_asm:
     ; and do iretq
 
 GLOBAL syscall_handler_asm
+
+switch_now:
+
+    mov rdi, [running]
+    mov rsp, [rdi] ; move the kernel rsp where the CPU is stored
+
+    POP_REGS
+
+    iretq
+
+GLOBAL switch_now
