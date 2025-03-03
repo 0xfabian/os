@@ -4,7 +4,7 @@
 
 alignas(0x1000) IDT idt;
 
-extern "C" void timer_handler(interrupt_frame* frame);
+extern "C" void timer_handler_asm(interrupt_frame* frame);
 
 void IDT::init()
 {
@@ -18,7 +18,7 @@ void IDT::init()
 
     set(13, gp_fault_handler);
     set(14, page_fault_handler);
-    set(32, timer_handler);
+    set(32, timer_handler_asm);
     set(33, keyboard_handler);
 
     IDTDescriptor desc;
@@ -93,24 +93,11 @@ void keyboard_handler(interrupt_frame* frame)
     pic::send_eoi(1);
 }
 
-int cnt = 0;
-
-extern "C" void context_switch()
+extern "C" void timer_handler()
 {
-    if (cnt % 64 == 0)
-        fbterm.draw_cursor(fbterm.fg);
-    else if (cnt % 64 == 32)
-        fbterm.draw_cursor(fbterm.bg);
+    fbterm.blink_cursor();
 
-    cnt++;
-
-    do
-    {
-        running = running->next;
-    } while (running->state != TASK_READY);
-
-    if (running->mm->user_stack)
-        tss.rsp0 = (u64)running->mm->kernel_stack + KERNEL_STACK_SIZE;
+    schedule();
 
     pic::send_eoi(0);
 }
