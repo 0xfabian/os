@@ -14,6 +14,15 @@ struct Framebuffer
     void init(limine_framebuffer* fb);
 };
 
+struct Task;
+
+struct ReadRequest
+{
+    Task* task;
+    char* buffer;
+    usize len;
+};
+
 struct FramebufferTerminal
 {
     Framebuffer* fb;
@@ -38,16 +47,24 @@ struct FramebufferTerminal
     int param_index;
     int params[4];
 
+    ReadRequest read_request;
+
+    char kbd_buffer[256];
+    usize kbd_index = 0;
+
     void init();
     void enable_backbuffer();
 
     void clear();
     void scroll();
     void write(const char* buffer, usize len);
+    int read(char* buffer, usize len);
     void ansi_function(char name, int arg);
     void putchar(char c);
+    void handle_key(int key);
 
     void draw_bitmap(char c);
+    void draw_cursor(u32 color);
     void render();
 };
 

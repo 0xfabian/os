@@ -1,4 +1,5 @@
 #include <fbterm.h>
+#include <task.h>
 
 #define FOREGROUND          0xf0ffff
 #define BACKGROUND          0x192840
@@ -204,6 +205,36 @@ void FramebufferTerminal::write(const char* buffer, usize len)
     }
 }
 
+int FramebufferTerminal::read(char* buffer, usize len)
+{
+    // if (read_request.task)
+    //     return -1;
+
+    // if (kbd_index >= len)
+    // {
+    //     memcpy(buffer, kbd_buffer, len);
+    //     memmove(buffer, buffer + len, kbd_index - len);
+    //     kbd_index -= len;
+
+    //     return len;
+    // }
+    // else
+    // {
+    //     int remaining = len - kbd_index;
+    //     memcpy(buffer, kbd_buffer, kbd_index);
+
+    //     read_request.task = running;
+    //     read_request.buffer = buffer + kbd_index;
+    //     read_request.len = remaining;
+
+    //     kbd_index = 0;
+
+    //     running->state = TASK_WAITING;
+    // }
+
+    return 0;
+}
+
 void FramebufferTerminal::ansi_function(char name, int arg)
 {
     switch (name)
@@ -230,6 +261,8 @@ void FramebufferTerminal::ansi_function(char name, int arg)
 
 void FramebufferTerminal::putchar(char c)
 {
+    draw_cursor(bg);
+
     if (c >= ' ')
     {
         draw_bitmap(c);
@@ -241,10 +274,39 @@ void FramebufferTerminal::putchar(char c)
             cursor += width - cursor % width;
         else if (c == '\r')
             cursor -= cursor % width;
+        else if (c == '\b')
+        {
+            if (cursor % width > 0)
+            {
+                cursor--;
+                draw_bitmap(' ');
+            }
+        }
     }
 
     if (cursor >= width * height)
         scroll();
+
+    draw_cursor(fg);
+}
+
+char key_lookup[128] =
+{
+    0, '\e', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
+    '\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',
+    0, 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`',
+    0, '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/',
+    0, '*', 0, ' ',
+};
+
+void FramebufferTerminal::handle_key(int key)
+{
+    if (key & 0x80)
+        return;
+
+    char ch = key_lookup[key];
+
+    putchar(ch);
 }
 
 void FramebufferTerminal::draw_bitmap(char c)
@@ -270,6 +332,22 @@ void FramebufferTerminal::draw_bitmap(char c)
         font_ptr++;
         ptr += fb->width;
         ptr2 += fb->width;
+    }
+}
+
+void FramebufferTerminal::draw_cursor(u32 color)
+{
+    u32 x = (cursor % width) * font->header->width;
+    u32 y = (cursor / width) * font->header->height;
+
+    u32* ptr = fb->addr + x + y * fb->width;
+
+    for (y = 0; y < font->header->height; y++)
+    {
+        for (x = 0; x < font->header->width; x++)
+            ptr[x] = color;
+
+        ptr += fb->width;
     }
 }
 
