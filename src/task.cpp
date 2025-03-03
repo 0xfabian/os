@@ -12,13 +12,14 @@ Task* Task::from(void (*func)(void))
     task->mm = (MemoryMap*)kmalloc(sizeof(MemoryMap));
 
     task->next = nullptr;
+    task->parent = running;
     task->tid = global_tid++;
     task->state = TASK_BORN;
 
     task->mm->start = nullptr;
     task->mm->size = 0;
     task->mm->user_stack = nullptr;
-    task->mm->kernel_stack = vmm.alloc_page(PE_WRITE);
+    task->mm->kernel_stack = vmm.alloc_pages(KERNEL_STACK_PAGES, PE_WRITE);
 
     u64 kstack_top = (u64)task->mm->kernel_stack + KERNEL_STACK_SIZE;
 
@@ -47,13 +48,14 @@ Task* Task::from(const u8* data, usize size)
     task->mm = (MemoryMap*)kmalloc(sizeof(MemoryMap));
 
     task->next = nullptr;
+    task->parent = running;
     task->tid = global_tid++;
     task->state = TASK_BORN;
 
     task->mm->start = vmm.alloc_pages(0x401000, PAGE_COUNT(size), PE_WRITE | PE_USER);
     task->mm->size = size;
-    task->mm->user_stack = vmm.alloc_page(0x80000, PE_WRITE | PE_USER);
-    task->mm->kernel_stack = vmm.alloc_page(PE_WRITE);
+    task->mm->user_stack = vmm.alloc_pages(USER_STACK_BOTTOM, USER_STACK_PAGES, PE_WRITE | PE_USER);
+    task->mm->kernel_stack = vmm.alloc_pages(KERNEL_STACK_PAGES, PE_WRITE);
 
     memcpy(task->mm->start, data, size);
 
@@ -89,6 +91,7 @@ Task* Task::dummy()
     task->mm = (MemoryMap*)kmalloc(sizeof(MemoryMap));
 
     task->next = nullptr;
+    task->parent = nullptr;
     task->tid = global_tid++;
     task->state = TASK_BORN;
 
@@ -121,4 +124,63 @@ void Task::ready()
     }
 
     state = TASK_READY;
+}
+
+extern "C" void switch_now();
+
+void Task::sleep()
+{
+    state = TASK_SLEEPING;
+
+    // kmain is always ready
+    schedule();
+
+    switch_now();
+}
+
+void Task::return_from_syscall(int ret)
+{
+    CPU* cpu = (CPU*)krsp;
+    cpu->rax = ret;
+
+    state = TASK_READY;
+}
+
+void sched_init()
+{
+    kprintf(INFO "Initializing scheduler...\n");
+
+    Task* t0 = Task::dummy();
+
+    t0->ready();
+
+    running = task_list;
+
+    pic::set_irq(0, false);
+    pic::set_irq(1, false);
+
+    sti();
+}
+
+Task* get_next_task()
+{
+    Task* task = running->next;
+
+    while (task->state != TASK_READY)
+        task = task->next;
+
+    return task;
+}
+
+void schedule()
+{
+    Task* next = get_next_task();
+
+    if (next == running)
+        return;
+
+    running = next;
+
+    if (running->mm->user_stack)
+        tss.rsp0 = (u64)running->mm->kernel_stack + KERNEL_STACK_SIZE;
 }
