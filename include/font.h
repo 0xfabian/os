@@ -20,5 +20,4 @@ struct PSF2
     u8* glyph_buffer;
 };
 
-extern u8 zap_light20_data[];
 extern PSF2 zap_light20;
