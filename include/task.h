@@ -25,6 +25,8 @@ enum TaskState
 
 struct MemoryMap
 {
+    PML4* pml4;
+
     void* start;
     usize size;
 
@@ -40,14 +42,18 @@ struct Task
     u64 tid;
 
     TaskState state;
-
     MemoryMap* mm;
-
     FDTable fdt;
+
+    int exit_code;
 
     static Task* from(void (*func)(void));
     static Task* from(const u8* data, usize size);
     static Task* dummy();
+
+    Task* fork();
+    int execve(const char* path, char* const argv[], char* const envp[]);
+    void exit(int code);
     void ready();
     void sleep();
     void return_from_syscall(int ret);

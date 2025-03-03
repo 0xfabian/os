@@ -18,7 +18,14 @@ struct VirtualMemoryManager
     void* alloc_page(u64 virt, u64 flags);
     void* alloc_pages(u64 virt, usize count, u64 flags);
 
-    void* map_page(u64 virt, u64 phys, u64 flags);
+    void* alloc_page(PML4* pml4, u64 virt, u64 flags);
+    void* alloc_page_and_copy(PML4* pml4, u64 virt, u64 flags);
+    void* alloc_pages(PML4* pml4, u64 virt, usize count, u64 flags);
+
+    void* map_page(PML4* pml4, u64 virt, u64 phys, u64 flags);
+
+    PML4* make_user_page_table();
+    void switch_pml4(PML4* pml4);
 };
 
 extern VirtualMemoryManager vmm;

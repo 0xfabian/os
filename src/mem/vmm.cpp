@@ -95,15 +95,39 @@ void* VirtualMemoryManager::alloc_pages(usize count, u64 flags)
 
 void* VirtualMemoryManager::alloc_page(u64 virt, u64 flags)
 {
+    return alloc_page(active_pml4, virt, flags);
+}
+
+void* VirtualMemoryManager::alloc_pages(u64 virt, usize count, u64 flags)
+{
+    return alloc_pages(active_pml4, virt, count, flags);
+}
+
+void* VirtualMemoryManager::alloc_page(PML4* pml4, u64 virt, u64 flags)
+{
     u64 phys = (u64)pmm.alloc_page();
 
     if (!phys)
         return nullptr;
 
-    return map_page(virt, phys, flags);
+    return map_page(pml4, virt, phys, flags);
 }
 
-void* VirtualMemoryManager::alloc_pages(u64 virt, usize count, u64 flags)
+void* VirtualMemoryManager::alloc_page_and_copy(PML4* pml4, u64 virt, u64 flags)
+{
+    u64 phys = (u64)pmm.alloc_page();
+
+    if (!phys)
+        return nullptr;
+
+    u64 kernel_addr = phys | KERNEL_HHDM;
+
+    memcpy((void*)kernel_addr, (void*)virt, PAGE_SIZE);
+
+    return map_page(pml4, virt, phys, flags);
+}
+
+void* VirtualMemoryManager::alloc_pages(PML4* pml4, u64 virt, usize count, u64 flags)
 {
     u64 phys = (u64)pmm.alloc_pages(count);
 
@@ -111,19 +135,18 @@ void* VirtualMemoryManager::alloc_pages(u64 virt, usize count, u64 flags)
         return nullptr;
 
     for (u64 off = 0; off < count * PAGE_SIZE; off += PAGE_SIZE)
-        map_page(virt + off, phys + off, flags);
+        map_page(pml4, virt + off, phys + off, flags);
 
     return (void*)virt;
 }
 
-void* VirtualMemoryManager::map_page(u64 virt, u64 phys, u64 flags)
+void* VirtualMemoryManager::map_page(PML4* pml4, u64 virt, u64 phys, u64 flags)
 {
     u32 pml4e = (virt >> 39) & 0x1ff;
     u32 pdpte = (virt >> 30) & 0x1ff;
     u32 pde = (virt >> 21) & 0x1ff;
     u32 pte = (virt >> 12) & 0x1ff;
 
-    PML4* pml4 = active_pml4;
     PDPT* pdpt;
     PD* pd;
     PT* pt;
@@ -189,4 +212,28 @@ void* VirtualMemoryManager::map_page(u64 virt, u64 phys, u64 flags)
     pt->set(pte, phys | PE_PRESENT | flags);
 
     return (void*)virt;
+}
+
+PML4* VirtualMemoryManager::make_user_page_table()
+{
+    PML4* pml4 = (PML4*)alloc_page(PE_WRITE);
+
+    if (!pml4)
+        return nullptr;
+
+    memset(pml4, 0, PAGE_SIZE);
+
+    // copy the kernel space mappings
+    for (int i = 0; i < 512; i++)
+        if (active_pml4->entries[i] & PE_PRESENT)
+            pml4->entries[i] = active_pml4->entries[i];
+
+    return pml4;
+}
+
+void VirtualMemoryManager::switch_pml4(PML4* pml4)
+{
+    // this should be in the kernel memory
+    // so it's easy to convert it to physical
+    write_cr3((u64)pml4 & ~KERNEL_HHDM);
 }

@@ -102,6 +102,11 @@ static inline u64 read_cr3()
     return cr3;
 }
 
+static inline void write_cr3(u64 cr3)
+{
+    asm volatile("mov %0, %%cr3" : : "r"(cr3));
+}
+
 static inline u64 rdmsr(u64 msr)
 {
     u32 eax, edx;

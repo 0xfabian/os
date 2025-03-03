@@ -6,7 +6,9 @@ Task* task_list_tail;
 
 u64 global_tid = 0;
 
-Task* Task::from(void (*func)(void))
+extern "C" void switch_now();
+
+Task* alloc_task()
 {
     Task* task = (Task*)kmalloc(sizeof(Task));
     task->mm = (MemoryMap*)kmalloc(sizeof(MemoryMap));
@@ -15,7 +17,19 @@ Task* Task::from(void (*func)(void))
     task->parent = running;
     task->tid = global_tid++;
     task->state = TASK_BORN;
+    task->exit_code = 0;
 
+    for (int i = 0; i < FD_TABLE_SIZE; i++)
+        task->fdt.files[i] = nullptr;
+
+    return task;
+}
+
+Task* Task::from(void (*func)(void))
+{
+    Task* task = alloc_task();
+
+    task->mm->pml4 = nullptr;
     task->mm->start = nullptr;
     task->mm->size = 0;
     task->mm->user_stack = nullptr;
@@ -36,28 +50,29 @@ Task* Task::from(void (*func)(void))
     cpu->rsp = kstack_top;
     cpu->ss = KERNEL_DS;
 
-    for (int i = 0; i < FD_TABLE_SIZE; i++)
-        task->fdt.files[i] = nullptr;
-
     return task;
 }
 
 Task* Task::from(const u8* data, usize size)
 {
-    Task* task = (Task*)kmalloc(sizeof(Task));
-    task->mm = (MemoryMap*)kmalloc(sizeof(MemoryMap));
+    Task* task = alloc_task();
 
-    task->next = nullptr;
-    task->parent = running;
-    task->tid = global_tid++;
-    task->state = TASK_BORN;
-
-    task->mm->start = vmm.alloc_pages(0x401000, PAGE_COUNT(size), PE_WRITE | PE_USER);
+    task->mm->pml4 = vmm.make_user_page_table();
+    task->mm->start = vmm.alloc_pages(task->mm->pml4, 0x401000, PAGE_COUNT(size), PE_WRITE | PE_USER);
     task->mm->size = size;
-    task->mm->user_stack = vmm.alloc_pages(USER_STACK_BOTTOM, USER_STACK_PAGES, PE_WRITE | PE_USER);
+    task->mm->user_stack = vmm.alloc_pages(task->mm->pml4, USER_STACK_BOTTOM, USER_STACK_PAGES, PE_WRITE | PE_USER);
     task->mm->kernel_stack = vmm.alloc_pages(KERNEL_STACK_PAGES, PE_WRITE);
 
+    // we need to temporarily switch to the new page table
+    // so that we can copy the data to the newly mapped memory
+    vmm.switch_pml4(task->mm->pml4);
+
     memcpy(task->mm->start, data, size);
+
+    // if we are in a kernel thread we can use any page table
+    // beacuse the kernel is always mapped
+    if (running->mm->pml4)
+        vmm.switch_pml4(running->mm->pml4);
 
     u64 ustack_top = (u64)task->mm->user_stack + USER_STACK_SIZE;
     u64 kstack_top = (u64)task->mm->kernel_stack + KERNEL_STACK_SIZE;
@@ -75,9 +90,6 @@ Task* Task::from(const u8* data, usize size)
     cpu->rsp = ustack_top;
     cpu->ss = USER_DS;
 
-    for (int i = 0; i < FD_TABLE_SIZE; i++)
-        task->fdt.files[i] = nullptr;
-
     return task;
 }
 
@@ -87,25 +99,108 @@ Task* Task::dummy()
     // at the first switch, the kmain will store the cpu state
     // to this dummy task so basically this task is kmain
 
-    Task* task = (Task*)kmalloc(sizeof(Task));
-    task->mm = (MemoryMap*)kmalloc(sizeof(MemoryMap));
+    Task* task = alloc_task();
 
-    task->next = nullptr;
-    task->parent = nullptr;
-    task->tid = global_tid++;
-    task->state = TASK_BORN;
-
+    task->mm->pml4 = nullptr;
     task->mm->start = nullptr;
     task->mm->size = 0;
     task->mm->user_stack = nullptr;
     task->mm->kernel_stack = nullptr;
 
-    // dont need to initialize krsp or the whole CPU struct
-
-    for (int i = 0; i < FD_TABLE_SIZE; i++)
-        task->fdt.files[i] = nullptr;
+    // don't need to initialize krsp or the whole CPU struct
 
     return task;
+}
+
+Task* Task::fork()
+{
+    Task* task = alloc_task();
+
+    task->mm->pml4 = vmm.make_user_page_table();
+    task->mm->start = running->mm->start;
+    task->mm->size = running->mm->size;
+    task->mm->user_stack = running->mm->user_stack;
+    task->mm->kernel_stack = vmm.alloc_pages(KERNEL_STACK_PAGES, PE_WRITE);
+
+    // now here we should copy the mappings
+    // and also copy the memory itself
+    // no fancy copy-on-write for now
+
+    PML4* src_pml4 = running->mm->pml4;
+
+    for (int i = 0; i < 256; i++)
+    {
+        if (src_pml4->entries[i] & PE_PRESENT)
+        {
+            u64 addr1 = (u64)i << (9 + 9 + 9 + 12);
+
+            PDPT* pdpt = (PDPT*)((src_pml4->entries[i] & ~0xfff) | KERNEL_HHDM);
+
+            for (int j = 0; j < 512; j++)
+            {
+                if (pdpt->entries[j] & PE_PRESENT)
+                {
+                    u64 addr2 = addr1 + ((u64)j << (9 + 9 + 12));
+
+                    PD* pd = (PD*)((pdpt->entries[j] & ~0xfff) | KERNEL_HHDM);
+
+                    for (int k = 0; k < 512; k++)
+                    {
+                        if (pd->entries[k] & PE_PRESENT)
+                        {
+                            u64 addr3 = addr2 + ((u64)k << (9 + 12));
+
+                            PT* pt = (PT*)((pd->entries[k] & ~0xfff) | KERNEL_HHDM);
+
+                            for (int l = 0; l < 512; l++)
+                            {
+                                if (pt->entries[l] & PE_PRESENT)
+                                {
+                                    u64 addr4 = addr3 + ((u64)l << 12);
+                                    u64 flags = pt->entries[l] & 0xfff;
+
+                                    // this is a bit tricky
+                                    // we need to copy running's memory to the new task
+                                    // but we can't just copy the memory
+                                    // because the memory mapping is the same
+                                    // so we need to copy it interally at the kernel address
+                                    // of the corresponding page
+
+                                    vmm.alloc_page_and_copy(task->mm->pml4, addr4, flags);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // now only the kernel stack changes
+    u64 kstack_top = (u64)task->mm->kernel_stack + KERNEL_STACK_SIZE;
+
+    task->krsp = kstack_top - sizeof(CPU);
+
+    CPU* cpu = (CPU*)task->krsp;
+    memcpy(cpu, (CPU*)running->krsp, sizeof(CPU));
+
+    cpu->rax = 0;
+
+    return task;
+}
+
+int Task::execve(const char* path, char* const argv[], char* const envp[])
+{
+    return -1;
+}
+
+void Task::exit(int code)
+{
+    state = TASK_ZOMBIE;
+    exit_code = code;
+
+    schedule();
+    switch_now();
 }
 
 void Task::ready()
@@ -126,15 +221,12 @@ void Task::ready()
     state = TASK_READY;
 }
 
-extern "C" void switch_now();
-
 void Task::sleep()
 {
     state = TASK_SLEEPING;
 
     // kmain is always ready
     schedule();
-
     switch_now();
 }
 
@@ -183,4 +275,7 @@ void schedule()
 
     if (running->mm->user_stack)
         tss.rsp0 = (u64)running->mm->kernel_stack + KERNEL_STACK_SIZE;
+
+    if (running->mm->pml4)
+        vmm.switch_pml4(running->mm->pml4);
 }
