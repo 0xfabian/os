@@ -78,7 +78,7 @@ int File::close()
     return 0;
 }
 
-int File::read(char* buf, usize size)
+isize File::read(char* buf, usize size)
 {
     if (!ops.read)
         return -ERR_NOT_IMPL;
@@ -93,7 +93,7 @@ int File::read(char* buf, usize size)
     return ret;
 }
 
-int File::write(const char* buf, usize size)
+isize File::write(const char* buf, usize size)
 {
     if (!ops.write)
         return -ERR_NOT_IMPL;

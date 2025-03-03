@@ -7,7 +7,7 @@ struct RamDirent
     char name[32];
 };
 
-int ramfs_writei(Inode* inode, const void* buf, usize size, usize offset)
+isize ramfs_writei(Inode* inode, const void* buf, usize size, usize offset)
 {
     if (size == 0)
         return 0;
@@ -38,7 +38,7 @@ int ramfs_writei(Inode* inode, const void* buf, usize size, usize offset)
     return 0;
 }
 
-int ramfs_readi(Inode* inode, void* buf, usize size, usize offset)
+isize ramfs_readi(Inode* inode, void* buf, usize size, usize offset)
 {
     if (size == 0 || offset >= inode->size)
         return 0;
@@ -336,12 +336,12 @@ int ramfs_sync(Inode* inode)
     return 0;
 }
 
-int ramfs_read(File* file, char* buf, usize size, usize offset)
+isize ramfs_read(File* file, char* buf, usize size, usize offset)
 {
     return ramfs_readi(file->inode, buf, size, offset);
 }
 
-int ramfs_write(File* file, const char* buf, usize size, usize offset)
+isize ramfs_write(File* file, const char* buf, usize size, usize offset)
 {
     return ramfs_writei(file->inode, buf, size, offset);
 }

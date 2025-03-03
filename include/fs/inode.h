@@ -37,8 +37,8 @@ struct FileOps
 {
     int (*open) (File* file);
     int (*close) (File* file);
-    int (*read) (File* file, char* buf, usize size, usize offset);
-    int (*write) (File* file, const char* buf, usize size, usize offset);
+    isize(*read) (File* file, char* buf, usize size, usize offset);
+    isize(*write) (File* file, const char* buf, usize size, usize offset);
     usize(*seek) (File* file, usize offset, int whence);
     int (*iterate) (File* file, void* buf, usize size);
     int (*ioctl) (File* file, int cmd, void* arg);

@@ -19,8 +19,8 @@ struct File
     static result_ptr<File> open(const char* path, u32 flags);
     int close();
 
-    int read(char* buf, usize size);
-    int write(const char* buf, usize size);
+    isize read(char* buf, usize size);
+    isize write(const char* buf, usize size);
     usize seek(usize offset, int whence);
     int iterate(void* buf, usize size);
     int ioctl(int cmd, void* arg);
