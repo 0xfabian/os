@@ -66,6 +66,7 @@ void FramebufferTerminal::init()
     width = fb->width / font->header->width;
     height = fb->height / font->header->height;
     cursor = 0;
+    write_cursor = 0;
 
     fg = FOREGROUND;
     bg = BACKGROUND;
@@ -76,6 +77,13 @@ void FramebufferTerminal::init()
     params[1] = 0;
     params[2] = 0;
     params[3] = 0;
+
+    line_buffered = true;
+    echo = true;
+
+    input_cursor = 0;
+
+    read_queue = nullptr;
 
     clear();
 
@@ -136,6 +144,7 @@ void FramebufferTerminal::scroll()
         *ptr = value;
 
     cursor -= width;
+    write_cursor -= width;
 
     render();
 }
@@ -203,36 +212,39 @@ void FramebufferTerminal::write(const char* buffer, usize len)
         ptr++;
         i++;
     }
+
+    write_cursor = cursor;
 }
 
-int FramebufferTerminal::read(char* buffer, usize len)
+isize FramebufferTerminal::read(char* buffer, usize len)
 {
-    // if (read_request.task)
-    //     return -1;
+    if (line_buffered && len > input_cursor)
+    {
+        add_request(buffer, len);
 
-    // if (kbd_index >= len)
-    // {
-    //     memcpy(buffer, kbd_buffer, len);
-    //     memmove(buffer, buffer + len, kbd_index - len);
-    //     kbd_index -= len;
+        // this should never be reached
+        return 0;
+    }
 
-    //     return len;
-    // }
-    // else
-    // {
-    //     int remaining = len - kbd_index;
-    //     memcpy(buffer, kbd_buffer, kbd_index);
+    usize read = input_cursor;
 
-    //     read_request.task = running;
-    //     read_request.buffer = buffer + kbd_index;
-    //     read_request.len = remaining;
+    if (read > len)
+        read = len;
 
-    //     kbd_index = 0;
+    for (usize i = 0; i < read; i++)
+    {
+        if (input_buffer[i] == '\n')
+        {
+            read = i + 1;
+            break;
+        }
+    }
 
-    //     running->state = TASK_WAITING;
-    // }
+    memcpy(buffer, input_buffer, read);
+    input_cursor -= read;
+    memmove(input_buffer, input_buffer + read, input_cursor);
 
-    return 0;
+    return read;
 }
 
 void FramebufferTerminal::ansi_function(char name, int arg)
@@ -276,7 +288,7 @@ void FramebufferTerminal::putchar(char c)
             cursor -= cursor % width;
         else if (c == '\b')
         {
-            if (cursor % width > 0)
+            if (cursor > write_cursor)
             {
                 cursor--;
                 draw_bitmap(' ');
@@ -290,23 +302,98 @@ void FramebufferTerminal::putchar(char c)
     draw_cursor(fg);
 }
 
-char key_lookup[128] =
-{
-    0, '\e', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
-    '\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',
-    0, 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`',
-    0, '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/',
-    0, '*', 0, ' ',
-};
-
 void FramebufferTerminal::handle_key(int key)
 {
-    if (key & 0x80)
+    char ch = translate_key(key);
+
+    if (!ch)
         return;
 
-    char ch = key_lookup[key];
+    if (ch == '\b' && line_buffered)
+    {
+        if (input_cursor > 0)
+            input_cursor--;
+    }
+    else
+    {
+        if (input_cursor < INPUT_BUFFER_SIZE)
+            input_buffer[input_cursor++] = ch;
 
-    putchar(ch);
+        if (ch == '\n' && line_buffered)
+            handle_requests();
+    }
+
+    if (echo)
+        putchar(ch);
+}
+
+void FramebufferTerminal::blink_cursor()
+{
+    static u32 ticks = 0;
+
+    if (ticks % 64 == 0)
+        fbterm.draw_cursor(fbterm.fg);
+    else if (ticks % 64 == 32)
+        fbterm.draw_cursor(fbterm.bg);
+
+    ticks++;
+}
+
+void FramebufferTerminal::add_request(char* buffer, usize len)
+{
+    ReadRequest* rr = (ReadRequest*)kmalloc(sizeof(ReadRequest));
+
+    rr->task = running;
+    rr->buffer = buffer;
+    rr->len = len;
+    rr->read = input_cursor;
+    rr->next = nullptr;
+
+    memcpy(buffer, input_buffer, input_cursor);
+    input_cursor = 0;
+
+    if (!read_queue)
+        read_queue = rr;
+    else
+    {
+        ReadRequest* last = read_queue;
+
+        while (last->next)
+            last = last->next;
+
+        last->next = rr;
+    }
+
+    running->sleep();
+}
+
+void FramebufferTerminal::handle_requests()
+{
+    ReadRequest* rr = read_queue;
+
+    while (rr)
+    {
+        usize read = rr->len - rr->read;
+
+        if (read > input_cursor)
+            read = input_cursor;
+
+        memcpy(rr->buffer + rr->read, input_buffer, read);
+        rr->read += read;
+        input_cursor -= read;
+
+        memmove(input_buffer, input_buffer + read, input_cursor);
+
+        rr->task->return_from_syscall(rr->read);
+
+        read_queue = rr->next;
+        kfree(rr);
+
+        if (input_cursor == 0)
+            break;
+
+        rr = read_queue;
+    }
 }
 
 void FramebufferTerminal::draw_bitmap(char c)
