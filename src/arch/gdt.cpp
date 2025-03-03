@@ -1,6 +1,7 @@
 #include <arch/gdt.h>
 
 extern "C" void load_gdt_desc(GDTDescriptor* desc);
+extern "C" void syscall_handler_asm();
 
 alignas(0x1000) GDT gdt;
 alignas(16) TSS tss;
@@ -46,6 +47,8 @@ void GDT::init()
 
     load_gdt_desc(&desc);
 
+    kprintf(INFO "Initializing TSS...\n");
+
     memset(&tss, 0, sizeof(TSS));
     tss.iomap_base = sizeof(TSS);
 
@@ -55,4 +58,8 @@ void GDT::init()
     wrmsr(0xC0000102, (u64)&tss);
 
     asm volatile("swapgs");
+
+    kprintf(INFO "Setting up syscall and sysret...\n");
+
+    setup_syscall((u64)syscall_handler_asm);
 }
