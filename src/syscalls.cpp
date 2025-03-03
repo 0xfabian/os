@@ -24,14 +24,20 @@ extern "C" void syscall_handler(CPU* cpu, int num)
 
 isize sys_read(unsigned int fd, char* buf, usize size)
 {
-    ikprintf("sys_read(%d, %p, %lu)\n", fd, buf, size);
+    // ikprintf("sys_read(%d, %p, %lu)\n", fd, buf, size);
 
-    return -1;
+    isize ret = fbterm.read(buf, size);
+
+    // this could never return here
+
+    return ret;
 }
 
 isize sys_write(unsigned int fd, const char* buf, usize size)
 {
-    ikprintf("sys_write(%d, %p, %lu)\n", fd, buf, size);
+    // ikprintf("sys_write(%d, %p, %lu)\n", fd, buf, size);
+
+    fbterm.write(buf, size);
 
     return -1;
 }
@@ -54,12 +60,23 @@ int sys_fork()
 {
     ikprintf("sys_fork()\n");
 
-    return 0;
+    return 1;
 }
 
 int sys_execve(const char* path, char* const argv[], char* const envp[])
 {
     ikprintf("sys_execve(%s, %p, %p)\n", path, argv, envp);
+
+    ikprintf("argv = { ");
+
+    int i = 0;
+    while (argv[i])
+    {
+        ikprintf("\"%s\", ", argv[i]);
+        i++;
+    }
+
+    ikprintf("nullptr }\n");
 
     return -1;
 }
