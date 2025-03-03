@@ -87,13 +87,27 @@ void page_fault_handler(interrupt_frame* frame, u64 error_code)
 void keyboard_handler(interrupt_frame* frame)
 {
     u8 scancode = inb(0x60);
-    kprintf("scancode: \e[32m%hhx\e[m\n", scancode);
+
+    fbterm.handle_key(scancode);
+
     pic::send_eoi(1);
 }
 
+int cnt = 0;
+
 extern "C" void context_switch()
 {
-    running = running->next;
+    if (cnt % 64 == 0)
+        fbterm.draw_cursor(fbterm.fg);
+    else if (cnt % 64 == 32)
+        fbterm.draw_cursor(fbterm.bg);
+
+    cnt++;
+
+    do
+    {
+        running = running->next;
+    } while (running->state != TASK_READY);
 
     if (running->mm->user_stack)
         tss.rsp0 = (u64)running->mm->kernel_stack + KERNEL_STACK_SIZE;
