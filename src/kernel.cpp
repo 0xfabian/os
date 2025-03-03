@@ -2,7 +2,6 @@
 #include <mem/heap.h>
 #include <arch/gdt.h>
 #include <arch/idt.h>
-
 #include <fs/mount.h>
 #include <fs/ramfs/ramfs.h>
 #include <task.h>
@@ -405,28 +404,6 @@ const u8 userspace_code[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-void task2()
-{
-    kprintf("Hello from task 2\n");
-
-    idle();
-}
-
-void task1()
-{
-    kprintf("Hello from task 1\nCreating task 2...\n");
-
-    Task* t2 = Task::from(task2);
-
-    t2->ready();
-
-    kprintf("All should be good\n");
-
-    idle();
-}
-
-extern "C" void syscall_handler_asm();
-
 extern "C" void kmain(void)
 {
     if (!LIMINE_BASE_REVISION_SUPPORTED)
@@ -445,8 +422,6 @@ extern "C" void kmain(void)
     idt.init();
 
     heap.init(2000);
-
-    setup_syscall((uint64_t)syscall_handler_asm);
 
     // ramfs.register_self();
 
@@ -480,26 +455,13 @@ extern "C" void kmain(void)
     // inode_table.debug();
     // heap.debug();
 
-    Task* t0 = Task::dummy();
+    sched_init();
 
-    t0->ready();
+    kprintf("Hello from the kernel!\n");
 
-    running = task_list;
+    Task* sh = Task::from(userspace_code, sizeof(userspace_code));
 
-    pic::set_irq(0, false);
-    pic::set_irq(1, false);
-
-    sti();
-
-    // at this point, kmain continues as t0
-
-    Task* t1 = Task::from(task1);
-    // Task* t2 = Task::from(task2);
-    // Task* t3 = Task::from(userspace_code, sizeof(userspace_code));
-
-    t1->ready();
-    // t2->ready();
-    // t3->ready();
+    sh->ready();
 
     idle();
 }
