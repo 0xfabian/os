@@ -136,49 +136,43 @@ Task* Task::fork()
 
     PML4* src_pml4 = running->mm->pml4;
 
-    for (int i = 0; i < 256; i++)
+    for (u64 i = 0; i < 256; i++)
     {
-        if (src_pml4->entries[i] & PE_PRESENT)
+        if (!src_pml4->has(i))
+            continue;
+
+        PDPT* pdpt = (PDPT*)(src_pml4->get(i) | KERNEL_HHDM);
+
+        for (u64 j = 0; j < 512; j++)
         {
-            u64 addr1 = (u64)i << (9 + 9 + 9 + 12);
+            if (!pdpt->has(j))
+                continue;
 
-            PDPT* pdpt = (PDPT*)((src_pml4->entries[i] & ~0xfff) | KERNEL_HHDM);
+            PD* pd = (PD*)(pdpt->get(j) | KERNEL_HHDM);
 
-            for (int j = 0; j < 512; j++)
+            for (u64 k = 0; k < 512; k++)
             {
-                if (pdpt->entries[j] & PE_PRESENT)
+                if (!pd->has(k))
+                    continue;
+
+                PT* pt = (PT*)(pd->get(k) | KERNEL_HHDM);
+
+                for (u64 l = 0; l < 512; l++)
                 {
-                    u64 addr2 = addr1 + ((u64)j << (9 + 9 + 12));
+                    if (!pt->has(l))
+                        continue;
 
-                    PD* pd = (PD*)((pdpt->entries[j] & ~0xfff) | KERNEL_HHDM);
+                    u64 virt = i << 39 | j << 30 | k << 21 | l << 12;
+                    u64 flags = pt->entries[l] & 0xfff;
 
-                    for (int k = 0; k < 512; k++)
-                    {
-                        if (pd->entries[k] & PE_PRESENT)
-                        {
-                            u64 addr3 = addr2 + ((u64)k << (9 + 12));
+                    // this is a bit tricky
+                    // we need to copy running's memory to the new task
+                    // but we can't just copy the memory
+                    // because the memory mapping is the same
+                    // so we need to copy it interally at the kernel address
+                    // of the corresponding page
 
-                            PT* pt = (PT*)((pd->entries[k] & ~0xfff) | KERNEL_HHDM);
-
-                            for (int l = 0; l < 512; l++)
-                            {
-                                if (pt->entries[l] & PE_PRESENT)
-                                {
-                                    u64 addr4 = addr3 + ((u64)l << 12);
-                                    u64 flags = pt->entries[l] & 0xfff;
-
-                                    // this is a bit tricky
-                                    // we need to copy running's memory to the new task
-                                    // but we can't just copy the memory
-                                    // because the memory mapping is the same
-                                    // so we need to copy it interally at the kernel address
-                                    // of the corresponding page
-
-                                    vmm.alloc_page_and_copy(task->mm->pml4, addr4, flags);
-                                }
-                            }
-                        }
-                    }
+                    vmm.alloc_page_and_copy(task->mm->pml4, virt, flags);
                 }
             }
         }
