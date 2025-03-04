@@ -817,6 +817,19 @@ extern "C" void kmain(void)
 
     sched_init();
 
+    for (int i = 0; i < 16; i++)
+    {
+        for (int j = 0; j < 16; j++)
+        {
+            kprintf("\e[%s%dm", (j < 8) ? "4" : "10", j % 8);
+            kprintf("\e[%s%dm   Abc   ", (i < 8) ? "3" : "9", i % 8);
+        }
+
+        kprintf("\n");
+    }
+
+    kprintf("\e[m");
+
     Task* sh = Task::from("/sh");
 
     sh->ready();
