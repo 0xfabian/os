@@ -48,12 +48,13 @@ struct Task
     int exit_code;
 
     static Task* from(void (*func)(void));
-    static Task* from(const u8* data, usize size);
+    static Task* from(const char* path);
     static Task* dummy();
 
     Task* fork();
     int execve(const char* path, char* const argv[], char* const envp[]);
     void exit(int code);
+    void wait();
     void ready();
     void sleep();
     void return_from_syscall(int ret);

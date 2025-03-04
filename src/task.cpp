@@ -1,4 +1,5 @@
 #include <task.h>
+#include <string.h>
 
 Task* running;
 Task* task_list;
@@ -53,13 +54,15 @@ Task* Task::from(void (*func)(void))
     return task;
 }
 
-Task* Task::from(const u8* data, usize size)
+Task* Task::from(const char* path)
 {
+    auto src = File::open(path, 0);
+
     Task* task = alloc_task();
 
     task->mm->pml4 = vmm.make_user_page_table();
-    task->mm->start = vmm.alloc_pages(task->mm->pml4, 0x401000, PAGE_COUNT(size), PE_WRITE | PE_USER);
-    task->mm->size = size;
+    task->mm->start = vmm.alloc_pages(task->mm->pml4, 0x401000, PAGE_COUNT(src->inode->size), PE_WRITE | PE_USER);
+    task->mm->size = src->inode->size;
     task->mm->user_stack = vmm.alloc_pages(task->mm->pml4, USER_STACK_BOTTOM, USER_STACK_PAGES, PE_WRITE | PE_USER);
     task->mm->kernel_stack = vmm.alloc_pages(KERNEL_STACK_PAGES, PE_WRITE);
 
@@ -67,7 +70,8 @@ Task* Task::from(const u8* data, usize size)
     // so that we can copy the data to the newly mapped memory
     vmm.switch_pml4(task->mm->pml4);
 
-    memcpy(task->mm->start, data, size);
+    src->read((char*)task->mm->start, src->inode->size);
+    src->close();
 
     // if we are in a kernel thread we can use any page table
     // beacuse the kernel is always mapped
@@ -115,6 +119,10 @@ Task* Task::dummy()
 Task* Task::fork()
 {
     Task* task = alloc_task();
+
+    for (int i = 0; i < FD_TABLE_SIZE; i++)
+        if (running->fdt.files[i])
+            task->fdt.files[i] = running->fdt.files[i]->dup();
 
     task->mm->pml4 = vmm.make_user_page_table();
     task->mm->start = running->mm->start;
@@ -191,7 +199,98 @@ Task* Task::fork()
 
 int Task::execve(const char* path, char* const argv[], char* const envp[])
 {
-    return -1;
+    // free pml4 first
+
+    auto src = File::open(path, 0);
+
+    if (!src)
+        return -1;
+
+    mm->pml4 = vmm.make_user_page_table();
+    mm->start = vmm.alloc_pages(mm->pml4, 0x401000, PAGE_COUNT(src->inode->size), PE_WRITE | PE_USER);
+    mm->size = src->inode->size;
+    mm->user_stack = vmm.alloc_pages(mm->pml4, USER_STACK_BOTTOM, USER_STACK_PAGES, PE_WRITE | PE_USER);
+
+    // there is no need for another kernel stack
+    // we can use the already existing one
+    // and we just modify the CPU struct
+
+    // also before we switch the page table
+    // we need to same the argv in kernel space
+    // because they come from the old task's user memory
+
+    usize argv_size = 0;
+    usize argc = 0;
+
+    for (usize i = 0; argv[i]; i++)
+    {
+        argv_size += strlen(argv[i]) + 1;
+        argc++;
+    }
+
+    u8* argv_mem = (u8*)kmalloc(argv_size);
+
+    usize off = 0;
+
+    for (usize i = 0; argv[i]; i++)
+    {
+        usize len = strlen(argv[i]) + 1;
+        memcpy(argv_mem + off, argv[i], len);
+        off += len;
+    }
+
+    vmm.switch_pml4(mm->pml4);
+
+    src->read((char*)mm->start, src->inode->size);
+    src->close();
+
+    u64 ustack_top = (u64)mm->user_stack + USER_STACK_SIZE;
+
+    CPU* cpu = (CPU*)krsp;
+    memset(cpu, 0, sizeof(CPU));
+
+    cpu->rbp = ustack_top;
+
+    cpu->rip = (u64)mm->start;
+    cpu->cs = USER_CS;
+    cpu->rflags = 0x202;
+    cpu->rsp = ustack_top;
+    cpu->ss = USER_DS;
+    cpu->rcx = cpu->rip;
+    cpu->r11 = cpu->rflags;
+
+    // i don't know if it's a good idea to store
+    // the actual argv strings on the stack too
+
+    cpu->rsp -= argv_size;
+    memcpy((void*)cpu->rsp, argv_mem, argv_size);
+
+    u64 stack_addr = cpu->rsp;
+
+    // we should align the stack to 16 bytes
+    cpu->rsp &= ~0x0f;
+
+    cpu->rsp -= 8;
+    *(u64*)cpu->rsp = 0; // the null terminator
+
+    off = 0;
+
+    cpu->rsp -= 8 * argc;
+    for (usize i = 0; i < argc; i++)
+    {
+        *(u64*)(cpu->rsp + i * 8) = (u64)stack_addr + off;
+        off += strlen((const char*)(stack_addr + off)) + 1;
+    }
+
+    kfree(argv_mem);
+
+    cpu->rsp -= 8;
+    *(u64*)cpu->rsp = argc;
+
+    // very important since we store the user stack here
+    tss.rsp2 = cpu->rsp;
+
+    return 0;
 }
 
 void Task::exit(int code)
@@ -199,8 +298,32 @@ void Task::exit(int code)
     state = TASK_ZOMBIE;
     exit_code = code;
 
+    if (parent->state == TASK_SLEEPING)
+        parent->return_from_syscall(running->tid);
+
     schedule();
     switch_now();
+}
+
+void Task::wait()
+{
+    // hacky way to do wait
+
+    int children = 0;
+
+    Task* task = task_list;
+
+    do
+    {
+        if (task->state != TASK_ZOMBIE && task->parent == running)
+            children++;
+
+        task = task->next;
+
+    } while (task != task_list);
+
+    if (children)
+        running->sleep();
 }
 
 void Task::ready()
