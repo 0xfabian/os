@@ -9,55 +9,6 @@ void VirtualMemoryManager::init()
     kprintf(INFO "Initializing virtual memory manager...\n");
 
     active_pml4 = (PML4*)(read_cr3() | KERNEL_HHDM);
-
-    // for (int i = 0; i < 512; i++)
-    // {
-    //     if (active_pml4->entries[i] & PE_PRESENT)
-    //     {
-    //         u64 addr = (u64)i << (9 + 9 + 9 + 12);
-
-    //         kprintf("PML4E %d (%a): %lx\n", i, addr, active_pml4->entries[i]);
-
-    //         PDPT* pdpt = (PDPT*)((active_pml4->entries[i] & ~0xfff) | KERNEL_HHDM);
-
-    //         for (int j = 0; j < 512; j++)
-    //         {
-    //             if (pdpt->entries[j] & PE_PRESENT)
-    //             {
-    //                 u64 addr2 = addr + ((u64)j << (9 + 9 + 12));
-
-    //                 kprintf("    PDPTE %d (%a): %lx %f\n", j, addr2, pdpt->entries[j], pdpt->entries[j] & PE_HUGE);
-
-    //                 if (pdpt->entries[j] & PE_HUGE)
-    //                     continue;
-
-    //                 PD* pd = (PD*)((pdpt->entries[j] & ~0xfff) | KERNEL_HHDM);
-
-    //                 for (int k = 0; k < 512; k++)
-    //                 {
-    //                     if (pd->entries[k] & PE_PRESENT)
-    //                     {
-    //                         u64 addr3 = addr2 + ((u64)k << (9 + 12));
-
-    //                         kprintf("        PDE %d (%a): %lx %f\n", k, addr3, pd->entries[k], pd->entries[k] & PE_HUGE);
-
-    //                         // PT* pt = (PT*)((pd->entries[k] & ~0xfff) | KERNEL_HHDM);
-
-    //                         // for (int l = 0; l < 512; l++)
-    //                         // {
-    //                         //     if (pt->entries[l] & PE_PRESENT)
-    //                         //     {
-    //                         //         u64 addr4 = addr3 + ((u64)l << 12);
-
-    //                         //         kprintf("            PTE %d (%a): %lx\n", l, addr4, pt->entries[l]);
-    //                         //     }
-    //                         // }
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
 }
 
 void* VirtualMemoryManager::alloc_page(u64 flags)
@@ -225,7 +176,7 @@ PML4* VirtualMemoryManager::make_user_page_table()
 
     // copy the kernel space mappings
     for (int i = 0; i < 512; i++)
-        if (active_pml4->entries[i] & PE_PRESENT)
+        if (active_pml4->has(i))
             pml4->entries[i] = active_pml4->entries[i];
 
     return pml4;
@@ -249,7 +200,7 @@ u64 VirtualMemoryManager::virt_to_phys(PML4* pml4, u64 virt)
     PD* pd = (PD*)(pdpt->get(pdpte) | KERNEL_HHDM);
     PT* pt = (PT*)(pd->get(pde) | KERNEL_HHDM);
 
-    return pt->get(pte) | virt & 0xfff;
+    return pt->get(pte) | (virt & 0xfff);
 }
 
 u64 VirtualMemoryManager::user_to_kernel(PML4* pml4, u64 virt)
