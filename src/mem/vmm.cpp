@@ -237,3 +237,22 @@ void VirtualMemoryManager::switch_pml4(PML4* pml4)
     // so it's easy to convert it to physical
     write_cr3((u64)pml4 & ~KERNEL_HHDM);
 }
+
+u64 VirtualMemoryManager::virt_to_phys(PML4* pml4, u64 virt)
+{
+    u32 pml4e = (virt >> 39) & 0x1ff;
+    u32 pdpte = (virt >> 30) & 0x1ff;
+    u32 pde = (virt >> 21) & 0x1ff;
+    u32 pte = (virt >> 12) & 0x1ff;
+
+    PDPT* pdpt = (PDPT*)(pml4->get(pml4e) | KERNEL_HHDM);
+    PD* pd = (PD*)(pdpt->get(pdpte) | KERNEL_HHDM);
+    PT* pt = (PT*)(pd->get(pde) | KERNEL_HHDM);
+
+    return pt->get(pte) | virt & 0xfff;
+}
+
+u64 VirtualMemoryManager::virt_to_kernel(PML4* pml4, u64 virt)
+{
+    return virt_to_phys(pml4, virt) | KERNEL_HHDM;
+}

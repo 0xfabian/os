@@ -26,6 +26,9 @@ struct VirtualMemoryManager
 
     PML4* make_user_page_table();
     void switch_pml4(PML4* pml4);
+
+    u64 virt_to_phys(PML4* pml4, u64 virt);
+    u64 virt_to_kernel(PML4* pml4, u64 virt);
 };
 
 extern VirtualMemoryManager vmm;
