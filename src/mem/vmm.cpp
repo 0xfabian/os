@@ -252,7 +252,7 @@ u64 VirtualMemoryManager::virt_to_phys(PML4* pml4, u64 virt)
     return pt->get(pte) | virt & 0xfff;
 }
 
-u64 VirtualMemoryManager::virt_to_kernel(PML4* pml4, u64 virt)
+u64 VirtualMemoryManager::user_to_kernel(PML4* pml4, u64 virt)
 {
     return virt_to_phys(pml4, virt) | KERNEL_HHDM;
 }
