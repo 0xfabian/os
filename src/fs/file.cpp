@@ -142,6 +142,12 @@ int File::ioctl(int cmd, void* arg)
     return ops.ioctl(this, cmd, arg);
 }
 
+File* File::dup()
+{
+    refs++;
+    return this;
+}
+
 result_ptr<File> FileTable::alloc()
 {
     for (File* file = &files[0]; file < &files[FILE_TABLE_SIZE]; file++)
