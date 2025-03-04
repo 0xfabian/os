@@ -14,4 +14,4 @@ load_gdt_desc:
     push rdi        ; push the return address
     retfq           ; sets cs and returns
 
-GLOBAL load_gdt_desc
+global load_gdt_desc

@@ -75,7 +75,7 @@ timer_handler_asm:
 
     iretq   ; restore rip, cs, rflags, rsp, ss
 
-GLOBAL timer_handler_asm
+global timer_handler_asm
 
 extern syscall_handler
 
@@ -125,7 +125,7 @@ syscall_handler_asm:
     ; so we should change to the new task krsp
     ; and do iretq
 
-GLOBAL syscall_handler_asm
+global syscall_handler_asm
 
 switch_now:
 
@@ -136,4 +136,4 @@ switch_now:
 
     iretq
 
-GLOBAL switch_now
+global switch_now
