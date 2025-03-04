@@ -1,24 +1,44 @@
 #include <fbterm.h>
 #include <task.h>
 
-#define FOREGROUND          0xf0ffff
-#define BACKGROUND          0x192840
-#define BLACK               0x1a1c1f
-#define RED                 0xc50f1f
-#define GREEN               0x34a116
-#define YELLOW              0xf2a623
-#define BLUE                0x2b5cb3
-#define MAGENTA             0x8a155e
-#define CYAN                0x3dbab5
-#define WHITE               0xcccccc
-#define BRIGHT_BLACK        0x8d95a3
-#define BRIGHT_RED          0xff4a4a
-#define BRIGHT_GREEN        0x89ff64
-#define BRIGHT_YELLOW       0xffea3a
-#define BRIGHT_BLUE         0x6fa3ff
-#define BRIGHT_MAGENTA      0xb53083
-#define BRIGHT_CYAN         0x79f9de
-#define BRIGHT_WHITE        0xf2f2f2
+// #define FOREGROUND          0xf0ffff
+// #define BACKGROUND          0x192840
+// #define BLACK               0x1a1c1f
+// #define RED                 0xc50f1f
+// #define GREEN               0x34a116
+// #define YELLOW              0xf2a623
+// #define BLUE                0x2b5cb3
+// #define MAGENTA             0x8a155e
+// #define CYAN                0x3dbab5
+// #define WHITE               0xcccccc
+// #define BRIGHT_BLACK        0x8d95a3
+// #define BRIGHT_RED          0xff4a4a
+// #define BRIGHT_GREEN        0x89ff64
+// #define BRIGHT_YELLOW       0xffea3a
+// #define BRIGHT_BLUE         0x6fa3ff
+// #define BRIGHT_MAGENTA      0xb53083
+// #define BRIGHT_CYAN         0x79f9de
+// #define BRIGHT_WHITE        0xf2f2f2
+
+// gruvbox color theme
+#define FOREGROUND          0xebdbb2
+#define BACKGROUND          0x282828
+#define BLACK               0x1d2021
+#define RED                 0xfb4934
+#define GREEN               0x8ec07c
+#define YELLOW              0xf9f14e
+#define BLUE                0x83a598
+#define MAGENTA             0xd3869b
+#define CYAN                0x8ec0d6
+#define WHITE               0xf2e5bc
+#define BRIGHT_BLACK        0x928374
+#define BRIGHT_RED          0xfb4934
+#define BRIGHT_GREEN        0x98c379
+#define BRIGHT_YELLOW       0xfbd755
+#define BRIGHT_BLUE         0x83a598
+#define BRIGHT_MAGENTA      0xd3869b
+#define BRIGHT_CYAN         0x8ec0d6
+#define BRIGHT_WHITE        0xebdbb2
 
 u32 colors[] =
 {
@@ -61,7 +81,7 @@ void FramebufferTerminal::init()
     backbuffer = default_fb.addr;
 
     fb = &default_fb;
-    font = &zap_light20;
+    font = &sf_mono20;
 
     width = fb->width / font->header->width;
     height = fb->height / font->header->height;
@@ -88,6 +108,13 @@ void FramebufferTerminal::init()
     clear();
 
     kprintf(INFO "Framebuffer terminal initialized (%ux%u)\n", width, height);
+
+    limine_framebuffer* fb = framebuffer_request.response->framebuffers[0];
+
+    kprintf("Framebuffer: %lux%lu %hu-bit\n", fb->width, fb->height, fb->bpp);
+    kprintf("Framebuffer address: %p\n", fb->address);
+    kprintf("Framebuffer pitch: %lu\n", fb->pitch);
+    kprintf("Framebuffer memory model: %hhx\n", fb->memory_model);
 }
 
 void FramebufferTerminal::enable_backbuffer()
@@ -405,8 +432,47 @@ void FramebufferTerminal::handle_requests()
     }
 }
 
+inline u32 alpha_blend(u32 c1, u32 c2, u8 alpha)
+{
+    u8 inv_alpha = 255 - alpha;
+
+    u32 rb1 = c1 & 0xff00ff;
+    u32 g1 = c1 & 0x00ff00;
+
+    u32 rb2 = c2 & 0xff00ff;
+    u32 g2 = c2 & 0x00ff00;
+
+    u32 rb = ((rb1 * alpha + rb2 * inv_alpha) >> 8) & 0xff00ff;
+    u32 g = ((g1 * alpha + g2 * inv_alpha) >> 8) & 0x00ff00;
+
+    return rb | g;
+}
+
 void FramebufferTerminal::draw_bitmap(char c)
 {
+    // u32 x = (cursor % width) * font->header->width;
+    // u32 y = (cursor / width) * font->header->height;
+
+    // u32* ptr = backbuffer + x + y * fb->width;
+    // u32* ptr2 = fb->addr + x + y * fb->width;
+    // u8* font_ptr = font->glyph_buffer + c * font->header->char_size;
+
+    // for (y = 0; y < font->header->height; y++)
+    // {
+    //     for (x = 0; x < font->header->width; x++)
+    //     {
+    //         if (x == 8)
+    //             font_ptr++;
+
+    //         ptr[x] = (*font_ptr & (0b10000000 >> (x & 7))) ? fg : bg;
+    //         ptr2[x] = (*font_ptr & (0b10000000 >> (x & 7))) ? fg : bg;
+    //     }
+
+    //     font_ptr++;
+    //     ptr += fb->width;
+    //     ptr2 += fb->width;
+    // }
+
     u32 x = (cursor % width) * font->header->width;
     u32 y = (cursor / width) * font->header->height;
 
@@ -414,18 +480,19 @@ void FramebufferTerminal::draw_bitmap(char c)
     u32* ptr2 = fb->addr + x + y * fb->width;
     u8* font_ptr = font->glyph_buffer + c * font->header->char_size;
 
+    u32 col;
+
     for (y = 0; y < font->header->height; y++)
     {
         for (x = 0; x < font->header->width; x++)
         {
-            if (x == 8)
-                font_ptr++;
+            col = alpha_blend(fg, bg, font_ptr[x]);
 
-            ptr[x] = (*font_ptr & (0b10000000 >> (x & 7))) ? fg : bg;
-            ptr2[x] = (*font_ptr & (0b10000000 >> (x & 7))) ? fg : bg;
+            ptr[x] = col;
+            ptr2[x] = col;
         }
 
-        font_ptr++;
+        font_ptr += font->header->width;
         ptr += fb->width;
         ptr2 += fb->width;
     }
