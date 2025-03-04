@@ -28,21 +28,20 @@ DIRS = $(wildcard $(SRCDIR)/*)
 kernel: esp/boot/kernel
 
 esp/boot/kernel: $(OBJS) $(LDSCRIPT)
-	@ echo ---------- LINKING ----------
-	$(LD) $(LDFLAGS) -o esp/boot/kernel $(OBJS)
+	@ echo linking kernel...
+	@ $(LD) $(LDFLAGS) -o esp/boot/kernel $(OBJS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
-	@ echo ------- COMPILING C++ ------- $^
+	@ echo 'g++   ' $^
 	@ mkdir -p $(@D)
-	$(CC) $(CFLAGS) -c $^ -o $@
+	@ $(CC) $(CFLAGS) -c $^ -o $@
 
 $(OBJDIR)/%_asm.o: $(SRCDIR)/%.asm
-	@ echo ------- COMPILING ASM ------- $^
+	@ echo 'nasm  ' $^
 	@ mkdir -p $(@D)
-	$(ASMC) $(ASMFLAGS) $^ -f elf64 -o $@
+	@ $(ASMC) $(ASMFLAGS) $^ -f elf64 -o $@
 
 buildimg:
-	@ echo ---------- BUILDING IMAGE ----------
 	dd if=/dev/zero bs=1M count=0 seek=256 of=image.hdd
 	sgdisk image.hdd -n 1:2048 -t 1:ef00
 	mformat -i image.hdd@@1M
@@ -55,16 +54,15 @@ buildimg:
 updateimg: $(IMG)
 
 $(IMG): esp/boot/kernel
-	@ echo ---------- UPDATING IMAGE ----------
-	mcopy -o -i $(IMG)@@1M esp/boot/kernel ::/boot
+	@ echo updating image...
+	@ mcopy -o -i $(IMG)@@1M esp/boot/kernel ::/boot
 
 clean:
-	@ echo ---------- CLEANING ----------
-	rm -rf $(OBJDIR)
+	@ rm -rf $(OBJDIR)
 
 run:
 	@ sudo umount disk 2> /dev/null || true
-	@ powershell.exe -Command "qemu-system-x86_64 $(QEMU_FLAGS)"
+	@ powershell.exe -Command "qemu-system-x86_64 $(QEMU_FLAGS)" 2> /dev/null
 	@ sudo mount -o loop disk.img disk
 
 all: kernel updateimg run
