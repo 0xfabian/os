@@ -344,7 +344,16 @@ void FramebufferTerminal::add_request(char* buffer, usize len)
     ReadRequest* rr = (ReadRequest*)kmalloc(sizeof(ReadRequest));
 
     rr->task = running;
-    rr->buffer = buffer;
+
+    // if the read came from a user task
+    // i think it's better to store the kernel mapping of the buffer
+    // so we can write to it without switching the page table
+
+    if (running->mm->pml4)
+        rr->buffer = (char*)vmm.user_to_kernel(running->mm->pml4, (u64)buffer);
+    else
+        rr->buffer = buffer;
+
     rr->len = len;
     rr->read = input_cursor;
     rr->next = nullptr;
