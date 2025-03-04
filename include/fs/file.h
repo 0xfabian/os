@@ -24,6 +24,8 @@ struct File
     usize seek(usize offset, int whence);
     int iterate(void* buf, usize size);
     int ioctl(int cmd, void* arg);
+
+    File* dup();
 };
 
 #define FILE_TABLE_SIZE 256
