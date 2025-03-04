@@ -37,7 +37,7 @@ isize sys_write(unsigned int fd, const char* buf, usize size)
 {
     // ikprintf("sys_write(%d, %p, %lu)\n", fd, buf, size);
 
-    ikprintf("%lu: ", running->tid);
+    // ikprintf("%lu: ", running->tid);
     fbterm.write(buf, size);
 
     return size;
@@ -59,7 +59,7 @@ int sys_close(unsigned int fd)
 
 int sys_fork()
 {
-    ikprintf("sys_fork()\n");
+    // ikprintf("sys_fork()\n");
 
     Task* task = running->fork();
 
@@ -74,25 +74,27 @@ int sys_fork()
 
 int sys_execve(const char* path, char* const argv[], char* const envp[])
 {
-    ikprintf("sys_execve(%s, %p, %p)\n", path, argv, envp);
+    // ikprintf("sys_execve(%s, %p, %p)\n", path, argv, envp);
 
-    ikprintf("argv = { ");
+    // ikprintf("argv = { ");
 
-    int i = 0;
-    while (argv[i])
-    {
-        ikprintf("\"%s\", ", argv[i]);
-        i++;
-    }
+    // int i = 0;
+    // while (argv[i])
+    // {
+//     ikprintf("\"%s\", ", argv[i]);
+    //     i++;
+    // }
 
-    ikprintf("nullptr }\n");
+    // ikprintf("nullptr }\n");
 
-    return -1;
+    return running->execve(path, argv, envp);
+
+    // return -1;
 }
 
 void sys_exit(int status)
 {
-    ikprintf("sys_exit(%d)\n", status);
+    // ikprintf("sys_exit(%d)\n", status);
 
     running->exit(status);
 
@@ -103,9 +105,11 @@ void sys_exit(int status)
 
 int sys_wait(int pid, int* status, int options)
 {
-    ikprintf("sys_wait(%d, %p, %d)\n", pid, status, options);
+    // ikprintf("sys_wait(%d, %p, %d)\n", pid, status, options);
 
-    return -1;
+    running->wait();
+
+    return 0;
 }
 
 void sys_debug()
