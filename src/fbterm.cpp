@@ -429,18 +429,15 @@ void FramebufferTerminal::handle_requests()
 
 inline u32 alpha_blend(u32 c1, u32 c2, u8 alpha)
 {
-    u8 inv_alpha = 255 - alpha;
+    // hacky way to do alpha blending
+    // this is not really accurate but it's fast
 
-    u32 rb1 = c1 & 0xff00ff;
-    u32 g1 = c1 & 0x00ff00;
+    u64 rgb1 = (u64)(c1 & 0x00ff00) << 24 | (c1 & 0xff00ff);
+    u64 rgb2 = (u64)(c2 & 0x00ff00) << 24 | (c2 & 0xff00ff);
 
-    u32 rb2 = c2 & 0xff00ff;
-    u32 g2 = c2 & 0x00ff00;
+    u64 rgb = ((rgb1 - rgb2) * alpha >> 8) + rgb2;
 
-    u32 rb = ((rb1 * alpha + rb2 * inv_alpha) >> 8) & 0xff00ff;
-    u32 g = ((g1 * alpha + g2 * inv_alpha) >> 8) & 0x00ff00;
-
-    return rb | g;
+    return (rgb & 0xff00ff) | ((rgb >> 24) & 0x00ff00);
 }
 
 void FramebufferTerminal::draw_bitmap(char c)
