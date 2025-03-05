@@ -4,7 +4,7 @@
 #include <arch/cpu.h>
 #include <fbterm.h>
 
-#define INFO    "[\e[92mINFO\e[m]    "
+#define INFO    "[\e[96mINFO\e[m]    "
 #define WARN    "[\e[93mWARN\e[m]    "
 #define PANIC   "[\e[91mPANIC\e[m]   "
 
