@@ -11,19 +11,24 @@ int FDTable::get_unused()
 
 result_ptr<File> FDTable::get(unsigned int fd)
 {
-    if (fd >= FD_TABLE_SIZE)
+    if (fd >= FD_TABLE_SIZE || !files[fd])
         return -ERR_BAD_FD;
 
     return files[fd];
+}
+
+bool FDTable::is_usable(unsigned int fd)
+{
+    if (fd >= FD_TABLE_SIZE || files[fd])
+        return false;
+
+    return true;
 }
 
 int FDTable::install(unsigned int fd, File* file)
 {
     if (fd >= FD_TABLE_SIZE)
         return -ERR_BAD_FD;
-
-    if (files[fd])
-        kprintf(WARN "install(): fd %u is already in use\n", fd);
 
     files[fd] = file;
 
@@ -36,6 +41,9 @@ result_ptr<File> FDTable::uninstall(unsigned int fd)
         return -ERR_BAD_FD;
 
     File* file = files[fd];
+
+    if (!file)
+        return -ERR_BAD_FD;
 
     files[fd] = nullptr;
 
