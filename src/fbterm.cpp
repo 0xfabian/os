@@ -110,13 +110,6 @@ void FramebufferTerminal::init()
     clear();
 
     kprintf(INFO "Framebuffer terminal initialized (%ux%u)\n", width, height);
-
-    limine_framebuffer* fb = framebuffer_request.response->framebuffers[0];
-
-    kprintf("Framebuffer: %lux%lu %hu-bit\n", fb->width, fb->height, fb->bpp);
-    kprintf("Framebuffer address: %p\n", fb->address);
-    kprintf("Framebuffer pitch: %lu\n", fb->pitch);
-    kprintf("Framebuffer memory model: %hhx\n", fb->memory_model);
 }
 
 void FramebufferTerminal::enable_backbuffer()
