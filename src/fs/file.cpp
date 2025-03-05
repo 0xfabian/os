@@ -83,7 +83,7 @@ isize File::read(char* buf, usize size)
     if (!ops.read)
         return -ERR_NOT_IMPL;
 
-    int ret = ops.read(this, buf, size, offset);
+    isize ret = ops.read(this, buf, size, offset);
 
     if (ret < 0)
         return ret;
@@ -98,7 +98,7 @@ isize File::write(const char* buf, usize size)
     if (!ops.write)
         return -ERR_NOT_IMPL;
 
-    int ret = ops.write(this, buf, size, offset);
+    isize ret = ops.write(this, buf, size, offset);
 
     if (ret < 0)
         return ret;
@@ -106,6 +106,22 @@ isize File::write(const char* buf, usize size)
     offset += ret;
 
     return ret;
+}
+
+isize File::pread(char* buf, usize size, usize offset)
+{
+    if (!ops.read)
+        return -ERR_NOT_IMPL;
+
+    return ops.read(this, buf, size, offset);
+}
+
+isize File::pwrite(const char* buf, usize size, usize offset)
+{
+    if (!ops.write)
+        return -ERR_NOT_IMPL;
+
+    return ops.write(this, buf, size, offset);
 }
 
 usize File::seek(usize offset, int whence)

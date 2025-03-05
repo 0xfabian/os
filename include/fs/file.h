@@ -21,6 +21,8 @@ struct File
 
     isize read(char* buf, usize size);
     isize write(const char* buf, usize size);
+    isize pread(char* buf, usize size, usize offset);
+    isize pwrite(const char* buf, usize size, usize offset);
     usize seek(usize offset, int whence);
     int iterate(void* buf, usize size);
     int ioctl(int cmd, void* arg);
