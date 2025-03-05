@@ -6,6 +6,7 @@ enum ErrorCode
 {
     ERR_SUCCESS = 0,
     ERR_NO_MEM,
+    ERR_NO_EXEC,
     ERR_NO_DEV,
     ERR_NOT_FOUND,
     ERR_NOT_DIR,
