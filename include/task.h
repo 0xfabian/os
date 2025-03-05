@@ -4,6 +4,7 @@
 #include <arch/pic.h>
 #include <mem/heap.h>
 #include <fs/fd.h>
+#include <elf.h>
 
 #define KERNEL_STACK_PAGES      2   // 8KB
 #define KERNEL_STACK_SIZE       (KERNEL_STACK_PAGES * PAGE_SIZE)

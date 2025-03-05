@@ -54,6 +54,66 @@ Task* Task::from(void (*func)(void))
     return task;
 }
 
+int load_elf(Task* task, const char* path, u64* entry)
+{
+    auto src = File::open(path, 0);
+
+    if (!src)
+        return src.error();
+
+    ELF::Header hdr;
+
+    isize read = src->pread((char*)&hdr, sizeof(ELF::Header), 0);
+
+    if (read != sizeof(ELF::Header) || !hdr.supported())
+    {
+        ikprintf(WARN "Invalid ELF header\n");
+        src->close();
+        return -ERR_NO_EXEC;
+    }
+
+    ELF::ProgramHeader phdrs[hdr.phnum];
+
+    read = src->pread((char*)phdrs, hdr.phnum * hdr.phentsize, hdr.phoff);
+
+    if (read != hdr.phnum * hdr.phentsize)
+    {
+        ikprintf(WARN "Invalid program headers\n");
+        src->close();
+        return -ERR_NO_EXEC;
+    }
+
+    task->mm->pml4 = vmm.make_user_page_table();
+    task->mm->start = nullptr;
+    task->mm->size = 0;
+    task->mm->user_stack = vmm.alloc_pages(task->mm->pml4, USER_STACK_BOTTOM, USER_STACK_PAGES, PE_WRITE | PE_USER);
+    // we don't touch the task's kernel stack
+
+    vmm.switch_pml4(task->mm->pml4);
+
+    for (ELF::ProgramHeader* phdr = phdrs; phdr < phdrs + hdr.phnum; phdr++)
+    {
+        // skip non-loadable segments
+        if (phdr->type != 1)
+            continue;
+
+        // is this possible anyway?
+        if (phdr->align != PAGE_SIZE)
+            ikprintf(WARN "Non-page aligned segment\n");
+
+        void* addr = vmm.alloc_pages(task->mm->pml4, phdr->vaddr, PAGE_COUNT(phdr->memsz), PE_WRITE | PE_USER);
+
+        src->pread((char*)addr, phdr->filesz, phdr->offset);
+        memset((u8*)addr + phdr->filesz, 0, phdr->memsz - phdr->filesz);
+    }
+
+    src->close();
+
+    *entry = hdr.entry;
+
+    return 0;
+}
+
 Task* Task::from(const char* path)
 {
     auto src = File::open(path, 0);
@@ -193,25 +253,8 @@ Task* Task::fork()
 
 int Task::execve(const char* path, char* const argv[], char* const envp[])
 {
-    // free pml4 first
-
-    auto src = File::open(path, 0);
-
-    if (!src)
-        return -1;
-
-    mm->pml4 = vmm.make_user_page_table();
-    mm->start = vmm.alloc_pages(mm->pml4, 0x401000, PAGE_COUNT(src->inode->size), PE_WRITE | PE_USER);
-    mm->size = src->inode->size;
-    mm->user_stack = vmm.alloc_pages(mm->pml4, USER_STACK_BOTTOM, USER_STACK_PAGES, PE_WRITE | PE_USER);
-
-    // there is no need for another kernel stack
-    // we can use the already existing one
-    // and we just modify the CPU struct
-
-    // also before we switch the page table
-    // we need to same the argv in kernel space
-    // because they come from the old task's user memory
+    // we save the argv in kernel memory
+    // because we will change the page table
 
     usize argv_size = 0;
     usize argc = 0;
@@ -233,10 +276,16 @@ int Task::execve(const char* path, char* const argv[], char* const envp[])
         off += len;
     }
 
-    vmm.switch_pml4(mm->pml4);
+    // loading the elf will replace the page table
+    // but it will keep mm->kernel_stack
+    u64 entry;
+    if (load_elf(this, path, &entry) != 0)
+    {
+        kfree(argv_mem);
+        return -1;
+    }
 
-    src->read((char*)mm->start, src->inode->size);
-    src->close();
+    // !!! we are not freeing the previous mm
 
     u64 ustack_top = (u64)mm->user_stack + USER_STACK_SIZE;
 
@@ -244,8 +293,7 @@ int Task::execve(const char* path, char* const argv[], char* const envp[])
     memset(cpu, 0, sizeof(CPU));
 
     cpu->rbp = ustack_top;
-
-    cpu->rip = (u64)mm->start;
+    cpu->rip = entry;
     cpu->cs = USER_CS;
     cpu->rflags = 0x202;
     cpu->rsp = ustack_top;
