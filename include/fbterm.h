@@ -18,6 +18,7 @@ struct Framebuffer
 };
 
 struct Task;
+struct FileOps;
 
 struct ReadRequest
 {
@@ -82,6 +83,8 @@ struct FramebufferTerminal
     void draw_bitmap(char c);
     void draw_cursor(u32 color);
     void render();
+
+    void give_fops(FileOps* fops);
 };
 
 extern Framebuffer default_fb;

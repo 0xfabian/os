@@ -1,5 +1,6 @@
 #include <fbterm.h>
 #include <task.h>
+#include <fs/inode.h>
 
 // #define FOREGROUND          0xf0ffff
 // #define BACKGROUND          0x192840
@@ -517,4 +518,38 @@ void FramebufferTerminal::render()
 
     while (from < end)
         *to++ = *from++;
+}
+
+isize fbterm_read(File* file, char* buf, usize size, usize offset)
+{
+    return fbterm.read(buf, size);
+}
+
+isize fbterm_write(File* file, const char* buf, usize size, usize offset)
+{
+    fbterm.write(buf, size);
+
+    return size;
+}
+
+int fbterm_ioctl(File* file, int cmd, void* arg)
+{
+    if (cmd == 1)
+    {
+        fbterm.clear();
+        return 0;
+    }
+
+    return -1;
+}
+
+void FramebufferTerminal::give_fops(FileOps* fops)
+{
+    fops->open = nullptr;
+    fops->close = nullptr;
+    fops->read = fbterm_read;
+    fops->write = fbterm_write;
+    fops->seek = nullptr;
+    fops->iterate = nullptr;
+    fops->ioctl = fbterm_ioctl;
 }
