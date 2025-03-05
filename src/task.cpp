@@ -116,22 +116,13 @@ int load_elf(Task* task, const char* path, u64* entry)
 
 Task* Task::from(const char* path)
 {
-    auto src = File::open(path, 0);
-
     Task* task = alloc_task();
 
-    task->mm->pml4 = vmm.make_user_page_table();
-    task->mm->start = vmm.alloc_pages(task->mm->pml4, 0x401000, PAGE_COUNT(src->inode->size), PE_WRITE | PE_USER);
-    task->mm->size = src->inode->size;
-    task->mm->user_stack = vmm.alloc_pages(task->mm->pml4, USER_STACK_BOTTOM, USER_STACK_PAGES, PE_WRITE | PE_USER);
     task->mm->kernel_stack = vmm.alloc_pages(KERNEL_STACK_PAGES, PE_WRITE);
 
-    // we need to temporarily switch to the new page table
-    // so that we can copy the data to the newly mapped memory
-    vmm.switch_pml4(task->mm->pml4);
-
-    src->read((char*)task->mm->start, src->inode->size);
-    src->close();
+    u64 entry;
+    if (load_elf(task, path, &entry) != 0)
+        return nullptr;
 
     // if we are in a kernel thread we can use any page table
     // beacuse the kernel is always mapped
@@ -148,11 +139,17 @@ Task* Task::from(const char* path)
 
     cpu->rbp = ustack_top;
 
-    cpu->rip = (u64)task->mm->start;
+    cpu->rip = entry;
     cpu->cs = USER_CS;
     cpu->rflags = 0x202;
     cpu->rsp = ustack_top;
     cpu->ss = USER_DS;
+
+    cpu->rsp -= 8;
+    *(u64*)cpu->rsp = 0; // the null terminator
+
+    cpu->rsp -= 8;
+    *(u64*)cpu->rsp = 0; // argc
 
     return task;
 }
