@@ -21,23 +21,25 @@
 // #define BRIGHT_WHITE        0xf2f2f2
 
 // gruvbox color theme
-#define FOREGROUND          0xebdbb2
+#define FOREGROUND          0xfbf1c7
 #define BACKGROUND          0x282828
-#define BLACK               0x1d2021
-#define RED                 0xfb4934
-#define GREEN               0x8ec07c
-#define YELLOW              0xf9f14e
-#define BLUE                0x83a598
-#define MAGENTA             0xd3869b
-#define CYAN                0x8ec0d6
-#define WHITE               0xf2e5bc
+
+#define BLACK               0x282828
+#define RED                 0xcc241d
+#define GREEN               0x98971a
+#define YELLOW              0xd79921
+#define BLUE                0x458588
+#define MAGENTA             0xb16286
+#define CYAN                0x689d6a
+#define WHITE               0xa89984
+
 #define BRIGHT_BLACK        0x928374
 #define BRIGHT_RED          0xfb4934
-#define BRIGHT_GREEN        0x98c379
-#define BRIGHT_YELLOW       0xfbd755
+#define BRIGHT_GREEN        0xb8bb26
+#define BRIGHT_YELLOW       0xfabd2f
 #define BRIGHT_BLUE         0x83a598
 #define BRIGHT_MAGENTA      0xd3869b
-#define BRIGHT_CYAN         0x8ec0d6
+#define BRIGHT_CYAN         0x8ec07c
 #define BRIGHT_WHITE        0xebdbb2
 
 u32 colors[] =
