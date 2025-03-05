@@ -25,6 +25,8 @@ result_ptr<File> File::open(const char* path, u32 flags)
 
     if (inode->is_device())
     {
+        fbterm.give_fops(&file->ops);
+
         // Device* dev = inode->get_device();
 
         // // more care here
@@ -41,12 +43,12 @@ result_ptr<File> File::open(const char* path, u32 flags)
         // if (file->ops.open)
         //     file->ops.open(file);
 
-        kprintf(WARN "open(): device files not implemented\n");
+        // kprintf(WARN "open(): device files not implemented\n");
 
-        file->refs = 0;
-        inode->put();
+        // file->refs = 0;
+        // inode->put();
 
-        return -ERR_NOT_IMPL;
+        // return -ERR_NOT_IMPL;
     }
     else
         file->ops = inode->fops;
