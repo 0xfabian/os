@@ -16,6 +16,7 @@ int do_syscall(CPU* cpu, int num)
     case SYS_EXIT:          sys_exit(cpu->rdi); return 0;
     case SYS_WAIT:          return sys_wait(cpu->rdi, (int*)cpu->rsi, cpu->rdx);
     case SYS_GETDENTS:      return sys_getdents(cpu->rdi, (char*)cpu->rsi, cpu->rdx);
+    case SYS_CHDIR:         return sys_chdir((const char*)cpu->rdi);
     case SYS_DEBUG:         sys_debug(); return 0;
     default:                return -ERR_NOT_IMPL;
     }
@@ -166,6 +167,25 @@ int sys_getdents(int fd, char* buf, usize size)
         return file.error();
 
     return file->iterate(buf, size);
+}
+
+int sys_chdir(const char* path)
+{
+    auto inode = Inode::get(path);
+
+    if (!inode)
+        return inode.error();
+
+    if (!inode->is_dir())
+    {
+        inode->put();
+        return -ERR_NOT_DIR;
+    }
+
+    running->cwd->put();
+    running->cwd = inode.ptr;
+
+    return 0;
 }
 
 void sys_debug()

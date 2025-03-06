@@ -18,6 +18,7 @@ enum SyscallNumber
     SYS_EXIT,
     SYS_WAIT,
     SYS_GETDENTS = 78,
+    SYS_CHDIR = 80,
 
     SYS_DEBUG = 512
 };
@@ -34,5 +35,6 @@ int sys_execve(const char* path, char* const argv[], char* const envp[]);
 void sys_exit(int status);
 int sys_wait(int pid, int* status, int options);
 int sys_getdents(int fd, char* buf, usize size);
+int sys_chdir(const char* path);
 
 void sys_debug();
