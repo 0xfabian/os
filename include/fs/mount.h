@@ -24,8 +24,6 @@ struct Mount
     static result_ptr<Mount> mount(const char* target, Device* dev, Filesystem* fs);
     static result_ptr<Mount> mount_root(Device* dev, Filesystem* fs);
     int unmount();
-
-    Inode* get_root();
 };
 
 #define MOUNT_TABLE_SIZE 64

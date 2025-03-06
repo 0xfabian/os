@@ -149,14 +149,6 @@ int Mount::unmount()
     return 0;
 }
 
-Inode* Mount::get_root()
-{
-    Inode* root = sb->root;
-    root->refs++;
-
-    return root;
-}
-
 void debug_mounts()
 {
     kprintf("Mount table:\n{\n");

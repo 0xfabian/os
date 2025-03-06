@@ -19,6 +19,7 @@ Task* alloc_task()
     task->tid = global_tid++;
     task->state = TASK_BORN;
     task->exit_code = 0;
+    task->cwd = root_mount->sb->root->get();
 
     for (int i = 0; i < FD_TABLE_SIZE; i++)
         task->fdt.files[i] = nullptr;
@@ -179,6 +180,9 @@ Task* Task::fork()
 {
     Task* task = alloc_task();
 
+    task->cwd->put();
+    task->cwd = running->cwd->get();
+
     for (int i = 0; i < FD_TABLE_SIZE; i++)
         if (running->fdt.files[i])
             task->fdt.files[i] = running->fdt.files[i]->dup();
@@ -338,6 +342,12 @@ void Task::exit(int code)
 {
     state = TASK_ZOMBIE;
     exit_code = code;
+
+    cwd->put();
+
+    for (int i = 0; i < FD_TABLE_SIZE; i++)
+        if (fdt.files[i])
+            fdt.files[i]->close();
 
     if (parent->state == TASK_SLEEPING)
         parent->return_from_syscall(running->tid);

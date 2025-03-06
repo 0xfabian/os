@@ -3,6 +3,7 @@
 #include <arch/gdt.h>
 #include <arch/pic.h>
 #include <mem/heap.h>
+#include <fs/mount.h>
 #include <fs/fd.h>
 #include <elf.h>
 
@@ -44,6 +45,7 @@ struct Task
 
     TaskState state;
     MemoryMap* mm;
+    Inode* cwd;
     FDTable fdt;
 
     int exit_code;
