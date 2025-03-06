@@ -124,11 +124,6 @@ Task* Task::from(const char* path)
     if (load_elf(task, path, &entry) != 0)
         return nullptr;
 
-    // if we are in a kernel thread we can use any page table
-    // beacuse the kernel is always mapped
-    if (running->mm->pml4)
-        vmm.switch_pml4(running->mm->pml4);
-
     u64 ustack_top = (u64)task->mm->user_stack + USER_STACK_SIZE;
     u64 kstack_top = (u64)task->mm->kernel_stack + KERNEL_STACK_SIZE;
 
@@ -150,6 +145,13 @@ Task* Task::from(const char* path)
 
     cpu->rsp -= 8;
     *(u64*)cpu->rsp = 0; // argc
+
+    // since Task::from can't be called from a user task
+    // this is probably running under a kernel task
+    // so no need for switching the page table
+
+    // if (running->mm->pml4)
+    //     vmm.switch_pml4(running->mm->pml4);
 
     return task;
 }
