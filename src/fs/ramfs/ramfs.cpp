@@ -1,12 +1,5 @@
 #include <fs/ramfs/ramfs.h>
 
-struct RamDirent
-{
-    u64 ino;
-    u32 type;
-    char name[32];
-};
-
 isize ramfs_writei(Inode* inode, const void* buf, usize size, usize offset)
 {
     if (size == 0)
@@ -161,10 +154,10 @@ int ramfs_mknod(Inode* dir, const char* name, u32 dev)
     return 0;
 }
 
-RamDirent* ramfs_find_dirent(Inode* dir, const char* name)
+Dirent* ramfs_find_dirent(Inode* dir, const char* name)
 {
-    RamDirent* dirents = (RamDirent*)dir->data;
-    int count = dir->size / sizeof(RamDirent);
+    Dirent* dirents = (Dirent*)dir->data;
+    int count = dir->size / sizeof(Dirent);
 
     for (int i = 0; i < count; i++)
     {
@@ -177,7 +170,7 @@ RamDirent* ramfs_find_dirent(Inode* dir, const char* name)
 
 int ramfs_link(Inode* dir, const char* name, Inode* inode)
 {
-    RamDirent* free = ramfs_find_dirent(dir, "");
+    Dirent* free = ramfs_find_dirent(dir, "");
 
     if (free)
     {
@@ -189,18 +182,18 @@ int ramfs_link(Inode* dir, const char* name, Inode* inode)
         return 0;
     }
 
-    RamDirent dirent;
+    Dirent dirent;
     strcpy(dirent.name, name);
     dirent.ino = inode->ino;
     dirent.type = inode->type;
     inode->nlinks++;
 
-    return ramfs_writei(dir, &dirent, sizeof(RamDirent), dir->size);
+    return ramfs_writei(dir, &dirent, sizeof(Dirent), dir->size);
 }
 
 int ramfs_unlink(Inode* dir, const char* name)
 {
-    RamDirent* dirent = ramfs_find_dirent(dir, name);
+    Dirent* dirent = ramfs_find_dirent(dir, name);
 
     if (!dirent)
         return -ERR_NOT_FOUND;
@@ -247,7 +240,7 @@ int ramfs_mkdir(Inode* dir, const char* name)
 
 int ramfs_rmdir(Inode* dir, const char* name)
 {
-    RamDirent* dirent = ramfs_find_dirent(dir, name);
+    Dirent* dirent = ramfs_find_dirent(dir, name);
 
     if (!dirent)
         return -ERR_NOT_FOUND;
@@ -314,7 +307,7 @@ int ramfs_truncate(Inode* inode, usize size)
 
 int ramfs_lookup(Inode* dir, const char* name, Inode* result)
 {
-    RamDirent* dirent = ramfs_find_dirent(dir, name);
+    Dirent* dirent = ramfs_find_dirent(dir, name);
 
     if (!dirent)
         return -ERR_NOT_FOUND;
@@ -351,18 +344,18 @@ int ramfs_iterate(File* file, void* buf, usize size)
     if (file->offset >= file->inode->size)
         return 0;
 
-    RamDirent* dirents = (RamDirent*)file->inode->data;
-    int count = file->inode->size / sizeof(RamDirent);
-    int index = file->offset / sizeof(RamDirent);
+    Dirent* dirents = (Dirent*)file->inode->data;
+    int count = file->inode->size / sizeof(Dirent);
+    int index = file->offset / sizeof(Dirent);
 
-    RamDirent* dirent = &dirents[index];
+    Dirent* dirent = &dirents[index];
 
-    usize len = strlen(dirent->name);
+    usize len = sizeof(Dirent);
 
-    if (len + 1 > size)
+    if (len > size)
         return -1;
 
-    strcpy((char*)buf, dirent->name);
+    memcpy(buf, dirent, len);
 
     int skip = 1;
 
@@ -374,7 +367,7 @@ int ramfs_iterate(File* file, void* buf, usize size)
         skip++;
     }
 
-    return skip * sizeof(RamDirent);
+    return skip * sizeof(Dirent);
 }
 
 Filesystem ramfs =

@@ -79,6 +79,13 @@ struct Inode
     int sync();
 };
 
+struct Dirent
+{
+    u64 ino;
+    u32 type;
+    char name[32];
+};
+
 #define INODE_TABLE_SIZE 256
 
 struct InodeTable
