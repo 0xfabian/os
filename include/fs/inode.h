@@ -60,6 +60,7 @@ struct Inode
     FileOps fops;
 
     static result_ptr<Inode> get(const char* path);
+    Inode* get();
     void put();
 
     bool is_reg();

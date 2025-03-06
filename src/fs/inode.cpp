@@ -1,5 +1,6 @@
 #include <fs/inode.h>
 #include <fs/mount.h>
+#include <task.h>
 
 InodeTable inode_table;
 
@@ -36,9 +37,14 @@ char* path_read_next(const char*& ptr)
 
 result_ptr<Inode> Inode::get(const char* path)
 {
-    // this sould be running->fs.get_root() or .get_cwd()
-    Inode* inode = root_mount->get_root();
+    Inode* inode;
 
+    if (*path == '/' || !running)
+        inode = root_mount->sb->root->get();
+    else
+        inode = running->cwd->get();
+
+    // i think this should always be a valid pointer but just in case
     if (!inode)
         return -ERR_NOT_FOUND;
 
@@ -73,11 +79,17 @@ result_ptr<Inode> Inode::get(const char* path)
         {
             // yes, so we switch to the mounts root
             inode->put();
-            inode = mnt->get_root();
+            inode = mnt->sb->root->get();
         }
     }
 
     return inode;
+}
+
+Inode* Inode::get()
+{
+    refs++;
+    return this;
 }
 
 void Inode::put()
