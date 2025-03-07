@@ -4,7 +4,7 @@
 Mount mounts[MOUNT_TABLE_SIZE];
 Mount* root_mount;
 
-result_ptr<Mount> mnt_alloc()
+result_ptr<Mount> alloc_mount()
 {
     for (Mount* mnt = &mounts[0]; mnt < &mounts[MOUNT_TABLE_SIZE]; mnt++)
         if (!mnt->sb)
