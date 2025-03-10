@@ -41,19 +41,25 @@ u16 pic::get_mask()
     return mask1 | (mask2 << 8);
 }
 
-void pic::set_irq(u8 irq, bool masked)
+void pic::mask_irq(u8 irq)
 {
     u16 mask = get_mask();
 
-    if (masked)
-        mask |= 1 << irq;
-    else
-        mask &= ~(1 << irq);
+    mask |= 1 << irq;
 
     set_mask(mask);
 }
 
-bool pic::get_irq(u8 irq)
+void pic::unmask_irq(u8 irq)
+{
+    u16 mask = get_mask();
+
+    mask &= ~(1 << irq);
+
+    set_mask(mask);
+}
+
+bool pic::get_irq_mask(u8 irq)
 {
     return get_mask() & (1 << irq);
 }

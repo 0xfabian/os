@@ -21,8 +21,9 @@ namespace pic
     void set_mask(u16 mask);
     u16 get_mask();
 
-    void set_irq(u8 irq, bool masked);
-    bool get_irq(u8 irq);
+    void mask_irq(u8 irq);
+    void unmask_irq(u8 irq);
+    bool get_irq_mask(u8 irq);
 
     void send_eoi(u8 irq);
 }
