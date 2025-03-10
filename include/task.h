@@ -2,6 +2,7 @@
 
 #include <arch/gdt.h>
 #include <arch/pic.h>
+#include <arch/pit.h>
 #include <mem/heap.h>
 #include <fs/mount.h>
 #include <fs/fd.h>
@@ -68,4 +69,5 @@ extern Task* task_list;
 
 void sched_init();
 Task* get_next_task();
-void schedule();
+extern "C" void schedule();
+extern "C" void yield();

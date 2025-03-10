@@ -86,9 +86,7 @@ void page_fault_handler(interrupt_frame* frame, u64 error_code)
 
 void keyboard_handler(interrupt_frame* frame)
 {
-    u8 scancode = inb(0x60);
-
-    fbterm.handle_key(scancode);
+    key_queue.push(inb(0x60));
 
     pic::send_eoi(1);
 }

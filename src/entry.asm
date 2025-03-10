@@ -1,7 +1,14 @@
 [bits 64]
 
-extern running
 extern timer_handler
+extern syscall_handler
+extern running
+extern schedule
+
+global timer_handler_asm
+global syscall_handler_asm
+global yield
+global switch_now
 
 %macro PUSH_REGS 0
 
@@ -75,9 +82,42 @@ timer_handler_asm:
 
     iretq   ; restore rip, cs, rflags, rsp, ss
 
-global timer_handler_asm
+yield:
 
-extern syscall_handler
+    ; this is a critical section
+    cli
+
+    ; use rax and rdx to rip and rsp
+    pop rax
+    mov rdx, rsp
+
+    ; use kernel cs and ss since they should be only called from kernel
+    sub rsp, 8
+    mov qword [rsp], 0x10
+
+    push rdx
+
+    pushfq
+    or qword [rsp], 0x200
+
+    sub rsp, 8
+    mov qword [rsp], 0x08
+
+    push rax
+
+    PUSH_REGS
+    
+    mov rdi, [running]
+    mov [rdi], rsp
+
+    call schedule
+
+    mov rdi, [running]
+    mov rsp, [rdi]
+
+    POP_REGS
+
+    iretq
 
 syscall_handler_asm:
 
@@ -125,8 +165,6 @@ syscall_handler_asm:
     ; so we should change to the new task krsp
     ; and do iretq
 
-global syscall_handler_asm
-
 switch_now:
 
     mov rdi, [running]
@@ -135,5 +173,3 @@ switch_now:
     POP_REGS
 
     iretq
-
-global switch_now

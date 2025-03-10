@@ -399,7 +399,6 @@ void Task::sleep()
 {
     state = TASK_SLEEPING;
 
-    // kmain is always ready
     schedule();
     switch_now();
 }
@@ -416,14 +415,16 @@ void sched_init()
 {
     kprintf(INFO "Initializing scheduler...\n");
 
+    pit::init(100); // context switch every 10ms
+
     Task* t0 = Task::dummy();
 
     t0->ready();
 
     running = task_list;
 
-    pic::set_irq(0, false);
-    pic::set_irq(1, false);
+    pic::unmask_irq(0);
+    pic::unmask_irq(1);
 
     sti();
 }
@@ -432,10 +433,15 @@ Task* get_next_task()
 {
     Task* task = running->next;
 
-    while (task->state != TASK_READY)
-        task = task->next;
+    while (task != running)
+    {
+        if (task->tid > 0 && task->state == TASK_READY)
+            return task;
 
-    return task;
+        task = task->next;
+    }
+
+    return running->state == TASK_READY ? running : task_list;
 }
 
 void schedule()
@@ -445,11 +451,11 @@ void schedule()
     if (next == running)
         return;
 
+    if (next->mm->user_stack)
+        tss.rsp0 = (u64)next->mm->kernel_stack + KERNEL_STACK_SIZE;
+
+    if (next->mm->pml4)
+        vmm.switch_pml4(next->mm->pml4);
+
     running = next;
-
-    if (running->mm->user_stack)
-        tss.rsp0 = (u64)running->mm->kernel_stack + KERNEL_STACK_SIZE;
-
-    if (running->mm->pml4)
-        vmm.switch_pml4(running->mm->pml4);
 }
