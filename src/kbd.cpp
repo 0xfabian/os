@@ -1,5 +1,7 @@
 #include <kbd.h>
+#include <task.h>
 
+KeyEventQueue key_queue;
 u8 kbd_state;
 
 char key_lookup[128] =
@@ -68,4 +70,26 @@ char translate_key(int key)
         ch += shift ? 32 : -32;
 
     return ch;
+}
+
+void keyboard_task()
+{
+    u8 key;
+
+    while (true)
+    {
+        cli();
+
+        if (key_queue.pop(&key))
+        {
+            char ch = translate_key(key);
+
+            if (ch)
+                fbterm.receive_char(ch);
+        }
+
+        sti();
+
+        yield();
+    }
 }
