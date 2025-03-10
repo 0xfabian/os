@@ -120,6 +120,14 @@ static inline void wrmsr(u64 msr, u64 value)
     asm volatile ("wrmsr" : : "c"(msr), "a"(value & 0xffffffff), "d"(value >> 32) : "memory");
 }
 
+static inline u64 rdtsc()
+{
+    u32 lo, hi;
+    asm volatile ("rdtsc" : "=a"(lo), "=d"(hi));
+
+    return ((u64)hi << 32) | lo;
+}
+
 void setup_syscall(u64 syscall_handler_address);
 
 bool check_pat_support();
