@@ -24,7 +24,6 @@
 // gruvbox color theme
 #define FOREGROUND          0xfbf1c7
 #define BACKGROUND          0x282828
-
 #define BLACK               0x282828
 #define RED                 0xcc241d
 #define GREEN               0x98971a
@@ -33,7 +32,6 @@
 #define MAGENTA             0xb16286
 #define CYAN                0x689d6a
 #define WHITE               0xa89984
-
 #define BRIGHT_BLACK        0x928374
 #define BRIGHT_RED          0xfb4934
 #define BRIGHT_GREEN        0xb8bb26
@@ -149,6 +147,7 @@ void FramebufferTerminal::clear()
         *ptr = value;
 
     cursor = 0;
+    write_cursor = 0;
 
     render();
 }
@@ -294,22 +293,22 @@ void FramebufferTerminal::ansi_function(char name, int arg)
     }
 }
 
-void FramebufferTerminal::putchar(char c)
+void FramebufferTerminal::putchar(char ch)
 {
     draw_cursor(bg);
 
-    if (c >= ' ')
+    if (ch >= ' ')
     {
-        draw_bitmap(c);
+        draw_bitmap(ch);
         cursor++;
     }
     else
     {
-        if (c == '\n')
+        if (ch == '\n')
             cursor += width - cursor % width;
-        else if (c == '\r')
+        else if (ch == '\r')
             cursor -= cursor % width;
-        else if (c == '\b')
+        else if (ch == '\b')
         {
             if (cursor > write_cursor)
             {
@@ -325,13 +324,8 @@ void FramebufferTerminal::putchar(char c)
     draw_cursor(fg);
 }
 
-void FramebufferTerminal::handle_key(int key)
+void FramebufferTerminal::receive_char(char ch)
 {
-    char ch = translate_key(key);
-
-    if (!ch)
-        return;
-
     if (ch == '\b' && line_buffered)
     {
         if (input_cursor > 0)
@@ -354,9 +348,9 @@ void FramebufferTerminal::blink_cursor()
 {
     static u32 ticks = 0;
 
-    if (ticks % 64 == 0)
+    if (ticks % 20 == 0)
         fbterm.draw_cursor(fbterm.fg);
-    else if (ticks % 64 == 32)
+    else if (ticks % 20 == 10)
         fbterm.draw_cursor(fbterm.bg);
 
     ticks++;
@@ -441,7 +435,7 @@ inline u32 alpha_blend(u32 c1, u32 c2, u8 alpha)
     return (rgb & 0xff00ff) | ((rgb >> 24) & 0x00ff00);
 }
 
-void FramebufferTerminal::draw_bitmap(char c)
+void FramebufferTerminal::draw_bitmap(char ch)
 {
     // u32 x = (cursor % width) * font->header->width;
     // u32 y = (cursor / width) * font->header->height;
@@ -471,7 +465,7 @@ void FramebufferTerminal::draw_bitmap(char c)
 
     u32* ptr = backbuffer + x + y * fb->width;
     u32* ptr2 = fb->addr + x + y * fb->width;
-    u8* font_ptr = font->glyph_buffer + c * font->header->char_size;
+    u8* font_ptr = font->glyph_buffer + ch * font->header->char_size;
 
     u32 col;
 
@@ -509,9 +503,6 @@ void FramebufferTerminal::draw_cursor(u32 color)
 
 void FramebufferTerminal::render()
 {
-    if (backbuffer == fb->addr)
-        return;
-
     u64* from = (u64*)backbuffer;
     u64* to = (u64*)fb->addr;
     u64* end = (u64*)(backbuffer + fb->width * fb->height);

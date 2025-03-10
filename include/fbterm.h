@@ -74,13 +74,13 @@ struct FramebufferTerminal
     isize read(char* buffer, usize len);
 
     void ansi_function(char name, int arg);
-    void putchar(char c);
-    void handle_key(int key);
+    void putchar(char ch);
+    void receive_char(char ch);
     void blink_cursor();
     void add_request(char* buffer, usize len);
     void handle_requests();
 
-    void draw_bitmap(char c);
+    void draw_bitmap(char ch);
     void draw_cursor(u32 color);
     void render();
 
