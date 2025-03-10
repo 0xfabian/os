@@ -80,7 +80,7 @@ result_ptr<Mount> Mount::mount(const char* target, Device* dev, Filesystem* fs)
     if (!inode)
         return inode.error();
 
-    auto mnt = mnt_alloc();
+    auto mnt = alloc_mount();
 
     if (!mnt)
     {
@@ -109,7 +109,7 @@ result_ptr<Mount> Mount::mount_root(Device* dev, Filesystem* fs)
     if (root_mount)
         return -ERR_MNT_EXISTS;
 
-    auto mnt = mnt_alloc();
+    auto mnt = alloc_mount();
 
     if (!mnt)
         return mnt.error();
