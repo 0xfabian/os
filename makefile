@@ -1,9 +1,11 @@
-IMG_PATH = C:/Users/spide/Desktop/os
-IMG = $(shell wslpath -a $(IMG_PATH))/image.hdd
+WIN_PATH = C:/Users/spide/Desktop/os
+IMG = $(shell wslpath -a $(WIN_PATH))/image.hdd
+DISK = $(shell wslpath -a $(WIN_PATH))/disk.img
 QEMU_FLAGS = -cpu qemu64 -m 1G -net none \
-	-drive format=raw,file=$(IMG_PATH)/image.hdd \
-	-drive if=pflash,format=raw,unit=0,file=$(IMG_PATH)/OVMFbin/OVMF_CODE-pure-efi.fd,readonly=on \
-	-drive if=pflash,format=raw,unit=1,file=$(IMG_PATH)/OVMFbin/OVMF_VARS-pure-efi.fd \
+	-drive format=raw,file=$(WIN_PATH)/image.hdd \
+	-drive if=pflash,format=raw,unit=0,file=$(WIN_PATH)/OVMFbin/OVMF_CODE-pure-efi.fd,readonly=on \
+	-drive if=pflash,format=raw,unit=1,file=$(WIN_PATH)/OVMFbin/OVMF_VARS-pure-efi.fd \
+	-drive if=ide,format=raw,file=$(WIN_PATH)/disk.img
 
 CC = g++
 ASMC = nasm
@@ -63,6 +65,6 @@ clean:
 run:
 	@ sudo umount disk 2> /dev/null || true
 	@ powershell.exe -Command "qemu-system-x86_64 $(QEMU_FLAGS)" 2> /dev/null
-	@ sudo mount -o loop disk.img disk
+	@ sudo mount -o loop $(DISK) disk
 
 all: kernel updateimg run

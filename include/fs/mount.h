@@ -20,9 +20,9 @@ struct Mount
     static Mount* find(Inode* inode);
     static Mount* find(Superblock* sb);
 
-    static int fill_mount(Mount* mnt, Device* dev, Filesystem* fs);
-    static result_ptr<Mount> mount(const char* target, Device* dev, Filesystem* fs);
-    static result_ptr<Mount> mount_root(Device* dev, Filesystem* fs);
+    static int fill_mount(Mount* mnt, BlockDevice* dev, Filesystem* fs);
+    static result_ptr<Mount> mount(const char* target, BlockDevice* dev, Filesystem* fs);
+    static result_ptr<Mount> mount_root(BlockDevice* dev, Filesystem* fs);
     int unmount();
 };
 

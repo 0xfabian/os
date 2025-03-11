@@ -4,17 +4,17 @@
 #include <string.h>
 #include <print.h>
 #include <error.h>
+#include <drivers/bdev.h>
 
 #define FS_REQUIRES_DEV 1
 
 struct Superblock;
-struct Device;
 
 struct Filesystem
 {
     const char* name;
     u32 flags;
-    result_ptr<Superblock>(*create_sb)(Filesystem* fs, Device* dev);
+    result_ptr<Superblock>(*create_sb)(Filesystem* fs, BlockDevice* dev);
     void (*destroy_sb)(Superblock* sb);
 
     bool registered;

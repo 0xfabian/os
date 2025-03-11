@@ -74,7 +74,7 @@ void ramfs_free_inode(Inode* inode)
     inode->flags &= ~IF_ALLOC;
 }
 
-result_ptr<Superblock> ramfs_create_sb(Filesystem* fs, Device* dev)
+result_ptr<Superblock> ramfs_create_sb(Filesystem* fs, BlockDevice* dev)
 {
     Superblock* sb = (Superblock*)kmalloc(sizeof(Superblock));
 

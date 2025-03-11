@@ -31,13 +31,13 @@ Mount* Mount::find(Superblock* sb)
     return nullptr;
 }
 
-int Mount::fill_mount(Mount* mnt, Device* dev, Filesystem* fs)
+int Mount::fill_mount(Mount* mnt, BlockDevice* dev, Filesystem* fs)
 {
     if (fs->requires_device() && !dev)
         return -ERR_NO_DEV;
 
-    // maybe check also warn if fs doesnt require device but dev is provided
-    // more care if the device is already in a mount
+    // maybe check also warn if fs doesnt require BlockDevice but dev is provided
+    // more care if the BlockDevice is already in a mount
 
     auto sb = fs->create_sb(fs, dev);
 
@@ -72,7 +72,7 @@ result_ptr<Inode> get_target(const char* target)
     return inode;
 }
 
-result_ptr<Mount> Mount::mount(const char* target, Device* dev, Filesystem* fs)
+result_ptr<Mount> Mount::mount(const char* target, BlockDevice* dev, Filesystem* fs)
 {
     // this gives a new reference so we need to ->put on error
     auto inode = get_target(target);
@@ -104,7 +104,7 @@ result_ptr<Mount> Mount::mount(const char* target, Device* dev, Filesystem* fs)
     return mnt;
 }
 
-result_ptr<Mount> Mount::mount_root(Device* dev, Filesystem* fs)
+result_ptr<Mount> Mount::mount_root(BlockDevice* dev, Filesystem* fs)
 {
     if (root_mount)
         return -ERR_MNT_EXISTS;

@@ -12,7 +12,7 @@ struct SuperblockOps
 struct Superblock
 {
     Filesystem* fs;
-    Device* dev;
+    BlockDevice* dev;
     Inode* root;
     void* data;
 

@@ -14,7 +14,7 @@ extern InodeOps ramfs_dir_inode_ops;
 extern FileOps ramfs_reg_file_ops;
 extern FileOps ramfs_dir_file_ops;
 
-result_ptr<Superblock> ramfs_create_sb(Filesystem* fs, Device* dev);
+result_ptr<Superblock> ramfs_create_sb(Filesystem* fs, BlockDevice* dev);
 void ramfs_destroy_sb(Superblock* sb);
 
 int ramfs_create(Inode* dir, const char* name);
