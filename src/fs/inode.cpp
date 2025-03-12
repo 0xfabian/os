@@ -4,37 +4,6 @@
 
 InodeTable inode_table;
 
-#define PATH_MAX 256
-char path_read_data[PATH_MAX];
-
-// hacky path reading function
-char* path_read_next(const char*& ptr)
-{
-    while (*ptr == '/')
-        ptr++;
-
-    if (*ptr == '\0')
-        return nullptr;
-
-    char* output = path_read_data;
-    usize len = 0;
-
-    while (*ptr != '/' && *ptr != '\0')
-    {
-        if (len >= PATH_MAX - 1)
-        {
-            kprintf(WARN "path_read_next(): path too long\n");
-            break;
-        }
-
-        output[len++] = *ptr++;
-    }
-
-    output[len] = '\0';
-
-    return path_read_data;
-}
-
 result_ptr<Inode> Inode::get(const char* path)
 {
     Inode* inode;
@@ -51,8 +20,25 @@ result_ptr<Inode> Inode::get(const char* path)
     char* name;
     while ((name = path_read_next(path)))
     {
-        if (name[0] == '.' && name[1] == '\0')
+        if (strcmp(name, ".") == 0)
             continue;
+
+        // .. should always be a valid directory so we can do .ptr without checking
+        if (strcmp(name, "..") == 0)
+        {
+            inode->put();
+
+            Mount* mnt = Mount::find(inode->sb);
+
+            // if this is a mount we need to lookup on the mountpoint inode
+            // also the root has no mountpoint inode
+            if (mnt && mnt->mp.inode)
+                inode = mnt->mp.inode->lookup("..").ptr;
+            else
+                inode = inode->lookup("..").ptr;
+
+            continue;
+        }
 
         result_ptr<Inode> next = inode->lookup(name);
 
