@@ -16,6 +16,7 @@ int do_syscall(CPU* cpu, int num)
     case SYS_EXIT:          sys_exit(cpu->rdi); return 0;
     case SYS_WAIT:          return sys_wait(cpu->rdi, (int*)cpu->rsi, cpu->rdx);
     case SYS_GETDENTS:      return sys_getdents(cpu->rdi, (char*)cpu->rsi, cpu->rdx);
+    case SYS_GETCWD:        return sys_getcwd((char*)cpu->rdi, cpu->rsi);
     case SYS_CHDIR:         return sys_chdir((const char*)cpu->rdi);
     case SYS_DEBUG:         sys_debug(); return 0;
     default:                return -ERR_NOT_IMPL;
@@ -169,6 +170,18 @@ int sys_getdents(int fd, char* buf, usize size)
     return file->iterate(buf, size);
 }
 
+int sys_getcwd(char* buf, usize size)
+{
+    usize len = strlen(running->cwd_str);
+
+    if (len >= size)
+        return -ERR_NO_SPACE;
+
+    memcpy(buf, running->cwd_str, len + 1);
+
+    return len;
+}
+
 int sys_chdir(const char* path)
 {
     auto inode = Inode::get(path);
@@ -181,6 +194,24 @@ int sys_chdir(const char* path)
         inode->put();
         return -ERR_NOT_DIR;
     }
+
+    kfree(running->cwd_str);
+
+    char* new_cwd_str;
+
+    if (*path == '/')
+        new_cwd_str = strdup(path);
+    else
+    {
+        new_cwd_str = (char*)kmalloc(strlen(running->cwd_str) + strlen(path) + 2);
+
+        strcpy(new_cwd_str, running->cwd_str);
+        strcat(new_cwd_str, "/");
+        strcat(new_cwd_str, path);
+    }
+
+    // this frees new_cwd_str and allocates a new one
+    running->cwd_str = normalize_path(new_cwd_str);
 
     running->cwd->put();
     running->cwd = inode.ptr;

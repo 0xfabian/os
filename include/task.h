@@ -46,6 +46,7 @@ struct Task
 
     TaskState state;
     MemoryMap* mm;
+    char* cwd_str;
     Inode* cwd;
     FDTable fdt;
 
