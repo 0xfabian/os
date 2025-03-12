@@ -8,6 +8,7 @@ enum ErrorCode
     ERR_NO_MEM,
     ERR_NO_EXEC,
     ERR_NO_DEV,
+    ERR_NO_SPACE,
     ERR_NOT_FOUND,
     ERR_NOT_DIR,
     ERR_IS_DIR,
