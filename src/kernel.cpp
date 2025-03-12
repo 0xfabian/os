@@ -70,10 +70,10 @@ extern "C" void kmain(void)
 
     sched_init();
 
-    Task* kbd = Task::from(keyboard_task);
+    // Task* kbd = Task::from(keyboard_task);
     Task* sh = Task::from("/sh");
 
-    kbd->ready();
+    // kbd->ready();
     sh->ready();
 
     idle();
