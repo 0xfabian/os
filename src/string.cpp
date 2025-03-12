@@ -56,3 +56,87 @@ char* strdup(const char* str)
 
     return dup;
 }
+
+char* strcat(char* dest, const char* src)
+{
+    usize len = strlen(dest);
+
+    strcpy(dest + len, src);
+
+    return dest;
+}
+
+#define PATH_MAX 256
+char path_read_data[PATH_MAX];
+
+// hacky path reading function
+char* path_read_next(const char*& ptr)
+{
+    while (*ptr == '/')
+        ptr++;
+
+    if (*ptr == '\0')
+        return nullptr;
+
+    char* output = path_read_data;
+    usize len = 0;
+
+    while (*ptr != '/' && *ptr != '\0')
+    {
+        if (len >= PATH_MAX - 1)
+        {
+            kprintf(WARN "path_read_next(): path too long\n");
+            break;
+        }
+
+        output[len++] = *ptr++;
+    }
+
+    output[len] = '\0';
+
+    return path_read_data;
+}
+
+// this should be always an absolute path
+char* normalize_path(const char* path)
+{
+    if (!path)
+    {
+        ikprintf(WARN "normalize_path: path is null\n");
+        return nullptr;
+    }
+
+    char* normalized = (char*)kmalloc(strlen(path) + 1);
+    *normalized = 0;
+
+    char* name;
+    while ((name = path_read_next(path)))
+    {
+        if (strcmp(name, ".") == 0)
+            continue;
+
+        if (strcmp(name, "..") == 0)
+        {
+            usize len = strlen(normalized);
+
+            // can't go back from root
+            if (len == 0)
+            {
+                strcat(normalized, "/");
+                continue;
+            }
+
+            len--;
+
+            while (normalized[len] != '/')
+                normalized[len--] = 0;
+        }
+        else
+        {
+            strcat(normalized, "/");
+            strcat(normalized, name);
+        }
+    }
+
+    return normalized;
+}
