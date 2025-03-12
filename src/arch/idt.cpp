@@ -92,7 +92,9 @@ void keyboard_handler(interrupt_frame* frame)
 
     char ch = translate_key(key);
 
-    if (ch)
+    if (ch == 'd' && kbd_state & KBD_CTRL)
+        fbterm.handle_requests();
+    else if (ch)
         fbterm.receive_char(ch);
 
     pic::send_eoi(1);
