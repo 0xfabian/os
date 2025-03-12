@@ -63,6 +63,7 @@ u32 colors[] =
 
 Framebuffer default_fb;
 FramebufferTerminal fbterm;
+int cursor_ticks = 0;
 
 void Framebuffer::init(limine_framebuffer* fb)
 {
@@ -265,6 +266,7 @@ void FramebufferTerminal::write(const char* buffer, usize len)
     }
 
     draw_cursor(fg);
+    cursor_ticks = 0;
 }
 
 isize FramebufferTerminal::read(char* buffer, usize len)
@@ -371,22 +373,15 @@ void FramebufferTerminal::receive_char(char ch)
 
 void FramebufferTerminal::tick()
 {
-    static u32 ticks = 0;
-
     if (needs_render)
     {
         render();
         needs_render = false;
     }
-    else
-    {
-        if (ticks % 20 == 0)
-            fbterm.draw_cursor(fbterm.fg);
-        else if (ticks % 20 == 10)
-            fbterm.draw_cursor(fbterm.bg);
-    }
+    else if (cursor_ticks % 50 == 0)
+        fbterm.draw_cursor(cursor_ticks % 100 ? fbterm.bg : fbterm.fg);
 
-    ticks++;
+    cursor_ticks++;
 }
 
 void FramebufferTerminal::add_request(char* buffer, usize len)
@@ -533,11 +528,11 @@ void FramebufferTerminal::draw_bitmap(char ch)
 void FramebufferTerminal::draw_cursor(u32 color)
 {
     u32 x = (cursor % width) * font->header->width;
-    u32 y = (cursor / width) * font->header->height;
+    u32 y = (1 + cursor / width) * font->header->height;
 
-    u32* ptr = frontbuffer + x + y * fb->width;
+    u32* ptr = frontbuffer + x + (y - 2) * fb->width;
 
-    for (y = 0; y < font->header->height; y++)
+    for (y = 0; y < 2; y++)
     {
         for (x = 0; x < font->header->width; x++)
             ptr[x] = color;
