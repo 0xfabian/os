@@ -442,7 +442,7 @@ void FramebufferTerminal::draw_bitmap(char ch)
 
     // u32* ptr = backbuffer + x + y * fb->width;
     // u32* ptr2 = fb->addr + x + y * fb->width;
-    // u8* font_ptr = font->glyph_buffer + c * font->header->char_size;
+    // u8* font_ptr = font->glyph_buffer + ch * font->header->char_size;
 
     // for (y = 0; y < font->header->height; y++)
     // {

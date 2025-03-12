@@ -101,7 +101,7 @@ int ext2_lookup(Inode* _dir, const char* name, Inode* result)
 
     while (off < 4096)
     {
-        if (strcmp(name, dirent->name) == 0)
+        if (strncmp(name, dirent->name, dirent->name_len) == 0 && name[dirent->name_len] == 0)
         {
             result->sb = _dir->sb;
             result->ino = dirent->ino;
@@ -134,7 +134,35 @@ int ext2_lookup(Inode* _dir, const char* name, Inode* result)
 
 isize ext2_read(File* file, char* buf, usize size, usize offset)
 {
-    return -1;
+    Ext2Inode* inode = (Ext2Inode*)file->inode->data;
+
+    if (size == 0 || offset >= inode->size_low)
+        return 0;
+
+    usize remaining = inode->size_low - offset;
+
+    if (size > remaining)
+        size = remaining;
+
+    u32 block = offset / 4096;
+    u32 off = offset % 4096;
+    u32 read = 0;
+
+    while (read < size)
+    {
+        u32 to_read = size - read;
+
+        if (4096 - off < to_read)
+            to_read = 4096 - off;
+
+        file->inode->sb->dev->read(inode->block_ptr[block] * 4096 + off, (u8*)buf + read, to_read);
+
+        read += to_read;
+        block++;
+        off = 0;
+    }
+
+    return read;
 }
 
 int ext2_iterate(File* file, void* buf, usize size)
