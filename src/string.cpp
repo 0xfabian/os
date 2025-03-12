@@ -109,6 +109,8 @@ char* normalize_path(const char* path)
     char* normalized = (char*)kmalloc(strlen(path) + 1);
     *normalized = 0;
 
+    strcat(normalized, "/");
+
     char* name;
     while ((name = path_read_next(path)))
     {
@@ -120,20 +122,19 @@ char* normalize_path(const char* path)
             usize len = strlen(normalized);
 
             // can't go back from root
-            if (len == 0)
-            {
-                strcat(normalized, "/");
+            if (len == 1)
                 continue;
-            }
 
-            len--;
+            len -= 2;
 
             while (normalized[len] != '/')
                 normalized[len--] = 0;
         }
         else
         {
-            strcat(normalized, "/");
+            if (normalized[strlen(normalized) - 1] != '/')
+                strcat(normalized, "/");
+
             strcat(normalized, name);
         }
     }
