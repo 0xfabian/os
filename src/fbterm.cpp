@@ -79,7 +79,6 @@ void FramebufferTerminal::init()
         idle();
 
     default_fb.init(framebuffer_response->framebuffers[0]);
-    backbuffer = default_fb.addr;
 
     fb = &default_fb;
     font = &sf_mono20;
@@ -88,6 +87,14 @@ void FramebufferTerminal::init()
     height = fb->height / font->header->height;
     cursor = 0;
     write_cursor = 0;
+
+    frontbuffer = fb->addr;
+    frontbuffer_end = fb->addr + fb->width * fb->height;
+    backbuffer = nullptr;
+    backbuffer_end = nullptr;
+    backbuffer_pos = nullptr;
+
+    needs_render = false;
 
     fg = FOREGROUND;
     bg = BACKGROUND;
@@ -116,65 +123,87 @@ void FramebufferTerminal::enable_backbuffer()
     kprintf(INFO "Enabling backbuffer...\n");
 
     usize count = PAGE_COUNT(default_fb.width * default_fb.height * sizeof(u32));
-    backbuffer = (u32*)vmm.alloc_pages(count, PE_WRITE);
+    backbuffer = (u32*)vmm.alloc_pages(count, PE_WRITE | 1 << 7 | 1 << 3);
 
     if (!backbuffer)
     {
-        backbuffer = fb->addr;
-
         kprintf(WARN "Failed to allocate backbuffer\n");
         return;
     }
 
+    backbuffer_end = backbuffer + fb->width * fb->height;
+    backbuffer_pos = backbuffer;
+
     // this is very slow because we are reading from the framebuffer
     // but i don't now any better way to sync the two buffers
 
-    u64* from = (u64*)fb->addr;
+    u64* from = (u64*)frontbuffer;
     u64* to = (u64*)backbuffer;
-    u64* end = (u64*)(fb->addr + fb->width * fb->height);
 
-    while (from < end)
+    while (from < (u64*)frontbuffer_end)
         *to++ = *from++;
 }
 
 void FramebufferTerminal::clear()
 {
-    u64* start = (u64*)backbuffer;
-    u64* end = (u64*)(backbuffer + fb->width * fb->height);
     u64 value = ((u64)bg << 32) | bg;
 
-    for (u64* ptr = start; ptr < end; ptr++)
+    for (u64* ptr = (u64*)frontbuffer; ptr < (u64*)frontbuffer_end; ptr++)
         *ptr = value;
+
+    if (backbuffer)
+    {
+        for (u64* ptr = (u64*)backbuffer; ptr < (u64*)backbuffer_end; ptr++)
+            *ptr = value;
+
+        backbuffer_pos = backbuffer;
+    }
 
     cursor = 0;
     write_cursor = 0;
-
-    render();
 }
 
 void FramebufferTerminal::scroll()
 {
-    u64* start = (u64*)backbuffer;
-    u64* end = (u64*)(backbuffer + fb->width * (fb->height - font->header->height));
-    u64 scroll_offset = fb->width * font->header->height / 2;
     u64 value = ((u64)bg << 32) | bg;
+    u64 scroll_offset = fb->width * font->header->height;
 
-    for (u64* ptr = start; ptr < end; ptr++)
-        *ptr = *(ptr + scroll_offset);
+    if (!backbuffer)
+    {
+        // we need to divide by 2 because we are using 64-bit writes
+        u64 scroll_offset_2 = scroll_offset >> 1;
 
-    for (u64* ptr = end; ptr < end + scroll_offset; ptr++)
-        *ptr = value;
+        for (u64* ptr = (u64*)frontbuffer; ptr < (u64*)(frontbuffer_end - scroll_offset); ptr++)
+            *ptr = *(ptr + scroll_offset_2);
+
+        for (u64* ptr = (u64*)(frontbuffer_end - scroll_offset); ptr < (u64*)frontbuffer_end; ptr++)
+            *ptr = value;
+    }
+    else
+    {
+        u64* ptr;
+
+        for (ptr = (u64*)backbuffer_pos; ptr < (u64*)(backbuffer_pos + scroll_offset); ptr++)
+            *ptr = value;
+
+        backbuffer_pos = (u32*)ptr;
+
+        if (backbuffer_pos >= backbuffer_end)
+            backbuffer_pos = backbuffer;
+
+        needs_render = true;
+    }
 
     cursor -= width;
     write_cursor -= width;
-
-    render();
 }
 
 void FramebufferTerminal::write(const char* buffer, usize len)
 {
     const char* ptr = buffer;
     usize i = 0;
+
+    draw_cursor(bg);
 
     while (i < len)
     {
@@ -235,7 +264,7 @@ void FramebufferTerminal::write(const char* buffer, usize len)
         i++;
     }
 
-    write_cursor = cursor;
+    draw_cursor(fg);
 }
 
 isize FramebufferTerminal::read(char* buffer, usize len)
@@ -295,8 +324,6 @@ void FramebufferTerminal::ansi_function(char name, int arg)
 
 void FramebufferTerminal::putchar(char ch)
 {
-    draw_cursor(bg);
-
     if (ch >= ' ')
     {
         draw_bitmap(ch);
@@ -320,8 +347,6 @@ void FramebufferTerminal::putchar(char ch)
 
     if (cursor >= width * height)
         scroll();
-
-    draw_cursor(fg);
 }
 
 void FramebufferTerminal::receive_char(char ch)
@@ -341,17 +366,25 @@ void FramebufferTerminal::receive_char(char ch)
     }
 
     if (echo)
-        putchar(ch);
+        write(&ch, 1);
 }
 
-void FramebufferTerminal::blink_cursor()
+void FramebufferTerminal::tick()
 {
     static u32 ticks = 0;
 
-    if (ticks % 20 == 0)
-        fbterm.draw_cursor(fbterm.fg);
-    else if (ticks % 20 == 10)
-        fbterm.draw_cursor(fbterm.bg);
+    if (needs_render)
+    {
+        render();
+        needs_render = false;
+    }
+    else
+    {
+        if (ticks % 20 == 0)
+            fbterm.draw_cursor(fbterm.fg);
+        else if (ticks % 20 == 10)
+            fbterm.draw_cursor(fbterm.bg);
+    }
 
     ticks++;
 }
@@ -437,13 +470,24 @@ inline u32 alpha_blend(u32 c1, u32 c2, u8 alpha)
 
 void FramebufferTerminal::draw_bitmap(char ch)
 {
-    // u32 x = (cursor % width) * font->header->width;
-    // u32 y = (cursor / width) * font->header->height;
+    u32 x = (cursor % width) * font->header->width;
+    u32 y = (cursor / width) * font->header->height;
 
-    // u32* ptr = backbuffer + x + y * fb->width;
-    // u32* ptr2 = fb->addr + x + y * fb->width;
-    // u8* font_ptr = font->glyph_buffer + ch * font->header->char_size;
+    u8* font_ptr = font->glyph_buffer + ch * font->header->char_size;
+    u32* front_ptr = frontbuffer + x + y * fb->width;
+    u32* draw_ptr;
 
+    if (backbuffer)
+    {
+        draw_ptr = backbuffer_pos + x + y * fb->width;
+
+        if (draw_ptr >= backbuffer_end)
+            draw_ptr -= fb->width * fb->height;
+    }
+    else
+        draw_ptr = front_ptr;
+
+    // // old bitmap drawing
     // for (y = 0; y < font->header->height; y++)
     // {
     //     for (x = 0; x < font->header->width; x++)
@@ -451,37 +495,38 @@ void FramebufferTerminal::draw_bitmap(char ch)
     //         if (x == 8)
     //             font_ptr++;
 
-    //         ptr[x] = (*font_ptr & (0b10000000 >> (x & 7))) ? fg : bg;
-    //         ptr2[x] = (*font_ptr & (0b10000000 >> (x & 7))) ? fg : bg;
+    //         draw_ptr[x] = (*font_ptr & (0b10000000 >> (x & 7))) ? fg : bg;
     //     }
 
     //     font_ptr++;
-    //     ptr += fb->width;
-    //     ptr2 += fb->width;
+    //     draw_ptr += fb->width;
     // }
 
-    u32 x = (cursor % width) * font->header->width;
-    u32 y = (cursor / width) * font->header->height;
+    // new alpha blended drawing
+    for (y = 0; y < font->header->height; y++)
+    {
+        for (x = 0; x < font->header->width; x++)
+            draw_ptr[x] = alpha_blend(fg, bg, font_ptr[x]);
 
-    u32* ptr = backbuffer + x + y * fb->width;
-    u32* ptr2 = fb->addr + x + y * fb->width;
-    u8* font_ptr = font->glyph_buffer + ch * font->header->char_size;
+        font_ptr += font->header->width;
+        draw_ptr += fb->width;
+    }
 
-    u32 col;
+    if (!backbuffer || needs_render)
+        return;
+
+    // at this point we have a backbuffer and a render call is not guaranteed
+    // so we manually copy the drawn character to the frontbuffer
+
+    draw_ptr -= fb->width * font->header->height;
 
     for (y = 0; y < font->header->height; y++)
     {
         for (x = 0; x < font->header->width; x++)
-        {
-            col = alpha_blend(fg, bg, font_ptr[x]);
+            front_ptr[x] = draw_ptr[x];
 
-            ptr[x] = col;
-            ptr2[x] = col;
-        }
-
-        font_ptr += font->header->width;
-        ptr += fb->width;
-        ptr2 += fb->width;
+        front_ptr += fb->width;
+        draw_ptr += fb->width;
     }
 }
 
@@ -490,7 +535,7 @@ void FramebufferTerminal::draw_cursor(u32 color)
     u32 x = (cursor % width) * font->header->width;
     u32 y = (cursor / width) * font->header->height;
 
-    u32* ptr = fb->addr + x + y * fb->width;
+    u32* ptr = frontbuffer + x + y * fb->width;
 
     for (y = 0; y < font->header->height; y++)
     {
@@ -503,12 +548,13 @@ void FramebufferTerminal::draw_cursor(u32 color)
 
 void FramebufferTerminal::render()
 {
-    u64* from = (u64*)backbuffer;
-    u64* to = (u64*)fb->addr;
-    u64* end = (u64*)(backbuffer + fb->width * fb->height);
+    u64* to = (u64*)frontbuffer;
 
-    while (from < end)
-        *to++ = *from++;
+    for (u64* ptr = (u64*)backbuffer_pos; ptr < (u64*)backbuffer_end; ptr++)
+        *to++ = *ptr;
+
+    for (u64* ptr = (u64*)backbuffer; ptr < (u64*)backbuffer_pos; ptr++)
+        *to++ = *ptr;
 }
 
 isize fbterm_read(File* file, char* buf, usize size, usize offset)
@@ -519,6 +565,7 @@ isize fbterm_read(File* file, char* buf, usize size, usize offset)
 isize fbterm_write(File* file, const char* buf, usize size, usize offset)
 {
     fbterm.write(buf, size);
+    fbterm.write_cursor = fbterm.cursor;
 
     return size;
 }

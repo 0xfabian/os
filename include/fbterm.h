@@ -34,7 +34,13 @@ struct ReadRequest
 struct FramebufferTerminal
 {
     Framebuffer* fb;
+    u32* frontbuffer;
+    u32* frontbuffer_end;
     u32* backbuffer;
+    u32* backbuffer_end;
+    u32* backbuffer_pos;
+    bool needs_render;
+
     PSF2* font;
 
     u32 width;
@@ -76,7 +82,7 @@ struct FramebufferTerminal
     void ansi_function(char name, int arg);
     void putchar(char ch);
     void receive_char(char ch);
-    void blink_cursor();
+    void tick();
     void add_request(char* buffer, usize len);
     void handle_requests();
 

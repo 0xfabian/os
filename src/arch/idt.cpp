@@ -93,7 +93,7 @@ void keyboard_handler(interrupt_frame* frame)
 
 extern "C" void timer_handler()
 {
-    fbterm.blink_cursor();
+    fbterm.tick();
 
     schedule();
 
