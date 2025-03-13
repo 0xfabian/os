@@ -55,7 +55,10 @@ result_ptr<Inode> Inode::get(const char* path)
         result_ptr<Inode> next = inode->lookup(name);
 
         if (!next)
+        {
+            inode->put();
             return next.error();
+        }
 
         // switch to the next
         inode->put();
@@ -266,7 +269,7 @@ usize InodeTable::get_sb_refs(Superblock* sb)
 
 void InodeTable::debug()
 {
-    kprintf("Inode table:\n{\n");
+    ikprintf("Inode table:\n{\n");
 
     for (int i = 0; i < INODE_TABLE_SIZE; i++)
     {
@@ -275,37 +278,37 @@ void InodeTable::debug()
         if ((inode->flags & IF_ALLOC) == 0)
             continue;
 
-        kprintf("    %d: sb=%a ino=%lu type=%x size=%lu refs=%d nlinks=%d flags=%hhx ", i, inode->sb, inode->ino, inode->type, inode->size, inode->refs, inode->nlinks, inode->flags);
+        ikprintf("    %d: sb=%a ino=%lu type=%x size=%lu refs=%d nlinks=%d flags=%hhx ", i, inode->sb, inode->ino, inode->type, inode->size, inode->refs, inode->nlinks, inode->flags);
 
         if (inode->ops.create)
-            kprintf("create ");
+            ikprintf("create ");
 
         if (inode->ops.mknod)
-            kprintf("mknod ");
+            ikprintf("mknod ");
 
         if (inode->ops.link)
-            kprintf("link ");
+            ikprintf("link ");
 
         if (inode->ops.unlink)
-            kprintf("unlink ");
+            ikprintf("unlink ");
 
         if (inode->ops.mkdir)
-            kprintf("mkdir ");
+            ikprintf("mkdir ");
 
         if (inode->ops.rmdir)
-            kprintf("rmdir ");
+            ikprintf("rmdir ");
 
         if (inode->ops.truncate)
-            kprintf("truncate ");
+            ikprintf("truncate ");
 
         if (inode->ops.lookup)
-            kprintf("lookup ");
+            ikprintf("lookup ");
 
         if (inode->ops.sync)
-            kprintf("sync ");
+            ikprintf("sync ");
 
-        kprintf("\n");
+        ikprintf("\n");
     }
 
-    kprintf("}\n");
+    ikprintf("}\n");
 }
