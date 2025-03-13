@@ -94,6 +94,14 @@ void keyboard_handler(interrupt_frame* frame)
 
     if (ch == 'd' && kbd_state & KBD_CTRL)
         fbterm.handle_requests();
+    else if (ch == 'u' && kbd_state & KBD_CTRL)
+    {
+        while (fbterm.input_cursor)
+        {
+            fbterm.input_cursor--;
+            fbterm.write("\b", 1);
+        }
+    }
     else if (ch)
         fbterm.receive_char(ch);
 
