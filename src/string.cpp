@@ -125,10 +125,16 @@ char* normalize_path(const char* path)
             if (len == 1)
                 continue;
 
-            len -= 2;
+            for (int i = len - 1; i >= 1; i--)
+            {
+                if (normalized[i] == '/')
+                {
+                    normalized[i] = 0;
+                    break;
+                }
 
-            while (normalized[len] != '/')
-                normalized[len--] = 0;
+                normalized[i] = 0;
+            }
         }
         else
         {
