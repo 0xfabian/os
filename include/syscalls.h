@@ -39,4 +39,4 @@ int sys_getdents(int fd, char* buf, usize size);
 int sys_getcwd(char* buf, usize size);
 int sys_chdir(const char* path);
 
-void sys_debug();
+int sys_debug(const char* str);

@@ -18,7 +18,7 @@ int do_syscall(CPU* cpu, int num)
     case SYS_GETDENTS:      return sys_getdents(cpu->rdi, (char*)cpu->rsi, cpu->rdx);
     case SYS_GETCWD:        return sys_getcwd((char*)cpu->rdi, cpu->rsi);
     case SYS_CHDIR:         return sys_chdir((const char*)cpu->rdi);
-    case SYS_DEBUG:         sys_debug(); return 0;
+    case SYS_DEBUG:         return sys_debug((const char*)cpu->rdi);
     default:                return -ERR_NOT_IMPL;
     }
 }
@@ -219,7 +219,14 @@ int sys_chdir(const char* path)
     return 0;
 }
 
-void sys_debug()
+int sys_debug(const char* str)
 {
-    ikprintf("sys_debug()\n");
+    if (strcmp(str, "inode_table") == 0)
+        inode_table.debug();
+    else if (strcmp(str, "file_table") == 0)
+        file_table.debug();
+    else if (strcmp(str, "heap") == 0)
+        heap.debug();
+
+    return 0;
 }
