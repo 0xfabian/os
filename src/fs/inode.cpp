@@ -26,16 +26,28 @@ result_ptr<Inode> Inode::get(const char* path)
         // .. should always be a valid directory so we can do .ptr without checking
         if (strcmp(name, "..") == 0)
         {
+            // if this inode is the root of it's superblock
+            // we need to lookup .. on the mountpoint inode instead
+            if (inode == inode->sb->root)
+            {
+                Mount* mnt = Mount::find(inode->sb);
+
+                // mnt could be root_mount who doesn't have a mountpoint inode
+                if (mnt->mp.inode)
+                {
+                    inode->put();
+                    inode = mnt->mp.inode->lookup("..").ptr;
+
+                    continue;
+                }
+            }
+
+            // at this point just do regular lookup
+
+            Inode* next = inode->lookup("..").ptr;
+
             inode->put();
-
-            Mount* mnt = Mount::find(inode->sb);
-
-            // if this is a mount we need to lookup on the mountpoint inode
-            // also the root has no mountpoint inode
-            if (mnt && mnt->mp.inode)
-                inode = mnt->mp.inode->lookup("..").ptr;
-            else
-                inode = inode->lookup("..").ptr;
+            inode = next;
 
             continue;
         }
