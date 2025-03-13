@@ -72,6 +72,7 @@ result_ptr<Superblock> ext2_create_sb(Filesystem* fs, BlockDevice* dev)
     ext2_read_inode(sb, 2, (Ext2Inode*)root.data);
     root.nlinks = ((Ext2Inode*)root.data)->nlinks;
     root.size = ((Ext2Inode*)root.data)->size_low;
+    root.flags = 0;
 
     sb->root = inode_table.insert(&root).ptr;
 
@@ -110,6 +111,7 @@ int ext2_lookup(Inode* _dir, const char* name, Inode* result)
             ext2_read_inode(result->sb, dirent->ino, (Ext2Inode*)result->data);
             result->nlinks = ((Ext2Inode*)result->data)->nlinks;
             result->size = ((Ext2Inode*)result->data)->size_low;
+            result->flags = 0;
 
             if (result->is_dir())
             {
