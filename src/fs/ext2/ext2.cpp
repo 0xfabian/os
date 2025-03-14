@@ -27,24 +27,16 @@ int ext2_read_inode(Superblock* sb, u32 ino, Ext2Inode* inode)
 
 result_ptr<Superblock> ext2_create_sb(Filesystem* fs, BlockDevice* dev)
 {
-    kprintf("ext2: creating superblock\n");
-
     Superblock* sb = (Superblock*)kmalloc(sizeof(Superblock));
 
     sb->fs = fs;
     sb->dev = dev;
     sb->ops = { nullptr };
 
-    kprintf("ext2: creating ext2 superblock\n");
-
     Ext2Superblock* ext2_sb = (Ext2Superblock*)kmalloc(sizeof(Ext2Superblock));
-
-    kprintf("ext2: reading superblock\n");
 
     if (!dev->read(1024, (u8*)ext2_sb, sizeof(Ext2DiskSuperblock)))
     {
-        kprintf("ext2: invalid superblock\n");
-
         kfree(sb);
         kfree(ext2_sb);
 
@@ -55,13 +47,9 @@ result_ptr<Superblock> ext2_create_sb(Filesystem* fs, BlockDevice* dev)
     ext2_sb->group_desc_count = (ext2_sb->disk_sb.total_blocks + ext2_sb->disk_sb.blocks_per_group - 1) / ext2_sb->disk_sb.blocks_per_group;
     ext2_sb->group_desc = (Ext2GroupDesc*)kmalloc(ext2_sb->group_desc_count * sizeof(Ext2GroupDesc));
 
-    kprintf("ext2: reading group descriptors\n");
-
     dev->read((ext2_sb->disk_sb.sb_block_nr + 1) * ext2_sb->block_size, (u8*)ext2_sb->group_desc, ext2_sb->group_desc_count * sizeof(Ext2GroupDesc));
 
     sb->data = ext2_sb;
-
-    kprintf("ext2: reading root inode\n");
 
     Inode root;
     root.sb = sb;
@@ -75,8 +63,6 @@ result_ptr<Superblock> ext2_create_sb(Filesystem* fs, BlockDevice* dev)
     root.flags = 0;
 
     sb->root = inode_table.insert(&root).ptr;
-
-    kprintf("ext2: superblock created\n");
 
     return sb;
 }
