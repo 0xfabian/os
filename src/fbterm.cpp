@@ -22,24 +22,43 @@
 // #define BRIGHT_WHITE        0xf2f2f2
 
 // gruvbox color theme
-#define FOREGROUND          0xfbf1c7
-#define BACKGROUND          0x282828
-#define BLACK               0x282828
-#define RED                 0xcc241d
-#define GREEN               0x98971a
-#define YELLOW              0xd79921
-#define BLUE                0x458588
-#define MAGENTA             0xb16286
-#define CYAN                0x689d6a
-#define WHITE               0xa89984
-#define BRIGHT_BLACK        0x928374
-#define BRIGHT_RED          0xfb4934
-#define BRIGHT_GREEN        0xb8bb26
-#define BRIGHT_YELLOW       0xfabd2f
-#define BRIGHT_BLUE         0x83a598
-#define BRIGHT_MAGENTA      0xd3869b
-#define BRIGHT_CYAN         0x8ec07c
-#define BRIGHT_WHITE        0xebdbb2
+// #define FOREGROUND          0xfbf1c7
+// #define BACKGROUND          0x282828
+// #define BLACK               0x282828
+// #define RED                 0xcc241d
+// #define GREEN               0x98971a
+// #define YELLOW              0xd79921
+// #define BLUE                0x458588
+// #define MAGENTA             0xb16286
+// #define CYAN                0x689d6a
+// #define WHITE               0xa89984
+// #define BRIGHT_BLACK        0x928374
+// #define BRIGHT_RED          0xfb4934
+// #define BRIGHT_GREEN        0xb8bb26
+// #define BRIGHT_YELLOW       0xfabd2f
+// #define BRIGHT_BLUE         0x83a598
+// #define BRIGHT_MAGENTA      0xd3869b
+// #define BRIGHT_CYAN         0x8ec07c
+// #define BRIGHT_WHITE        0xebdbb2
+
+#define FOREGROUND          0xecf2f8
+#define BACKGROUND          0x0d1117
+#define BLACK               0x21262d
+#define RED                 0xc73834
+#define GREEN               0x49a648
+#define YELLOW              0xb05b28
+#define BLUE                0x3d84b0
+#define MAGENTA             0x744bba
+#define CYAN                0x538aab
+#define WHITE               0xc6cdd5
+#define BRIGHT_BLACK        0x89929b
+#define BRIGHT_RED          0xfa7970
+#define BRIGHT_GREEN        0x7ce38b
+#define BRIGHT_YELLOW       0xfaa356
+#define BRIGHT_BLUE         0x77bdfb
+#define BRIGHT_MAGENTA      0xcea5fb
+#define BRIGHT_CYAN         0xa2d2fb
+#define BRIGHT_WHITE        0xf2f2f2
 
 u32 colors[] =
 {
@@ -82,7 +101,7 @@ void FramebufferTerminal::init()
     default_fb.init(framebuffer_response->framebuffers[0]);
 
     fb = &default_fb;
-    font = &sf_mono20;
+    font = &sf_mono24;
 
     width = fb->width / font->header->width;
     height = fb->height / font->header->height;
@@ -378,8 +397,8 @@ void FramebufferTerminal::tick()
         render();
         needs_render = false;
     }
-    else if (cursor_ticks % 50 == 0)
-        fbterm.draw_cursor(cursor_ticks % 100 ? fbterm.bg : fbterm.fg);
+    else if (cursor_ticks % 20 == 0)
+        fbterm.draw_cursor(cursor_ticks % 40 ? fbterm.bg : fbterm.fg);
 
     cursor_ticks++;
 }
@@ -530,9 +549,9 @@ void FramebufferTerminal::draw_cursor(u32 color)
     u32 x = (cursor % width) * font->header->width;
     u32 y = (1 + cursor / width) * font->header->height;
 
-    u32* ptr = frontbuffer + x + (y - 2) * fb->width;
+    u32* ptr = frontbuffer + x + (y - 3) * fb->width;
 
-    for (y = 0; y < 2; y++)
+    for (y = 0; y < 3; y++)
     {
         for (x = 0; x < font->header->width; x++)
             ptr[x] = color;
