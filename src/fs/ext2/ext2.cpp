@@ -155,16 +155,15 @@ isize ext2_read(File* file, char* buf, usize size, usize offset)
 
 int ext2_iterate(File* file, void* buf, usize size)
 {
+    if (file->offset == 4096)
+        return 0;
+
     Ext2Inode* dir = (Ext2Inode*)file->inode->data;
 
-    u8 temp[4096];
-    file->inode->sb->dev->read(dir->block_ptr[0] * 4096, temp, 4096);
+    u8 temp[512];
+    file->inode->sb->dev->read(dir->block_ptr[0] * 4096 + file->offset % 4096, temp, 512);
 
-    u32 off = file->offset;
-    Ext2Dirent* dirent = (Ext2Dirent*)(temp + off);
-
-    if (off == 4096)
-        return 0;
+    Ext2Dirent* dirent = (Ext2Dirent*)temp;
 
     Dirent* d = (Dirent*)buf;
     d->ino = dirent->ino;
