@@ -8,6 +8,7 @@ int do_syscall(CPU* cpu, int num)
     case SYS_WRITE:         return sys_write(cpu->rdi, (const char*)cpu->rsi, cpu->rdx);
     case SYS_OPEN:          return sys_open((const char*)cpu->rdi, cpu->rsi);
     case SYS_CLOSE:         return sys_close(cpu->rdi);
+    case SYS_SEEK:          return sys_seek(cpu->rdi, cpu->rsi, cpu->rdx);
     case SYS_IOCTL:         return sys_ioctl(cpu->rdi, cpu->rsi, (void*)cpu->rdx);
     case SYS_DUP:           return sys_dup(cpu->rdi);
     case SYS_DUP2:          return sys_dup2(cpu->rdi, cpu->rsi);
@@ -79,6 +80,16 @@ int sys_close(unsigned int fd)
     file->close();
 
     return 0;
+}
+
+isize sys_seek(int fd, isize offset, int whence)
+{
+    auto file = running->fdt.get(fd);
+
+    if (!file)
+        return file.error();
+
+    return file->seek(offset, whence);
 }
 
 int sys_ioctl(int fd, int cmd, void* arg)

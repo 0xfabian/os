@@ -10,6 +10,7 @@ enum SyscallNumber
     SYS_WRITE,
     SYS_OPEN,
     SYS_CLOSE,
+    SYS_SEEK = 8,
     SYS_IOCTL = 16,
     SYS_DUP = 32,
     SYS_DUP2,
@@ -28,6 +29,7 @@ isize sys_read(unsigned int fd, char* buf, usize size);
 isize sys_write(unsigned int fd, const char* buf, usize size);
 int sys_open(const char* path, u32 flags);
 int sys_close(unsigned int fd);
+isize sys_seek(int fd, isize offset, int whence);
 int sys_ioctl(int fd, int cmd, void* arg);
 int sys_dup(int oldfd);
 int sys_dup2(int oldfd, int newfd);
