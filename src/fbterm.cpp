@@ -101,7 +101,7 @@ void FramebufferTerminal::init()
     default_fb.init(framebuffer_response->framebuffers[0]);
 
     fb = &default_fb;
-    font = &sf_mono24;
+    font = &sf_mono20;
 
     width = fb->width / font->header->width;
     height = fb->height / font->header->height;
@@ -549,9 +549,9 @@ void FramebufferTerminal::draw_cursor(u32 color)
     u32 x = (cursor % width) * font->header->width;
     u32 y = (1 + cursor / width) * font->header->height;
 
-    u32* ptr = frontbuffer + x + (y - 3) * fb->width;
+    u32* ptr = frontbuffer + x + (y - 2) * fb->width;
 
-    for (y = 0; y < 3; y++)
+    for (y = 0; y < 2; y++)
     {
         for (x = 0; x < font->header->width; x++)
             ptr[x] = color;
