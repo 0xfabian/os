@@ -390,6 +390,15 @@ void FramebufferTerminal::receive_char(char ch)
         write(&ch, 1);
 }
 
+void FramebufferTerminal::clear_input()
+{
+    while (input_cursor)
+    {
+        write("\b", 1);
+        input_cursor--;
+    }
+}
+
 void FramebufferTerminal::tick()
 {
     if (needs_render)
@@ -547,11 +556,11 @@ void FramebufferTerminal::draw_bitmap(char ch)
 void FramebufferTerminal::draw_cursor(u32 color)
 {
     u32 x = (cursor % width) * font->header->width;
-    u32 y = (1 + cursor / width) * font->header->height;
+    u32 y = (cursor / width) * font->header->height;
 
-    u32* ptr = frontbuffer + x + (y - 2) * fb->width;
+    u32* ptr = frontbuffer + x + y * fb->width;
 
-    for (y = 0; y < 2; y++)
+    for (y = 0; y < font->header->height; y++)
     {
         for (x = 0; x < font->header->width; x++)
             ptr[x] = color;

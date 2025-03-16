@@ -82,6 +82,7 @@ struct FramebufferTerminal
     void ansi_function(char name, int arg);
     void putchar(char ch);
     void receive_char(char ch);
+    void clear_input();
     void tick();
     void add_request(char* buffer, usize len);
     void handle_requests();
