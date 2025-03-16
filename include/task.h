@@ -20,18 +20,15 @@ enum TaskState
 {
     TASK_BORN,
     TASK_READY,
-    TASK_RUNNING,
     TASK_SLEEPING,
     TASK_ZOMBIE,
-    TASK_DEAD
+    TASK_DEAD,
+    TASK_IDLE
 };
 
 struct MemoryMap
 {
     PML4* pml4;
-
-    void* start;
-    usize size;
 
     void* user_stack;
     void* kernel_stack;
@@ -40,8 +37,8 @@ struct MemoryMap
 struct Task
 {
     u64 krsp;
-    Task* next;
     Task* parent;
+    u32 active_children;
     u64 tid;
 
     TaskState state;
@@ -52,23 +49,28 @@ struct Task
 
     int exit_code;
 
+    // only relevant if in ready state
+    Task* prev;
+    Task* next;
+
     static Task* from(void (*func)(void));
     static Task* from(const char* path);
     static Task* dummy();
 
     Task* fork();
     int execve(const char* path, char* const argv[], char* const envp[]);
-    void exit(int code);
-    void wait();
+
+    void enter_rq();
+    void leave_rq();
     void ready();
     void sleep();
+    void exit(int code);
+    void wait();
     void return_from_syscall(int ret);
 };
 
 extern Task* running;
-extern Task* task_list;
 
 void sched_init();
-Task* get_next_task();
 extern "C" void schedule();
 extern "C" void yield();

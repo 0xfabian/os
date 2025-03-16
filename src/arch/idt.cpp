@@ -112,7 +112,7 @@ extern "C" void timer_handler()
 {
     fbterm.tick();
 
-    schedule();
-
     pic::send_eoi(0);
+
+    schedule();
 }

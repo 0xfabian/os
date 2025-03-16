@@ -1,29 +1,34 @@
 #include <task.h>
 #include <string.h>
 
-Task* running;
-Task* task_list;
-Task* task_list_tail;
-
 u64 global_tid = 0;
+
+Task* running = nullptr;
+Task* idle_task = nullptr;
+Task* rq_head = nullptr;
 
 extern "C" void switch_now();
 
 Task* alloc_task()
 {
     Task* task = (Task*)kmalloc(sizeof(Task));
-    task->mm = (MemoryMap*)kmalloc(sizeof(MemoryMap));
 
-    task->next = nullptr;
     task->parent = running;
+    task->active_children = 0;
     task->tid = global_tid++;
+
     task->state = TASK_BORN;
-    task->exit_code = 0;
+    task->mm = (MemoryMap*)kmalloc(sizeof(MemoryMap));
     task->cwd_str = strdup("/");
     task->cwd = root_mount->sb->root->get();
 
     for (int i = 0; i < FD_TABLE_SIZE; i++)
         task->fdt.files[i] = nullptr;
+
+    task->exit_code = 0;
+
+    task->next = nullptr;
+    task->prev = nullptr;
 
     return task;
 }
@@ -33,8 +38,6 @@ Task* Task::from(void (*func)(void))
     Task* task = alloc_task();
 
     task->mm->pml4 = nullptr;
-    task->mm->start = nullptr;
-    task->mm->size = 0;
     task->mm->user_stack = nullptr;
     task->mm->kernel_stack = vmm.alloc_pages(KERNEL_STACK_PAGES, PE_WRITE);
 
@@ -86,8 +89,6 @@ int load_elf(Task* task, const char* path, u64* entry)
     }
 
     task->mm->pml4 = vmm.make_user_page_table();
-    task->mm->start = nullptr;
-    task->mm->size = 0;
     task->mm->user_stack = vmm.alloc_pages(task->mm->pml4, USER_STACK_BOTTOM, USER_STACK_PAGES, PE_WRITE | PE_USER);
     // we don't touch the task's kernel stack
 
@@ -149,11 +150,8 @@ Task* Task::from(const char* path)
     *(u64*)cpu->rsp = 0; // argc
 
     // since Task::from can't be called from a user task
-    // this is probably running under a kernel task
+    // this is running under a kernel task
     // so no need for switching the page table
-
-    // if (running->mm->pml4)
-    //     vmm.switch_pml4(running->mm->pml4);
 
     return task;
 }
@@ -167,8 +165,6 @@ Task* Task::dummy()
     Task* task = alloc_task();
 
     task->mm->pml4 = nullptr;
-    task->mm->start = nullptr;
-    task->mm->size = 0;
     task->mm->user_stack = nullptr;
     task->mm->kernel_stack = nullptr;
 
@@ -192,8 +188,6 @@ Task* Task::fork()
             task->fdt.files[i] = running->fdt.files[i]->dup();
 
     task->mm->pml4 = vmm.make_user_page_table();
-    task->mm->start = running->mm->start;
-    task->mm->size = running->mm->size;
     task->mm->user_stack = running->mm->user_stack;
     task->mm->kernel_stack = vmm.alloc_pages(KERNEL_STACK_PAGES, PE_WRITE);
 
@@ -342,8 +336,64 @@ int Task::execve(const char* path, char* const argv[], char* const envp[])
     return 0;
 }
 
+void Task::enter_rq()
+{
+    if (!rq_head)
+    {
+        rq_head = this;
+        next = this;
+        prev = this;
+    }
+    else
+    {
+        next = rq_head;
+        prev = rq_head->prev;
+        rq_head->prev->next = this;
+        rq_head->prev = this;
+    }
+}
+
+void Task::leave_rq()
+{
+    // more then one task in the ready queue
+    if (rq_head != rq_head->next)
+    {
+        if (this == rq_head)
+            rq_head = next;
+
+        prev->next = next;
+        next->prev = prev;
+    }
+    else
+        rq_head = nullptr;
+
+    next = nullptr;
+    prev = nullptr;
+}
+
+void Task::ready()
+{
+    state = TASK_READY;
+
+    enter_rq();
+
+    if (parent)
+        parent->active_children++;
+}
+
+void Task::sleep()
+{
+    leave_rq();
+
+    state = TASK_SLEEPING;
+
+    schedule();
+}
+
 void Task::exit(int code)
 {
+    leave_rq();
+
     state = TASK_ZOMBIE;
     exit_code = code;
 
@@ -354,58 +404,21 @@ void Task::exit(int code)
         if (fdt.files[i])
             fdt.files[i]->close();
 
-    if (parent->state == TASK_SLEEPING)
-        parent->return_from_syscall(running->tid);
+    if (parent)
+    {
+        parent->active_children--;
+
+        if (parent->state == TASK_SLEEPING)
+            parent->return_from_syscall(running->tid);
+    }
 
     schedule();
-    switch_now();
 }
 
 void Task::wait()
 {
-    // hacky way to do wait
-
-    int children = 0;
-
-    Task* task = task_list;
-
-    do
-    {
-        if (task->state != TASK_ZOMBIE && task->parent == running)
-            children++;
-
-        task = task->next;
-
-    } while (task != task_list);
-
-    if (children)
-        running->sleep();
-}
-
-void Task::ready()
-{
-    if (task_list)
-    {
-        task_list_tail->next = this;
-        task_list_tail = this;
-        task_list_tail->next = task_list;
-    }
-    else
-    {
-        task_list = this;
-        task_list->next = task_list;
-        task_list_tail = task_list;
-    }
-
-    state = TASK_READY;
-}
-
-void Task::sleep()
-{
-    state = TASK_SLEEPING;
-
-    schedule();
-    switch_now();
+    if (active_children > 0)
+        sleep();
 }
 
 void Task::return_from_syscall(int ret)
@@ -413,7 +426,7 @@ void Task::return_from_syscall(int ret)
     CPU* cpu = (CPU*)krsp;
     cpu->rax = ret;
 
-    state = TASK_READY;
+    ready();
 }
 
 void sched_init()
@@ -422,11 +435,19 @@ void sched_init()
 
     pit::init(100); // context switch every 10ms
 
-    Task* t0 = Task::dummy();
+    // the idle task is special
+    // it executes only when the rq is empty
+    idle_task = Task::from(idle);
+    idle_task->tid = -1;
+    idle_task->state = TASK_IDLE;
 
-    t0->ready();
+    global_tid = 0;
 
-    running = task_list;
+    Task* kmain = Task::dummy();
+
+    kmain->ready();
+
+    running = kmain;
 
     pic::unmask_irq(0);
     pic::unmask_irq(1);
@@ -434,33 +455,31 @@ void sched_init()
     sti();
 }
 
-Task* get_next_task()
+Task* pick_next()
 {
-    Task* task = running->next;
+    if (running->state == TASK_READY)
+        return running->next;
 
-    while (task != running)
-    {
-        if (task->tid > 0 && task->state == TASK_READY)
-            return task;
+    if (rq_head)
+        return rq_head;
 
-        task = task->next;
-    }
-
-    return running->state == TASK_READY ? running : task_list;
+    return idle_task;
 }
 
 void schedule()
 {
-    Task* next = get_next_task();
+    Task* next = pick_next();
 
-    if (next == running)
-        return;
+    if (next != running)
+    {
+        if (next->mm->user_stack)
+            tss.rsp0 = (u64)next->mm->kernel_stack + KERNEL_STACK_SIZE;
 
-    if (next->mm->user_stack)
-        tss.rsp0 = (u64)next->mm->kernel_stack + KERNEL_STACK_SIZE;
+        if (next->mm->pml4)
+            vmm.switch_pml4(next->mm->pml4);
 
-    if (next->mm->pml4)
-        vmm.switch_pml4(next->mm->pml4);
+        running = next;
+    }
 
-    running = next;
+    switch_now();
 }

@@ -76,5 +76,5 @@ extern "C" void kmain(void)
     // kbd->ready();
     sh->ready();
 
-    idle();
+    running->exit(0);
 }
