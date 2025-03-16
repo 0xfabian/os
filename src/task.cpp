@@ -72,7 +72,7 @@ int load_elf(Task* task, const char* path, u64* entry)
 
     if (read != sizeof(ELF::Header) || !hdr.supported())
     {
-        ikprintf(WARN "Invalid ELF header\n");
+        kprintf(WARN "Invalid ELF header\n");
         src->close();
         return -ERR_NO_EXEC;
     }
@@ -83,7 +83,7 @@ int load_elf(Task* task, const char* path, u64* entry)
 
     if (read != hdr.phnum * hdr.phentsize)
     {
-        ikprintf(WARN "Invalid program headers\n");
+        kprintf(WARN "Invalid program headers\n");
         src->close();
         return -ERR_NO_EXEC;
     }
@@ -102,7 +102,7 @@ int load_elf(Task* task, const char* path, u64* entry)
 
         // is this possible anyway?
         if (phdr->align != PAGE_SIZE)
-            ikprintf(WARN "Non-page aligned segment\n");
+            kprintf(WARN "Non-page aligned segment\n");
 
         void* addr = vmm.alloc_pages(task->mm->pml4, phdr->vaddr, PAGE_COUNT(phdr->memsz), PE_WRITE | PE_USER);
 

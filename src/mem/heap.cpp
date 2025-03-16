@@ -119,33 +119,33 @@ void Heap::debug()
 
     while (hdr)
     {
-        ikprintf("%p: ", hdr);
+        kprintf("%p: ", hdr);
 
         if (hdr->is_free())
         {
             free += hdr->size();
-            ikprintf("\e[92mfree\e[m");
+            kprintf("\e[92mfree\e[m");
         }
         else
         {
             used += hdr->size();
-            ikprintf("\e[91mused\e[m");
+            kprintf("\e[91mused\e[m");
         }
 
-        ikprintf(" %lu\n", hdr->size());
+        kprintf(" %lu\n", hdr->size());
 
         if (hdr->next && hdr->next->prev != hdr)
-            ikprintf(WARN "this->next->prev != this\n");
+            kprintf(WARN "this->next->prev != this\n");
 
         if (hdr->prev && hdr->prev->next != hdr)
-            ikprintf(WARN "this->prev->next != this\n");
+            kprintf(WARN "this->prev->next != this\n");
 
         entries++;
 
         hdr = hdr->next;
     }
 
-    ikprintf("entries=%lu    total=%lu    used=%lu    free=%lu\n", entries, used + free + entries * sizeof(Header), used, free);
+    kprintf("entries=%lu    total=%lu    used=%lu    free=%lu\n", entries, used + free + entries * sizeof(Header), used, free);
 }
 
 void* kmalloc(usize size)

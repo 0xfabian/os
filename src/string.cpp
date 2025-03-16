@@ -102,7 +102,7 @@ char* normalize_path(const char* path)
 {
     if (!path)
     {
-        ikprintf(WARN "normalize_path: path is null\n");
+        kprintf(WARN "normalize_path: path is null\n");
         return nullptr;
     }
 

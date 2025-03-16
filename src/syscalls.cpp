@@ -159,7 +159,7 @@ void sys_exit(int status)
 {
     running->exit(status);
 
-    ikprintf("Task %lu should be zombie, but it's not?\n", running->tid);
+    kprintf("Task %lu should be zombie, but it's not?\n", running->tid);
 
     idle();
 }

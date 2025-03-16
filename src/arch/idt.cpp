@@ -55,7 +55,7 @@ void default_handler(interrupt_frame* frame)
 {
     if (running)
     {
-        ikprintf(PANIC "Unhandled interrupt in task %lu\n", running->tid);
+        kprintf(PANIC "Unhandled interrupt in task %lu\n", running->tid);
         idle();
     }
     else
@@ -66,7 +66,7 @@ void gp_fault_handler(interrupt_frame* frame, u64 error_code)
 {
     if (running)
     {
-        ikprintf(PANIC "General Protection Fault in task %lu (%lx)\n", running->tid, error_code);
+        kprintf(PANIC "General Protection Fault in task %lu (%lx)\n", running->tid, error_code);
         idle();
     }
     else
@@ -77,7 +77,7 @@ void page_fault_handler(interrupt_frame* frame, u64 error_code)
 {
     if (running)
     {
-        ikprintf(PANIC "Page Fault in task %lu (%lx)\n", running->tid, error_code);
+        kprintf(PANIC "Page Fault in task %lu (%lx)\n", running->tid, error_code);
         idle();
     }
     else
@@ -95,13 +95,7 @@ void keyboard_handler(interrupt_frame* frame)
     if (ch == 'd' && kbd_state & KBD_CTRL)
         fbterm.handle_requests();
     else if (ch == 'u' && kbd_state & KBD_CTRL)
-    {
-        while (fbterm.input_cursor)
-        {
-            fbterm.input_cursor--;
-            fbterm.write("\b", 1);
-        }
-    }
+        fbterm.clear_input();
     else if (ch)
         fbterm.receive_char(ch);
 

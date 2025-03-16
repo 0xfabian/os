@@ -94,6 +94,14 @@ static inline void outl(u16 port, u32 val)
     asm volatile ("outl %0, %1" : : "a"(val), "d"(port));
 }
 
+static inline u64 read_rflags()
+{
+    u64 rflags;
+    asm volatile("pushfq; popq %0" : "=r"(rflags));
+
+    return rflags;
+}
+
 static inline u64 read_cr3()
 {
     u64 cr3;
