@@ -86,8 +86,6 @@ void page_fault_handler(interrupt_frame* frame, u64 error_code)
 
 void keyboard_handler(interrupt_frame* frame)
 {
-    // key_queue.push(inb(0x60));
-
     u8 key = inb(0x60);
 
     char ch = translate_key(key);
