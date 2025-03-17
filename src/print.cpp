@@ -2,21 +2,14 @@
 #include <task.h>
 
 #define BUFFER_SIZE 256
-char buf[BUFFER_SIZE];
-int buf_index = 0;
 
-void write_buf()
+char buf_start[BUFFER_SIZE];
+char temp_buf[BUFFER_SIZE];
+char* buf_end;
+
+inline void append_char(char c)
 {
-    fbterm.write(buf, buf_index);
-    buf_index = 0;
-}
-
-void append_char(char c)
-{
-    if (buf_index == BUFFER_SIZE)
-        write_buf();
-
-    buf[buf_index++] = c;
+    *buf_end++ = c;
 }
 
 void append_string(const char* str)
@@ -101,10 +94,57 @@ void append_binary(u64 num, int size)
         append_char((num >> i) & 1 ? '1' : '0');
 }
 
+int parse_width_mod(const char*& ptr)
+{
+    int width = 0;
+    bool negative = false;
+
+    if (*ptr == '-')
+    {
+        negative = true;
+        ptr++;
+    }
+
+    while (*ptr >= '0' && *ptr <= '9')
+    {
+        width = width * 10 + (*ptr - '0');
+        ptr++;
+    }
+
+    return negative ? -width : width;
+}
+
+int parse_size_mod(const char*& ptr)
+{
+    int size = 2;
+
+    if (*ptr == 'l')
+    {
+        size++;
+        ptr++;
+    }
+    else if (*ptr == 'h')
+    {
+        size--;
+        ptr++;
+
+        if (*ptr == 'h')
+        {
+            size--;
+            ptr++;
+        }
+    }
+
+    return size;
+}
+
 void kprintf(const char* fmt, ...)
 {
     u64 rflags = read_rflags();
     cli();
+
+    buf_end = buf_start;
+    char* arg_start = nullptr;
 
     va_list args;
     va_start(args, fmt);
@@ -119,31 +159,17 @@ void kprintf(const char* fmt, ...)
 
         ptr++;
 
-        int size_mod = 2;
+        int width = *ptr == '*' ? (ptr++, va_arg(args, int)) : parse_width_mod(ptr);
+        int size = parse_size_mod(ptr);
 
-        if (*ptr == 'l')
-        {
-            size_mod = 3;
-            ptr++;
-        }
-        else if (*ptr == 'h')
-        {
-            size_mod = 1;
-            ptr++;
-
-            if (*ptr == 'h')
-            {
-                size_mod = 0;
-                ptr++;
-            }
-        }
+        arg_start = buf_end;
 
         switch (*ptr)
         {
         case 'd':
         case 'i':
         {
-            switch (size_mod)
+            switch (size)
             {
             case 0: append_int((char)va_arg(args, int));                        break;
             case 1: append_int((short)va_arg(args, int));                       break;
@@ -155,7 +181,7 @@ void kprintf(const char* fmt, ...)
         }
         case 'u':
         {
-            switch (size_mod)
+            switch (size)
             {
             case 0: append_uint((unsigned char)va_arg(args, unsigned int));     break;
             case 1: append_uint((unsigned short)va_arg(args, unsigned int));    break;
@@ -167,7 +193,7 @@ void kprintf(const char* fmt, ...)
         }
         case 'x':
         {
-            switch (size_mod)
+            switch (size)
             {
             case 0: append_hex(va_arg(args, unsigned int), 1);                  break;
             case 1: append_hex(va_arg(args, unsigned int), 2);                  break;
@@ -179,7 +205,7 @@ void kprintf(const char* fmt, ...)
         }
         case 'b':
         {
-            switch (size_mod)
+            switch (size)
             {
             case 0: append_binary(va_arg(args, unsigned int), 1);               break;
             case 1: append_binary(va_arg(args, unsigned int), 2);               break;
@@ -209,10 +235,30 @@ void kprintf(const char* fmt, ...)
         }
         case '%': append_char('%');                                             break;
         }
+
+        if (!width)
+            continue;
+
+        usize len = buf_end - arg_start;
+        int padding = (width < 0 ? -width : width) - len;
+
+        if (padding <= 0)
+            continue;
+
+        if (width > 0)
+        {
+            memmove(arg_start + padding, arg_start, len);
+            memset(arg_start, ' ', padding);
+        }
+        else
+            memset(buf_end, ' ', padding);
+
+        buf_end += padding;
     }
 
-    write_buf();
     va_end(args);
+
+    fbterm.write(buf_start, buf_end - buf_start);
 
     if (rflags & 0x200)
         sti();
