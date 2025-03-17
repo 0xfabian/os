@@ -269,7 +269,7 @@ usize InodeTable::get_sb_refs(Superblock* sb)
 
 void InodeTable::debug()
 {
-    kprintf("Inode table:\n{\n");
+    kprintf("\e[7m %-8s %-18s    %-8s %-8s    %-8s %-8s %-8s %-8s %-57s \e[27m\n", "ENTRY", "SUPERBLOCK", "INO", "TYPE", "SIZE", "REFS", "NLINKS", "FLAGS", "OPERATIONS");
 
     for (int i = 0; i < INODE_TABLE_SIZE; i++)
     {
@@ -278,7 +278,7 @@ void InodeTable::debug()
         if ((inode->flags & IF_ALLOC) == 0)
             continue;
 
-        kprintf("    %d: sb=%a ino=%lu type=%x size=%lu refs=%d nlinks=%d flags=%hhx ", i, inode->sb, inode->ino, inode->type, inode->size, inode->refs, inode->nlinks, inode->flags);
+        kprintf(" %-8d %p    %-8lu %x    %-8lu %-8d %-8d %-8hhx ", i + 1, inode->sb, inode->ino, inode->type, inode->size, inode->refs, inode->nlinks, inode->flags);
 
         if (inode->ops.create)
             kprintf("create ");
@@ -309,6 +309,4 @@ void InodeTable::debug()
 
         kprintf("\n");
     }
-
-    kprintf("}\n");
 }

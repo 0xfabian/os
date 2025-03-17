@@ -177,7 +177,7 @@ result_ptr<File> FileTable::alloc()
 
 void FileTable::debug()
 {
-    kprintf("File table:\n{\n");
+    kprintf("\e[7m %-8s %-12s %-8s %-16s %-8s %-40s \e[27m\n", "ENTRY", "OFFSET", "INODE", "FLAGS", "REFS", "OPERATIONS");
 
     for (int i = 0; i < FILE_TABLE_SIZE; i++)
     {
@@ -186,7 +186,7 @@ void FileTable::debug()
         if (file->refs == 0)
             continue;
 
-        kprintf("    %d: offset=%lu inode=%a flags=%x refs=%d ", i, file->offset, file->inode, file->flags, file->refs);
+        kprintf(" %-8d %-12lu %-8lu %-16x %-8d ", i + 1, file->offset, file->inode - inode_table.inodes + 1, file->flags, file->refs);
 
         if (file->ops.open)
             kprintf("open ");
@@ -211,8 +211,6 @@ void FileTable::debug()
 
         kprintf("\n");
     }
-
-    kprintf("}\n");
 }
 
 usize generic_seek(File* file, usize offset, int whence)

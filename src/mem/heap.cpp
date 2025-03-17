@@ -115,24 +115,18 @@ void Heap::debug()
 
     usize free = 0;
     usize used = 0;
-    usize entries = 0;
+    usize entries = 1;
+
+    kprintf("\e[7m %-8s %-8s %-14s %-18s    %-18s    %-18s \e[27m\n", "ENTRY", "TYPE", "SIZE", "ADDRESS", "NEXT", "PREV");
 
     while (hdr)
     {
-        kprintf("%p: ", hdr);
-
         if (hdr->is_free())
-        {
             free += hdr->size();
-            kprintf("\e[92mfree\e[m");
-        }
         else
-        {
             used += hdr->size();
-            kprintf("\e[91mused\e[m");
-        }
 
-        kprintf(" %lu\n", hdr->size());
+        kprintf(" %-8lu \e[9%dm%-8s\e[m %-14lu %p    %p    %p\n", entries, 1 + hdr->is_free(), hdr->is_free() ? "free" : "used", hdr->size(), hdr, hdr->next, hdr->prev);
 
         if (hdr->next && hdr->next->prev != hdr)
             kprintf(WARN "this->next->prev != this\n");
@@ -145,7 +139,11 @@ void Heap::debug()
         hdr = hdr->next;
     }
 
-    kprintf("entries=%lu    total=%lu    used=%lu    free=%lu\n", entries, used + free + entries * sizeof(Header), used, free);
+    usize total = used + free + entries * sizeof(Header);
+    usize free_percent = free * 100 / total;
+    usize used_percent = 100 - free_percent;
+
+    kprintf("total: %lu    used: %lu (%lu%%)    free: %lu (%lu%%)\n", total, used, used_percent, free, free_percent);
 }
 
 void* kmalloc(usize size)
