@@ -50,6 +50,8 @@ struct FramebufferTerminal
 
     u32 fg;
     u32 bg;
+    u32* fg_ptr;
+    u32* bg_ptr;
 
     enum EscapeState
     {

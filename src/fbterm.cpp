@@ -2,63 +2,65 @@
 #include <task.h>
 #include <fs/inode.h>
 
-// #define FOREGROUND          0xf0ffff
-// #define BACKGROUND          0x192840
-// #define BLACK               0x1a1c1f
-// #define RED                 0xc50f1f
-// #define GREEN               0x34a116
-// #define YELLOW              0xf2a623
-// #define BLUE                0x2b5cb3
-// #define MAGENTA             0x8a155e
-// #define CYAN                0x3dbab5
-// #define WHITE               0xcccccc
-// #define BRIGHT_BLACK        0x8d95a3
-// #define BRIGHT_RED          0xff4a4a
-// #define BRIGHT_GREEN        0x89ff64
-// #define BRIGHT_YELLOW       0xffea3a
-// #define BRIGHT_BLUE         0x6fa3ff
-// #define BRIGHT_MAGENTA      0xb53083
-// #define BRIGHT_CYAN         0x79f9de
+// vga
+// #define FOREGROUND          0xaaaaaa
+// #define BACKGROUND          0x000000
+// #define BLACK               0x000000
+// #define RED                 0xaa0000
+// #define GREEN               0x00aa00
+// #define YELLOW              0xaa5500
+// #define BLUE                0x0000aa
+// #define MAGENTA             0xaa00aa
+// #define CYAN                0x00aaaa
+// #define WHITE               0xaaaaaa
+// #define BRIGHT_BLACK        0x555555
+// #define BRIGHT_RED          0xff5555
+// #define BRIGHT_GREEN        0x55ff55
+// #define BRIGHT_YELLOW       0xffff55
+// #define BRIGHT_BLUE         0x5555ff
+// #define BRIGHT_MAGENTA      0xff55ff
+// #define BRIGHT_CYAN         0x55ffff
+// #define BRIGHT_WHITE        0xffffff
+
+// gruvbox
+#define FOREGROUND          0xfbf1c7
+#define BACKGROUND          0x282828
+#define BLACK               0x282828
+#define RED                 0xcc241d
+#define GREEN               0x98971a
+#define YELLOW              0xd79921
+#define BLUE                0x458588
+#define MAGENTA             0xb16286
+#define CYAN                0x689d6a
+#define WHITE               0xa89984
+#define BRIGHT_BLACK        0x928374
+#define BRIGHT_RED          0xfb4934
+#define BRIGHT_GREEN        0xb8bb26
+#define BRIGHT_YELLOW       0xfabd2f
+#define BRIGHT_BLUE         0x83a598
+#define BRIGHT_MAGENTA      0xd3869b
+#define BRIGHT_CYAN         0x8ec07c
+#define BRIGHT_WHITE        0xebdbb2
+
+// github
+// #define FOREGROUND          0xecf2f8
+// #define BACKGROUND          0x0d1117
+// #define BLACK               0x21262d
+// #define RED                 0xc73834
+// #define GREEN               0x49a648
+// #define YELLOW              0xb05b28
+// #define BLUE                0x3d84b0
+// #define MAGENTA             0x744bba
+// #define CYAN                0x538aab
+// #define WHITE               0xc6cdd5
+// #define BRIGHT_BLACK        0x89929b
+// #define BRIGHT_RED          0xfa7970
+// #define BRIGHT_GREEN        0x7ce38b
+// #define BRIGHT_YELLOW       0xfaa356
+// #define BRIGHT_BLUE         0x77bdfb
+// #define BRIGHT_MAGENTA      0xcea5fb
+// #define BRIGHT_CYAN         0xa2d2fb
 // #define BRIGHT_WHITE        0xf2f2f2
-
-// gruvbox color theme
-// #define FOREGROUND          0xfbf1c7
-// #define BACKGROUND          0x282828
-// #define BLACK               0x282828
-// #define RED                 0xcc241d
-// #define GREEN               0x98971a
-// #define YELLOW              0xd79921
-// #define BLUE                0x458588
-// #define MAGENTA             0xb16286
-// #define CYAN                0x689d6a
-// #define WHITE               0xa89984
-// #define BRIGHT_BLACK        0x928374
-// #define BRIGHT_RED          0xfb4934
-// #define BRIGHT_GREEN        0xb8bb26
-// #define BRIGHT_YELLOW       0xfabd2f
-// #define BRIGHT_BLUE         0x83a598
-// #define BRIGHT_MAGENTA      0xd3869b
-// #define BRIGHT_CYAN         0x8ec07c
-// #define BRIGHT_WHITE        0xebdbb2
-
-#define FOREGROUND          0xecf2f8
-#define BACKGROUND          0x0d1117
-#define BLACK               0x21262d
-#define RED                 0xc73834
-#define GREEN               0x49a648
-#define YELLOW              0xb05b28
-#define BLUE                0x3d84b0
-#define MAGENTA             0x744bba
-#define CYAN                0x538aab
-#define WHITE               0xc6cdd5
-#define BRIGHT_BLACK        0x89929b
-#define BRIGHT_RED          0xfa7970
-#define BRIGHT_GREEN        0x7ce38b
-#define BRIGHT_YELLOW       0xfaa356
-#define BRIGHT_BLUE         0x77bdfb
-#define BRIGHT_MAGENTA      0xcea5fb
-#define BRIGHT_CYAN         0xa2d2fb
-#define BRIGHT_WHITE        0xf2f2f2
 
 u32 colors[] =
 {
@@ -118,6 +120,8 @@ void FramebufferTerminal::init()
 
     fg = FOREGROUND;
     bg = BACKGROUND;
+    fg_ptr = &fg;
+    bg_ptr = &bg;
 
     state = NONE;
     param_index = 0;
@@ -166,7 +170,7 @@ void FramebufferTerminal::enable_backbuffer()
 
 void FramebufferTerminal::clear()
 {
-    u64 value = ((u64)bg << 32) | bg;
+    u64 value = ((u64)*bg_ptr << 32) | *bg_ptr;
 
     for (u64* ptr = (u64*)frontbuffer; ptr < (u64*)frontbuffer_end; ptr++)
         *ptr = value;
@@ -185,7 +189,7 @@ void FramebufferTerminal::clear()
 
 void FramebufferTerminal::scroll()
 {
-    u64 value = ((u64)bg << 32) | bg;
+    u64 value = ((u64)*bg_ptr << 32) | *bg_ptr;
     u64 scroll_offset = fb->width * font->header->height;
 
     if (!backbuffer)
@@ -223,7 +227,7 @@ void FramebufferTerminal::write(const char* buffer, usize len)
     const char* ptr = buffer;
     usize i = 0;
 
-    draw_cursor(bg);
+    draw_cursor(*bg_ptr);
 
     while (i < len)
     {
@@ -284,7 +288,7 @@ void FramebufferTerminal::write(const char* buffer, usize len)
         i++;
     }
 
-    draw_cursor(fg);
+    draw_cursor(*fg_ptr);
     cursor_ticks = 0;
 }
 
@@ -337,6 +341,19 @@ void FramebufferTerminal::ansi_function(char name, int arg)
         {
             fg = FOREGROUND;
             bg = BACKGROUND;
+
+            fg_ptr = &fg;
+            bg_ptr = &bg;
+        }
+        else if (arg == 7)
+        {
+            fg_ptr = &bg;
+            bg_ptr = &fg;
+        }
+        else if (arg == 27)
+        {
+            fg_ptr = &fg;
+            bg_ptr = &bg;
         }
 
         break;
@@ -407,7 +424,7 @@ void FramebufferTerminal::tick()
         needs_render = false;
     }
     else if (cursor_ticks % 20 == 0)
-        fbterm.draw_cursor(cursor_ticks % 40 ? fbterm.bg : fbterm.fg);
+        draw_cursor(cursor_ticks % 40 ? *bg_ptr : *fg_ptr);
 
     cursor_ticks++;
 }
@@ -518,7 +535,7 @@ void FramebufferTerminal::draw_bitmap(char ch)
     //         if (x == 8)
     //             font_ptr++;
 
-    //         draw_ptr[x] = (*font_ptr & (0b10000000 >> (x & 7))) ? fg : bg;
+    //         draw_ptr[x] = (*font_ptr & (0b10000000 >> (x & 7))) ? *fg_ptr : *bg_ptr;
     //     }
 
     //     font_ptr++;
@@ -529,7 +546,7 @@ void FramebufferTerminal::draw_bitmap(char ch)
     for (y = 0; y < font->header->height; y++)
     {
         for (x = 0; x < font->header->width; x++)
-            draw_ptr[x] = alpha_blend(fg, bg, font_ptr[x]);
+            draw_ptr[x] = alpha_blend(*fg_ptr, *bg_ptr, font_ptr[x]);
 
         font_ptr += font->header->width;
         draw_ptr += fb->width;
