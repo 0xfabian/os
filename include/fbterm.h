@@ -47,6 +47,7 @@ struct FramebufferTerminal
     u32 height;
     u32 cursor;
     u32 write_cursor;
+    bool cursor_visible;
 
     u32 fg;
     u32 bg;
@@ -76,6 +77,7 @@ struct FramebufferTerminal
     void enable_backbuffer();
 
     void clear();
+    void clear_to_eol();
     void scroll();
 
     void write(const char* buffer, usize len);
@@ -90,7 +92,7 @@ struct FramebufferTerminal
     void handle_requests();
 
     void draw_bitmap(char ch);
-    void draw_cursor(u32 color);
+    void draw_cursor(bool on);
     void render();
 
     void give_fops(FileOps* fops);

@@ -109,6 +109,7 @@ void FramebufferTerminal::init()
     height = fb->height / font->header->height;
     cursor = 0;
     write_cursor = 0;
+    cursor_visible = true;
 
     frontbuffer = fb->addr;
     frontbuffer_end = fb->addr + fb->width * fb->height;
@@ -187,6 +188,39 @@ void FramebufferTerminal::clear()
     write_cursor = 0;
 }
 
+void FramebufferTerminal::clear_to_eol()
+{
+    u64 value = ((u64)*bg_ptr << 32) | *bg_ptr;
+    u32 line = (cursor / width) * font->header->height;
+    u32 start = (cursor % width) * font->header->width;
+
+    u32* ptr = frontbuffer + line * fb->width;
+
+    for (u32 y = 0; y < font->header->height; y++)
+    {
+        for (u32 x = start; x < fb->width; x++)
+            ptr[x] = value;
+
+        ptr += fb->width;
+    }
+
+    if (backbuffer)
+    {
+        ptr = backbuffer_pos + line * fb->width;
+
+        if (ptr >= backbuffer_end)
+            ptr -= backbuffer_end - backbuffer;
+
+        for (u32 y = 0; y < font->header->height; y++)
+        {
+            for (u32 x = start; x < fb->width; x++)
+                ptr[x] = value;
+
+            ptr += fb->width;
+        }
+    }
+}
+
 void FramebufferTerminal::scroll()
 {
     u64 value = ((u64)*bg_ptr << 32) | *bg_ptr;
@@ -227,7 +261,7 @@ void FramebufferTerminal::write(const char* buffer, usize len)
     const char* ptr = buffer;
     usize i = 0;
 
-    draw_cursor(*bg_ptr);
+    draw_cursor(false);
 
     while (i < len)
     {
@@ -288,7 +322,7 @@ void FramebufferTerminal::write(const char* buffer, usize len)
         i++;
     }
 
-    draw_cursor(*fg_ptr);
+    draw_cursor(true);
     cursor_ticks = 0;
 }
 
@@ -323,6 +357,7 @@ isize FramebufferTerminal::read(char* buffer, usize len)
     return read;
 }
 
+bool in_ansi_H = false;
 void FramebufferTerminal::ansi_function(char name, int arg)
 {
     switch (name)
@@ -331,8 +366,12 @@ void FramebufferTerminal::ansi_function(char name, int arg)
 
         if (arg >= 30 && arg <= 37)
             fg = colors[arg - 30];
+        else if (arg == 39)
+            fg = FOREGROUND;
         else if (arg >= 40 && arg <= 47)
             bg = colors[arg - 40];
+        else if (arg == 49)
+            bg = BACKGROUND;
         else if (arg >= 90 && arg <= 97)
             fg = colors[arg - 90 + 8];
         else if (arg >= 100 && arg <= 107)
@@ -356,6 +395,28 @@ void FramebufferTerminal::ansi_function(char name, int arg)
             bg_ptr = &bg;
         }
 
+        break;
+
+    case 'H':
+
+        if (!in_ansi_H)
+            cursor = (arg - 1) * width;
+        else
+            cursor += arg - 1;
+
+        in_ansi_H = !in_ansi_H;
+        break;
+
+    case 'K':
+        clear_to_eol();
+        break;
+    case 'h':
+        if (arg == 25)
+            cursor_visible = true;
+        break;
+    case 'l':
+        if (arg == 25)
+            cursor_visible = false;
         break;
     }
 }
@@ -384,7 +445,12 @@ void FramebufferTerminal::putchar(char ch)
     }
 
     if (cursor >= width * height)
-        scroll();
+    {
+        if (line_buffered)
+            scroll();
+        else
+            cursor = width * height - 1;
+    }
 }
 
 void FramebufferTerminal::receive_char(char ch)
@@ -396,6 +462,15 @@ void FramebufferTerminal::receive_char(char ch)
     }
     else
     {
+        if (!line_buffered)
+        {
+            if (kbd_state & KBD_CTRL && isalpha(ch))
+                ch = ch - 'a' + 1;
+
+            if (ch == '\b')
+                ch = 0x7f;
+        }
+
         if (input_cursor < INPUT_BUFFER_SIZE)
             input_buffer[input_cursor++] = ch;
 
@@ -424,7 +499,7 @@ void FramebufferTerminal::tick()
         needs_render = false;
     }
     else if (cursor_ticks % 20 == 0)
-        draw_cursor(cursor_ticks % 40 ? *bg_ptr : *fg_ptr);
+        draw_cursor(cursor_ticks % 40 == 0);
 
     cursor_ticks++;
 }
@@ -522,7 +597,7 @@ void FramebufferTerminal::draw_bitmap(char ch)
         draw_ptr = backbuffer_pos + x + y * fb->width;
 
         if (draw_ptr >= backbuffer_end)
-            draw_ptr -= fb->width * fb->height;
+            draw_ptr -= backbuffer_end - backbuffer;
     }
     else
         draw_ptr = front_ptr;
@@ -570,8 +645,11 @@ void FramebufferTerminal::draw_bitmap(char ch)
     }
 }
 
-void FramebufferTerminal::draw_cursor(u32 color)
+void FramebufferTerminal::draw_cursor(bool on)
 {
+    if (!cursor_visible)
+        return;
+
     u32 x = (cursor % width) * font->header->width;
     u32 y = (cursor / width) * font->header->height;
 
@@ -580,7 +658,7 @@ void FramebufferTerminal::draw_cursor(u32 color)
     for (y = 0; y < font->header->height; y++)
     {
         for (x = 0; x < font->header->width; x++)
-            ptr[x] = color;
+            ptr[x] = on ? *fg_ptr : *bg_ptr;
 
         ptr += fb->width;
     }
@@ -610,15 +688,29 @@ isize fbterm_write(File* file, const char* buf, usize size, usize offset)
     return size;
 }
 
+#define FBTERM_CLEAR        1
+#define FBTERM_ECHO_ON      2
+#define FBTERM_ECHO_OFF     3
+#define FBTERM_LB_ON        4
+#define FBTERM_LB_OFF       5
+#define FBTERM_GET_WIDTH    6
+#define FBTERM_GET_HEIGHT   7
+
 int fbterm_ioctl(File* file, int cmd, void* arg)
 {
-    if (cmd == 1)
+    switch (cmd)
     {
-        fbterm.clear();
-        return 0;
+    case FBTERM_CLEAR:      fbterm.clear();                 break;
+    case FBTERM_ECHO_ON:    fbterm.echo = true;             break;
+    case FBTERM_ECHO_OFF:   fbterm.echo = false;            break;
+    case FBTERM_LB_ON:      fbterm.line_buffered = true;    break;
+    case FBTERM_LB_OFF:     fbterm.line_buffered = false;   break;
+    case FBTERM_GET_WIDTH:  *(int*)arg = fbterm.width;      break;
+    case FBTERM_GET_HEIGHT: *(int*)arg = fbterm.height;     break;
+    default:                                                return -1;
     }
 
-    return -1;
+    return 0;
 }
 
 void FramebufferTerminal::give_fops(FileOps* fops)
