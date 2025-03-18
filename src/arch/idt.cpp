@@ -86,16 +86,84 @@ void page_fault_handler(interrupt_frame* frame, u64 error_code)
 
 void keyboard_handler(interrupt_frame* frame)
 {
+    // // e0 53 delete     \e[3~
+    // // e0 47 home       \e[H
+    // // e0 4f end        \e[F
+    // // e0 48 up         \e[A
+    // // e0 50 down       \e[B
+    // // e0 4d right      \e[C
+    // // e0 4b left       \e[D
+    // // 1;2 shift modifier
+
+    // u8 key = inb(0x60);
+    // bool extended = false;
+
+    // if (key == 0xe0)
+    // {
+    //     extended = true;
+    //     key = inb(0x60);
+    // }
+
+    // if (extended && (key & 0x80) == 0)
+    // {
+    //     if (fbterm.echo)
+    //     {
+    //         fbterm.receive_char('^');
+    //         fbterm.receive_char('[');
+    //     }
+    //     else
+    //         fbterm.receive_char('\e');
+
+    //     fbterm.receive_char('[');
+
+    //     if (key == 0x53)
+    //     {
+    //         fbterm.receive_char('3');
+    //         fbterm.receive_char('~');
+    //     }
+    //     else
+    //     {
+    //         if (kbd_state & KBD_LSHIFT || kbd_state & KBD_RSHIFT)
+    //         {
+    //             fbterm.receive_char('1');
+    //             fbterm.receive_char(';');
+    //             fbterm.receive_char('2');
+    //         }
+
+    //         if (key == 0x47)
+    //             fbterm.receive_char('H');
+    //         else if (key == 0x4f)
+    //             fbterm.receive_char('F');
+    //         else if (key == 0x48)
+    //             fbterm.receive_char('A');
+    //         else if (key == 0x50)
+    //             fbterm.receive_char('B');
+    //         else if (key == 0x4d)
+    //             fbterm.receive_char('C');
+    //         else if (key == 0x4b)
+    //             fbterm.receive_char('D');
+    //     }
+    // }
+    // else
+    // {
+    //     char ch = translate_key(key);
+
+    //     if (ch == 'd' && kbd_state & KBD_CTRL)
+    //         fbterm.handle_requests();
+    //     else if (ch == 'u' && kbd_state & KBD_CTRL)
+    //         fbterm.clear_input();
+    //     else if (ch)
+    //         fbterm.receive_char(ch);
+    // }
+
     u8 key = inb(0x60);
+    key_queue.push(key);
 
-    char ch = translate_key(key);
-
-    if (ch == 'd' && kbd_state & KBD_CTRL)
-        fbterm.handle_requests();
-    else if (ch == 'u' && kbd_state & KBD_CTRL)
-        fbterm.clear_input();
-    else if (ch)
-        fbterm.receive_char(ch);
+    if (key == 0xe0)
+    {
+        key = inb(0x60);
+        key_queue.push(key);
+    }
 
     pic::send_eoi(1);
 }

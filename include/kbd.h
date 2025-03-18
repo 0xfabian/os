@@ -7,6 +7,21 @@
 #define KBD_RSHIFT  4
 #define KBD_CAPS    8
 
+struct KeyQueue
+{
+    u8 buffer[256];
+    u8 head;
+    u8 tail;
+
+    void push(char key);
+    char pop();
+    bool empty();
+};
+
+struct Task;
+
+extern KeyQueue key_queue;
+extern Task* kbd_task;
 extern char key_lookup[128];
 extern char shift_key_lookup[128];
 extern u8 kbd_state;
@@ -22,3 +37,4 @@ static inline bool isprint(char c)
 }
 
 char translate_key(int key);
+void keyboard_task();
