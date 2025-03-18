@@ -70,6 +70,9 @@ extern "C" void kmain(void)
 
     sched_init();
 
+    kbd_task = Task::from(keyboard_task);
+    kbd_task->state = TASK_SLEEPING;
+
     Task* sh = Task::from(mnt ? "/mnt/sh" : "/sh");
 
     sh->ready();

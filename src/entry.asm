@@ -4,10 +4,12 @@ extern timer_handler
 extern syscall_handler
 extern running
 extern schedule
+extern leave_and_sched
 
 global timer_handler_asm
 global syscall_handler_asm
 global yield
+global pause
 global switch_now
 
 %macro PUSH_REGS 0
@@ -84,6 +86,10 @@ timer_handler_asm:
 
 yield:
 
+    ; this should be used only in kernel tasks for now
+    ; !!! the context is saved on top of the current stack
+    ; so at the end krsp is not mm->kernel_stack + KERNEL_STACK_SIZE
+
     ; this is a critical section
     cli
 
@@ -112,12 +118,39 @@ yield:
 
     call schedule
 
+pause:
+
+    ; this should be used only in kernel tasks for now
+    ; !!! the context is saved on top of the current stack
+    ; so at the end krsp is not mm->kernel_stack + KERNEL_STACK_SIZE
+
+    ; this is a critical section
+    cli
+
+    ; use rax and rdx to rip and rsp
+    pop rax
+    mov rdx, rsp
+
+    ; use kernel cs and ss since they should be only called from kernel
+    sub rsp, 8
+    mov qword [rsp], 0x10
+
+    push rdx
+
+    pushfq
+    or qword [rsp], 0x200
+
+    sub rsp, 8
+    mov qword [rsp], 0x08
+
+    push rax
+
+    PUSH_REGS
+    
     mov rdi, [running]
-    mov rsp, [rdi]
+    mov [rdi], rsp
 
-    POP_REGS
-
-    iretq
+    call leave_and_sched
 
 syscall_handler_asm:
 

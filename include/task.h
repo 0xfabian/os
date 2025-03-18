@@ -73,4 +73,6 @@ extern Task* running;
 
 void sched_init();
 extern "C" void schedule();
+extern "C" void leave_and_sched();
 extern "C" void yield();
+extern "C" void pause();

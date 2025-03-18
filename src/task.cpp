@@ -483,3 +483,8 @@ void schedule()
 
     switch_now();
 }
+
+void leave_and_sched()
+{
+    running->sleep();
+}
