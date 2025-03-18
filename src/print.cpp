@@ -4,7 +4,6 @@
 #define BUFFER_SIZE 256
 
 char buf_start[BUFFER_SIZE];
-char temp_buf[BUFFER_SIZE];
 char* buf_end;
 
 inline void append_char(char c)
