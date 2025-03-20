@@ -4,11 +4,53 @@ FileTable file_table;
 
 result_ptr<File> File::open(const char* path, u32 flags)
 {
+    if (flags & O_EXCL && !(flags & O_CREAT))
+        return -ERR_BAD_ARG;
+
     auto inode = Inode::get(path);
 
-    // should probably check if is O_CREAT
     if (!inode)
-        return inode.error();
+    {
+        if (!(flags & O_CREAT))
+            return inode.error();
+
+        const char* name = basename(path);
+
+        if (!name)
+            return -ERR_BAD_ARG;
+
+        auto dir = Inode::get(dirname(path));
+
+        if (!dir)
+            return dir.error();
+
+        int err = dir->create(name);
+        dir->put();
+
+        if (err)
+            return err;
+
+        inode = Inode::get(path);
+
+        if (!inode)
+            return inode.error();
+    }
+    else if (flags & O_EXCL)
+    {
+        inode->put();
+        return -ERR_EXISTS;
+    }
+
+    if (flags & O_TRUNC)
+    {
+        int err = inode->truncate(0);
+
+        if (err)
+        {
+            inode->put();
+            return err;
+        }
+    }
 
     auto file = file_table.alloc();
 
