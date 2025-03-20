@@ -1190,7 +1190,7 @@ Token next_c_token(char*& ptr)
     if (parse_whitespace(ptr))
         ret.color = 90;
     else if (parse_comment(ptr))
-        ret.color = 90;
+        ret.color = 37;
     else if (parse_directive(ptr))
         ret.color = 94;
     else if (parse_include_path(ptr))
@@ -1394,7 +1394,7 @@ Token next_asm_token(char*& ptr)
     if (parse_whitespace(ptr))
         ret.color = 90;
     else if (parse_asm_comment(ptr))
-        ret.color = 90;
+        ret.color = 37;
     else if (parse_asm_directive(ptr))
         ret.color = 94;
     else if (parse_string(ptr))
@@ -1537,16 +1537,18 @@ void draw(Editor* ed)
 
             if (should_reverse != in_reverse)
             {
-                printf(should_reverse ? "\e[7m" : "\e[27m");
+                printf(should_reverse ? "\e[100m" : "\e[49m");
                 in_reverse = should_reverse;
             }
 
-            if (at_cursor && inside_selection)
+            if (at_cursor)
             {
-                color = 90;
-                printf("\e[90m");
+                printf("\e[107;30m%c\e[%dm", ch, in_reverse ? 100 : 49);
+                color = -1;
+                continue;
             }
-            else if (color_buf[col] != color)
+
+            if (color_buf[col] != color)
             {
                 color = color_buf[col];
                 printf("\e[%dm", color);
