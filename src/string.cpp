@@ -98,11 +98,11 @@ char* path_read_next(const char*& ptr)
 }
 
 // this should be always an absolute path
-char* normalize_path(const char* path)
+char* path_normalize(const char* path)
 {
     if (!path)
     {
-        kprintf(WARN "normalize_path: path is null\n");
+        kprintf(WARN "path_normalize: path is null\n");
         return nullptr;
     }
 
@@ -146,4 +146,64 @@ char* normalize_path(const char* path)
     }
 
     return normalized;
+}
+
+#define DIRNAME_BUF_SIZE    256
+#define BASENAME_BUF_SIZE   256
+
+char dirname_buf[DIRNAME_BUF_SIZE];
+char basename_buf[BASENAME_BUF_SIZE];
+
+const char* dirname(const char* path)
+{
+    if (*path == 0)
+        return ".";
+
+    strcpy(dirname_buf, path);
+
+    char* end = dirname_buf + strlen(dirname_buf) - 1;
+
+    while (*end == '/')
+    {
+        if (end == dirname_buf)
+            return dirname_buf;
+
+        *end-- = 0;
+    }
+
+    while (end >= dirname_buf && *end != '/')
+        end--;
+
+    if (end < dirname_buf)
+        return ".";
+
+    if (end == dirname_buf)
+        return "/";
+
+    *end = 0;
+
+    return dirname_buf;
+}
+
+const char* basename(const char* path)
+{
+    if (*path == 0)
+        return nullptr;
+
+    strcpy(basename_buf, path);
+
+    char* end = basename_buf + strlen(basename_buf) - 1;
+
+    while (*end == '/')
+    {
+        if (end == basename_buf)
+            return nullptr;
+
+        *end-- = '\0';
+    }
+
+    while (end >= basename_buf && *end != '/')
+        end--;
+
+    return end + 1;
 }

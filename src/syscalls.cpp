@@ -222,7 +222,7 @@ int sys_chdir(const char* path)
     }
 
     // this frees new_cwd_str and allocates a new one
-    running->cwd_str = normalize_path(new_cwd_str);
+    running->cwd_str = path_normalize(new_cwd_str);
 
     running->cwd->put();
     running->cwd = inode.ptr;
