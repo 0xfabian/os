@@ -3,4 +3,5 @@
 /disk
 disk.img
 zap-light20.psf
-/usr
+/usr/bin
+/usr/cc
