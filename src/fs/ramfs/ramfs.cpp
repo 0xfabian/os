@@ -28,7 +28,7 @@ isize ramfs_writei(Inode* inode, const void* buf, usize size, usize offset)
 
     memcpy((char*)inode->data + offset, buf, size);
 
-    return 0;
+    return size;
 }
 
 isize ramfs_readi(Inode* inode, void* buf, usize size, usize offset)
@@ -177,8 +177,8 @@ int ramfs_link(Inode* dir, const char* name, Inode* inode)
         strcpy(free->name, name);
         free->ino = inode->ino;
         free->type = inode->type;
-        inode->nlinks++;
 
+        inode->nlinks++;
         return 0;
     }
 
@@ -186,9 +186,14 @@ int ramfs_link(Inode* dir, const char* name, Inode* inode)
     strcpy(dirent.name, name);
     dirent.ino = inode->ino;
     dirent.type = inode->type;
-    inode->nlinks++;
 
-    return ramfs_writei(dir, &dirent, sizeof(Dirent), dir->size);
+    int err = ramfs_writei(dir, &dirent, sizeof(Dirent), dir->size);
+
+    if (err < 0)
+        return err;
+
+    inode->nlinks++;
+    return 0;
 }
 
 int ramfs_unlink(Inode* dir, const char* name)
