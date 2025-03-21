@@ -16,19 +16,23 @@
 #define FBTERM_GET_WIDTH    6
 #define FBTERM_GET_HEIGHT   7
 
-extern "C" int open(const char* path, int flags, int mode);
-extern "C" int close(unsigned int fd);
-extern "C" long read(int fd, void* buf, unsigned long count);
-extern "C" long write(int fd, const void* buf, unsigned long count);
-extern "C" long seek(int fd, long offset, int whence);
-extern "C" int ioctl(int fd, int cmd, void* arg);
-extern "C" int dup(int oldfd);
-extern "C" int dup2(int oldfd, int newfd);
-extern "C" int fork();
-extern "C" int execve(const char* path, char* const argv[], char* const envp[]);
-extern "C" int wait4(int pid, int* status, int options, void* rusage);
-extern "C" void exit(int status);
-extern "C" int getcwd(char* buf, unsigned long size);
-extern "C" int chdir(const char* path);
-extern "C" int getdents(int fd, char* buf, unsigned long size);
-extern "C" int debug(const char* str);
+#ifdef __cplusplus
+#define extern extern "C"
+#endif
+
+extern int open(const char* path, int flags, int mode);
+extern int close(unsigned int fd);
+extern long read(int fd, void* buf, unsigned long count);
+extern long write(int fd, const void* buf, unsigned long count);
+extern long seek(int fd, long offset, int whence);
+extern int ioctl(int fd, int cmd, void* arg);
+extern int dup(int oldfd);
+extern int dup2(int oldfd, int newfd);
+extern int fork();
+extern int execve(const char* path, char* const argv[], char* const envp[]);
+extern int wait4(int pid, int* status, int options, void* rusage);
+extern void exit(int status);
+extern int getcwd(char* buf, unsigned long size);
+extern int chdir(const char* path);
+extern int getdents(int fd, void* buf, unsigned long size);
+extern int debug(const char* str);
