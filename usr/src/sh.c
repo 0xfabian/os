@@ -32,7 +32,7 @@ int find(const char* str, char ch)
 
 int exists(const char* path)
 {
-    int fd = open(path, 0);
+    int fd = open(path, 0, 0);
 
     if (fd < 0)
         return 0;
@@ -99,8 +99,8 @@ void prepare_argv()
 
 const char* paths[] =
 {
-    "/mnt/",
-    "/"
+    "/mnt/bin/",
+    "/bin/"
 };
 
 char full_path[256];
@@ -117,7 +117,7 @@ void do_exec(const char* path)
 
 int main()
 {
-    int fd = open("/dev/fbterm", 0);
+    int fd = open("/dev/fbterm", 0, 0);
     dup(fd);
     dup(fd);
 
