@@ -28,10 +28,10 @@ struct File
     static result_ptr<File> open(const char* path, u32 flags);
     int close();
 
-    isize read(char* buf, usize size);
-    isize write(const char* buf, usize size);
-    isize pread(char* buf, usize size, usize offset);
-    isize pwrite(const char* buf, usize size, usize offset);
+    isize read(void* buf, usize size);
+    isize write(const void* buf, usize size);
+    isize pread(void* buf, usize size, usize offset);
+    isize pwrite(const void* buf, usize size, usize offset);
     usize seek(usize offset, int whence);
     int iterate(void* buf, usize size);
     int ioctl(int cmd, void* arg);

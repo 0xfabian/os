@@ -138,7 +138,7 @@ u32 logical_block_to_physical(Ext2Inode* inode, BlockDevice* bdev, u32 bn)
     return 0;
 }
 
-isize ext2_read(File* file, char* buf, usize size, usize offset)
+isize ext2_read(File* file, void* buf, usize size, usize offset)
 {
     Ext2Inode* inode = (Ext2Inode*)file->inode->data;
 

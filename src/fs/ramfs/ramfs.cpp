@@ -334,12 +334,12 @@ int ramfs_sync(Inode* inode)
     return 0;
 }
 
-isize ramfs_read(File* file, char* buf, usize size, usize offset)
+isize ramfs_read(File* file, void* buf, usize size, usize offset)
 {
     return ramfs_readi(file->inode, buf, size, offset);
 }
 
-isize ramfs_write(File* file, const char* buf, usize size, usize offset)
+isize ramfs_write(File* file, const void* buf, usize size, usize offset)
 {
     return ramfs_writei(file->inode, buf, size, offset);
 }

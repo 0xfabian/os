@@ -121,5 +121,5 @@ void ext2_destroy_sb(Superblock* sb);
 
 int ext2_lookup(Inode* _dir, const char* name, Inode* result);
 
-isize ext2_read(File* file, char* buf, usize size, usize offset);
+isize ext2_read(File* file, void* buf, usize size, usize offset);
 int ext2_iterate(File* file, void* buf, usize size);

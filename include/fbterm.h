@@ -24,7 +24,7 @@ struct ReadRequest
 {
     Task* task;
 
-    char* buffer;
+    void* buffer;
     usize len;
     usize read;
 
@@ -80,15 +80,15 @@ struct FramebufferTerminal
     void clear_to_eol();
     void scroll();
 
-    void write(const char* buffer, usize len);
-    isize read(char* buffer, usize len);
+    void write(const void* buffer, usize len);
+    isize read(void* buffer, usize len);
 
     void ansi_function(char name, int arg);
     void putchar(char ch);
     void receive_char(char ch);
     void clear_input();
     void tick();
-    void add_request(char* buffer, usize len);
+    void add_request(void* buffer, usize len);
     void handle_requests();
 
     void draw_bitmap(char ch);

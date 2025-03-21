@@ -26,10 +26,11 @@ int do_syscall(CPU* cpu, int num)
 
 extern "C" void syscall_handler(CPU* cpu, int num)
 {
+    // kprintf("syscall %d\n", num);
     cpu->rax = do_syscall(cpu, num);
 }
 
-isize sys_read(unsigned int fd, char* buf, usize size)
+isize sys_read(unsigned int fd, void* buf, usize size)
 {
     auto file = running->fdt.get(fd);
 
@@ -39,7 +40,7 @@ isize sys_read(unsigned int fd, char* buf, usize size)
     return file->read(buf, size);
 }
 
-isize sys_write(unsigned int fd, const char* buf, usize size)
+isize sys_write(unsigned int fd, const void* buf, usize size)
 {
     auto file = running->fdt.get(fd);
 
@@ -171,7 +172,7 @@ int sys_wait(int pid, int* status, int options)
     return 0;
 }
 
-int sys_getdents(int fd, char* buf, usize size)
+int sys_getdents(int fd, void* buf, usize size)
 {
     auto file = running->fdt.get(fd);
 

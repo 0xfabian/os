@@ -122,7 +122,7 @@ int File::close()
     return 0;
 }
 
-isize File::read(char* buf, usize size)
+isize File::read(void* buf, usize size)
 {
     if (!ops.read)
         return -ERR_NOT_IMPL;
@@ -137,7 +137,7 @@ isize File::read(char* buf, usize size)
     return ret;
 }
 
-isize File::write(const char* buf, usize size)
+isize File::write(const void* buf, usize size)
 {
     if (!ops.write)
         return -ERR_NOT_IMPL;
@@ -152,7 +152,7 @@ isize File::write(const char* buf, usize size)
     return ret;
 }
 
-isize File::pread(char* buf, usize size, usize offset)
+isize File::pread(void* buf, usize size, usize offset)
 {
     if (!ops.read)
         return -ERR_NOT_IMPL;
@@ -160,7 +160,7 @@ isize File::pread(char* buf, usize size, usize offset)
     return ops.read(this, buf, size, offset);
 }
 
-isize File::pwrite(const char* buf, usize size, usize offset)
+isize File::pwrite(const void* buf, usize size, usize offset)
 {
     if (!ops.write)
         return -ERR_NOT_IMPL;

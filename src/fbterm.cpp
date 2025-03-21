@@ -103,7 +103,7 @@ void FramebufferTerminal::init()
     default_fb.init(framebuffer_response->framebuffers[0]);
 
     fb = &default_fb;
-    font = &sf_mono20;
+    font = &sf_mono24;
 
     width = fb->width / font->header->width;
     height = fb->height / font->header->height;
@@ -256,9 +256,9 @@ void FramebufferTerminal::scroll()
     write_cursor -= width;
 }
 
-void FramebufferTerminal::write(const char* buffer, usize len)
+void FramebufferTerminal::write(const void* buffer, usize len)
 {
-    const char* ptr = buffer;
+    const u8* ptr = (const u8*)buffer;
     usize i = 0;
 
     draw_cursor(false);
@@ -326,7 +326,7 @@ void FramebufferTerminal::write(const char* buffer, usize len)
     cursor_ticks = 0;
 }
 
-isize FramebufferTerminal::read(char* buffer, usize len)
+isize FramebufferTerminal::read(void* buffer, usize len)
 {
     if (line_buffered && len > input_cursor)
     {
@@ -504,7 +504,7 @@ void FramebufferTerminal::tick()
     cursor_ticks++;
 }
 
-void FramebufferTerminal::add_request(char* buffer, usize len)
+void FramebufferTerminal::add_request(void* buffer, usize len)
 {
     ReadRequest* rr = (ReadRequest*)kmalloc(sizeof(ReadRequest));
 
@@ -515,7 +515,7 @@ void FramebufferTerminal::add_request(char* buffer, usize len)
     // so we can write to it without switching the page table
 
     if (running->mm->pml4)
-        rr->buffer = (char*)vmm.user_to_kernel(running->mm->pml4, (u64)buffer);
+        rr->buffer = (void*)vmm.user_to_kernel(running->mm->pml4, (u64)buffer);
     else
         rr->buffer = buffer;
 
@@ -552,7 +552,7 @@ void FramebufferTerminal::handle_requests()
         if (read > input_cursor)
             read = input_cursor;
 
-        memcpy(rr->buffer + rr->read, input_buffer, read);
+        memcpy((u8*)rr->buffer + rr->read, input_buffer, read);
         rr->read += read;
         input_cursor -= read;
 
@@ -675,12 +675,12 @@ void FramebufferTerminal::render()
         *to++ = *ptr;
 }
 
-isize fbterm_read(File* file, char* buf, usize size, usize offset)
+isize fbterm_read(File* file, void* buf, usize size, usize offset)
 {
     return fbterm.read(buf, size);
 }
 
-isize fbterm_write(File* file, const char* buf, usize size, usize offset)
+isize fbterm_write(File* file, const void* buf, usize size, usize offset)
 {
     fbterm.write(buf, size);
     fbterm.write_cursor = fbterm.cursor;

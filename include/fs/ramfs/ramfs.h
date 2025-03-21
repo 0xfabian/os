@@ -27,6 +27,6 @@ int ramfs_truncate(Inode* inode, usize size);
 int ramfs_lookup(Inode* _dir, const char* name, Inode* result);
 int ramfs_sync(Inode* inode);
 
-isize ramfs_read(File* file, char* buf, usize size, usize offset);
-isize ramfs_write(File* file, const char* buf, usize size, usize offset);
+isize ramfs_read(File* file, void* buf, usize size, usize offset);
+isize ramfs_write(File* file, const void* buf, usize size, usize offset);
 int ramfs_iterate(File* file, void* buf, usize size);

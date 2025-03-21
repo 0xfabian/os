@@ -25,8 +25,8 @@ enum SyscallNumber
     SYS_DEBUG = 512
 };
 
-isize sys_read(unsigned int fd, char* buf, usize size);
-isize sys_write(unsigned int fd, const char* buf, usize size);
+isize sys_read(unsigned int fd, void* buf, usize size);
+isize sys_write(unsigned int fd, const void* buf, usize size);
 int sys_open(const char* path, u32 flags);
 int sys_close(unsigned int fd);
 isize sys_seek(int fd, isize offset, int whence);
@@ -37,7 +37,7 @@ int sys_fork();
 int sys_execve(const char* path, char* const argv[], char* const envp[]);
 void sys_exit(int status);
 int sys_wait(int pid, int* status, int options);
-int sys_getdents(int fd, char* buf, usize size);
+int sys_getdents(int fd, void* buf, usize size);
 int sys_getcwd(char* buf, usize size);
 int sys_chdir(const char* path);
 
