@@ -46,6 +46,7 @@ __attribute__((packed));
 extern IDT idt;
 
 __attribute__((interrupt)) void default_handler(interrupt_frame* frame);
+__attribute__((interrupt)) void opcode_fault_handler(interrupt_frame* frame);
 __attribute__((interrupt)) void gp_fault_handler(interrupt_frame* frame, u64 error_code);
 __attribute__((interrupt)) void page_fault_handler(interrupt_frame* frame, u64 error_code);
 __attribute__((interrupt)) void keyboard_handler(interrupt_frame* frame);

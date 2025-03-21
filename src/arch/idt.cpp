@@ -16,6 +16,7 @@ void IDT::init()
     for (int i = 0; i < 256; i++)
         set(i, default_handler);
 
+    set(6, opcode_fault_handler);
     set(13, gp_fault_handler);
     set(14, page_fault_handler);
     set(32, timer_handler_asm);
@@ -62,11 +63,26 @@ void default_handler(interrupt_frame* frame)
         panic("Unhandled interrupt");
 }
 
+__attribute__((interrupt)) void opcode_fault_handler(interrupt_frame* frame)
+{
+    if (running)
+    {
+        kprintf(PANIC "Invalid opcode in task %lu\n", running->tid);
+        kprintf("rip: %p\n", frame->rip);
+        hexdump((void*)frame->rip, 16);
+        idle();
+    }
+    else
+        panic("General Protection Fault");
+}
+
 void gp_fault_handler(interrupt_frame* frame, u64 error_code)
 {
     if (running)
     {
-        kprintf(PANIC "General Protection Fault in task %lu (%lx)\n", running->tid, error_code);
+        kprintf(PANIC "General protection fault in task %lu (%lx)\n", running->tid, error_code);
+        kprintf("rip: %p\n", frame->rip);
+        hexdump((void*)frame->rip, 16);
         idle();
     }
     else
@@ -77,7 +93,7 @@ void page_fault_handler(interrupt_frame* frame, u64 error_code)
 {
     if (running)
     {
-        kprintf(PANIC "Page Fault in task %lu (%lx)\n", running->tid, error_code);
+        kprintf(PANIC "Page fault in task %lu (%lx)\n", running->tid, error_code);
         idle();
     }
     else
