@@ -94,20 +94,34 @@ int load_elf(Task* task, const char* path, u64* entry)
 
     vmm.switch_pml4(task->mm->pml4);
 
+    // kprintf("executable contains %d segments\n", hdr.phnum);
+
     for (ELF::ProgramHeader* phdr = phdrs; phdr < phdrs + hdr.phnum; phdr++)
     {
+        // kprintf("segment align: %lx filesize: %lx flags: %x memsz: %lx offset: %lx paddr: %lx type: %x vaddr: %lx\n", phdr->align, phdr->filesz, phdr->flags, phdr->memsz, phdr->offset, phdr->paddr, phdr->type, phdr->vaddr);
+
+        if (phdr->type == PT_TLS)
+        {
+            wrmsr(0xc0000100, phdr->vaddr);
+            continue;
+        }
+
         // skip non-loadable segments
-        if (phdr->type != 1)
+        if (phdr->type != PT_LOAD)
             continue;
 
         // is this possible anyway?
         if (phdr->align != PAGE_SIZE)
-            kprintf(WARN "Non-page aligned segment\n");
+            kprintf(WARN "Non-page aligned segment %lx\n", phdr->align);
 
-        void* addr = vmm.alloc_pages(task->mm->pml4, phdr->vaddr, PAGE_COUNT(phdr->memsz), PE_WRITE | PE_USER);
+        u64 aligned_vaddr = phdr->vaddr & ~0xfff;
+        u64 gap = phdr->vaddr & 0xfff;
+        u64 pages = PAGE_COUNT(phdr->memsz + gap);
+        vmm.alloc_pages(task->mm->pml4, aligned_vaddr, pages, PE_WRITE | PE_USER);
 
-        src->pread((char*)addr, phdr->filesz, phdr->offset);
-        memset((u8*)addr + phdr->filesz, 0, phdr->memsz - phdr->filesz);
+        memset((u8*)aligned_vaddr, 0, gap);
+        src->pread((u8*)phdr->vaddr, phdr->filesz, phdr->offset);
+        memset((u8*)phdr->vaddr + phdr->filesz, 0, phdr->memsz - phdr->filesz);
     }
 
     src->close();
