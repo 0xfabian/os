@@ -2,6 +2,9 @@
 
 #include <types.h>
 
+#define PT_LOAD     1
+#define PT_TLS      7
+
 struct ELF
 {
     struct Header
@@ -48,8 +51,8 @@ struct ELF
             if (version1 != 1)
                 return false;
 
-            // UNIX System V
-            if (osabi != 0)
+            // UNIX System V or Linux
+            if (osabi != 0 && osabi != 3)
                 return false;
 
             // executable
