@@ -43,7 +43,6 @@ extern "C" void kmain(void)
     inode->create("ls");
     inode->create("clear");
     inode->create("ed");
-    inode->create("kernel.cpp");
     inode->put();
     inode = Inode::get("/dev");
     inode->mknod("fbterm", 0x81);
@@ -67,10 +66,6 @@ extern "C" void kmain(void)
 
     file->File::open("/ed", 0);
     file->write((const char*)ed_data, sizeof(ed_data));
-    file->close();
-
-    file->File::open("/kernel.cpp", 0);
-    file->write((const char*)src_kernel_cpp, sizeof(src_kernel_cpp));
     file->close();
 
     auto mnt = Mount::mount("/mnt", &ata_bdev, &ext2fs);
