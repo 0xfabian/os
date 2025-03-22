@@ -138,6 +138,7 @@ struct Editor
 
     void start_selection();
     void select_all();
+    void select_line();
     void erase_selection();
     void deselect();
 
@@ -568,6 +569,18 @@ void Editor::select_all()
     col = text->lines[line].size;
 }
 
+void Editor::select_line()
+{
+    if (text->size == 1 && text->lines[0].size == 0)
+        return;
+
+    is_selection = true;
+    sel_line = line;
+    sel_col = 0;
+
+    col = text->lines[line].size;
+}
+
 void Editor::erase_selection()
 {
     if (!is_selection)
@@ -693,7 +706,8 @@ enum Key
     CTRL_Q,
     CTRL_S,
     CTRL_A,
-    CTRL_X
+    CTRL_X,
+    CTRL_L
 };
 
 bool getchar(char* ch)
@@ -703,6 +717,8 @@ bool getchar(char* ch)
 
     return false;
 }
+
+#define CTRL(x) ((x) - 'A' + 1)
 
 int get_key()
 {
@@ -766,10 +782,11 @@ int get_key()
 
         return seq[1];
     }
-    else if (c == 1)    return CTRL_A;
-    else if (c == 19)   return CTRL_S;
-    else if (c == 17)   return CTRL_Q;
-    else if (c == 24)   return CTRL_X;
+    else if (c == CTRL('A'))    return CTRL_A;
+    else if (c == CTRL('S'))    return CTRL_S;
+    else if (c == CTRL('Q'))    return CTRL_Q;
+    else if (c == CTRL('X'))    return CTRL_X;
+    else if (c == CTRL('L'))    return CTRL_L;
     else                return c;
 }
 
@@ -790,6 +807,7 @@ void process_keys(Editor* ed)
         case CTRL_S:            ed->write();                    break;
 
         case CTRL_A:            ed->select_all();               break;
+        case CTRL_L:            ed->select_line();              break;
         case ESC:               ed->deselect();                 break;
 
         case BACKSPACE:         ed->backspace();                break;
@@ -1057,19 +1075,14 @@ bool parse_include_path(char*& ptr)
     if (!has_directive || *ptr != '<')
         return false;
 
-    char* cpy = ptr;
+    while (*ptr && *ptr != '>')
+        ptr++;
 
-    while (*cpy && *cpy != '>')
-        cpy++;
+    if (*ptr)
+        ptr++;
 
-    if (*cpy == '>')
-    {
-        ptr = cpy + 1;
-        has_directive = false;
-        return true;
-    }
-
-    return false;
+    has_directive = false;
+    return true;
 }
 
 bool parse_string(char*& ptr)
@@ -1077,29 +1090,15 @@ bool parse_string(char*& ptr)
     if (*ptr != '"' && *ptr != '\'')
         return false;
 
-    char* cpy = ptr;
-    char ch = *cpy++;
+    char ch = *ptr++;
 
-    while (*cpy && *cpy != ch)
-    {
-        if (*cpy == '\\')
-        {
-            cpy++;
+    while (*ptr && (ptr[-1] == '\\' || *ptr != ch))
+        ptr++;
 
-            if (*cpy == 0)
-                return false;
-        }
+    if (*ptr)
+        ptr++;
 
-        cpy++;
-    }
-
-    if (*cpy == ch)
-    {
-        ptr = cpy + 1;
-        return true;
-    }
-
-    return false;
+    return true;
 }
 
 bool parse_hex(char*& ptr)
