@@ -66,6 +66,34 @@ char* strcat(char* dest, const char* src)
     return dest;
 }
 
+char* strchr(const char* str, int ch)
+{
+    while (*str)
+    {
+        if (*str == ch)
+            return (char*)str;
+
+        str++;
+    }
+
+    return nullptr;
+}
+
+char* strrchr(const char* str, int ch)
+{
+    const char* last = nullptr;
+
+    while (*str)
+    {
+        if (*str == ch)
+            last = str;
+
+        str++;
+    }
+
+    return (char*)last;
+}
+
 #define PATH_MAX 256
 char path_read_data[PATH_MAX];
 
