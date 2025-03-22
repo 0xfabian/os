@@ -423,7 +423,7 @@ void FramebufferTerminal::ansi_function(char name, int arg)
 
 void FramebufferTerminal::putchar(char ch)
 {
-    if (ch >= ' ')
+    if ((u8)ch >= ' ')
     {
         draw_bitmap(ch);
         cursor++;
@@ -588,7 +588,7 @@ void FramebufferTerminal::draw_bitmap(char ch)
     u32 x = (cursor % width) * font->header->width;
     u32 y = (cursor / width) * font->header->height;
 
-    u8* font_ptr = font->glyph_buffer + ch * font->header->char_size;
+    u8* font_ptr = font->glyph_buffer + (u8)ch * font->header->char_size;
     u32* front_ptr = frontbuffer + x + y * fb->width;
     u32* draw_ptr;
 
