@@ -26,7 +26,6 @@ int do_syscall(CPU* cpu, int num)
 
 extern "C" void syscall_handler(CPU* cpu, int num)
 {
-    // kprintf("syscall %d\n", num);
     cpu->rax = do_syscall(cpu, num);
 }
 
