@@ -263,6 +263,140 @@ void kprintf(const char* fmt, ...)
         sti();
 }
 
+usize snprintf(char* buf, usize n, const char* fmt, ...)
+{
+    u64 rflags = read_rflags();
+    cli();
+
+    buf_end = buf_start;
+    char* arg_start = nullptr;
+
+    va_list args;
+    va_start(args, fmt);
+
+    for (const char* ptr = fmt; *ptr; ptr++)
+    {
+        if (*ptr != '%')
+        {
+            append_char(*ptr);
+            continue;
+        }
+
+        ptr++;
+
+        int width = *ptr == '*' ? (ptr++, va_arg(args, int)) : parse_width_mod(ptr);
+        int size = parse_size_mod(ptr);
+
+        arg_start = buf_end;
+
+        switch (*ptr)
+        {
+        case 'd':
+        case 'i':
+        {
+            switch (size)
+            {
+            case 0: append_int((char)va_arg(args, int));                        break;
+            case 1: append_int((short)va_arg(args, int));                       break;
+            case 2: append_int(va_arg(args, int));                              break;
+            case 3: append_int(va_arg(args, long long));                        break;
+            }
+
+            break;
+        }
+        case 'u':
+        {
+            switch (size)
+            {
+            case 0: append_uint((unsigned char)va_arg(args, unsigned int));     break;
+            case 1: append_uint((unsigned short)va_arg(args, unsigned int));    break;
+            case 2: append_uint(va_arg(args, unsigned int));                    break;
+            case 3: append_uint(va_arg(args, unsigned long long));              break;
+            }
+
+            break;
+        }
+        case 'x':
+        {
+            switch (size)
+            {
+            case 0: append_hex(va_arg(args, unsigned int), 1);                  break;
+            case 1: append_hex(va_arg(args, unsigned int), 2);                  break;
+            case 2: append_hex(va_arg(args, unsigned int), 4);                  break;
+            case 3: append_hex(va_arg(args, unsigned long long), 8);            break;
+            }
+
+            break;
+        }
+        case 'b':
+        {
+            switch (size)
+            {
+            case 0: append_binary(va_arg(args, unsigned int), 1);               break;
+            case 1: append_binary(va_arg(args, unsigned int), 2);               break;
+            case 2: append_binary(va_arg(args, unsigned int), 4);               break;
+            case 3: append_binary(va_arg(args, unsigned long long), 8);         break;
+            }
+
+            break;
+        }
+        case 'f': append_string(va_arg(args, int) ? "true" : "false");          break;
+        case 'p':
+        {
+            append_char('0');
+            append_char('x');
+            append_hex((u64)va_arg(args, void*), 8);
+
+            break;
+        }
+        case 'a': append_address(va_arg(args, void*));                          break;
+        case 'c': append_char(va_arg(args, int));                               break;
+        case 's':
+        {
+            char* str = va_arg(args, char*);
+            append_string(str ? str : "(null)");
+
+            break;
+        }
+        case '%': append_char('%');                                             break;
+        }
+
+        if (!width)
+            continue;
+
+        usize len = buf_end - arg_start;
+        int padding = (width < 0 ? -width : width) - len;
+
+        if (padding <= 0)
+            continue;
+
+        if (width > 0)
+        {
+            memmove(arg_start + padding, arg_start, len);
+            memset(arg_start, ' ', padding);
+        }
+        else
+            memset(buf_end, ' ', padding);
+
+        buf_end += padding;
+    }
+
+    va_end(args);
+
+    usize len = buf_end - buf_start;
+
+    if (len > n - 1)
+        len = n - 1;
+
+    memcpy(buf, buf_start, len);
+    buf[len] = 0;
+
+    if (rflags & 0x200)
+        sti();
+
+    return len;
+}
+
 void hexdump(void* data, usize len)
 {
     u8* ptr = (u8*)data;

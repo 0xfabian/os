@@ -9,5 +9,6 @@
 #define PANIC   "[\e[91mPANIC\e[m]   "
 
 void kprintf(const char* fmt, ...);
+usize snprintf(char* buf, usize n, const char* fmt, ...);
 void hexdump(void* data, usize len);
 void panic(const char* msg);
