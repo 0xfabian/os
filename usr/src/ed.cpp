@@ -940,6 +940,8 @@ void set_raw()
     ioctl(0, FBTERM_LB_OFF, nullptr);
 
     hide_cursor();
+
+    auto_flush = false;
 }
 
 void set_cooked()

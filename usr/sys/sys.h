@@ -7,6 +7,7 @@
 #define O_EXCL      0x80
 #define O_TRUNC     0x200
 #define O_APPEND    0x400
+#define O_DIRECTORY 0x10000
 
 #define FBTERM_CLEAR        1
 #define FBTERM_ECHO_ON      2

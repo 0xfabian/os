@@ -57,6 +57,34 @@ void* memmove(void* dest, const void* src, usize n)
     return dest;
 }
 
+usize strlen(const char* str)
+{
+    usize len = 0;
+
+    while (str[len])
+        len++;
+
+    return len;
+}
+
+char* strcpy(char* dest, const char* src)
+{
+    usize len = strlen(src);
+
+    memcpy((void*)dest, (void*)src, len + 1);
+
+    return dest;
+}
+
+char* strcat(char* dest, const char* src)
+{
+    usize len = strlen(dest);
+
+    strcpy(dest + len, src);
+
+    return dest;
+}
+
 int strcmp(const char* str1, const char* str2)
 {
     while (*str1 && *str1 == *str2)
@@ -238,6 +266,7 @@ int parse_size_mod(const char*& ptr)
     return size;
 }
 
+bool auto_flush = true;
 void printf(const char* fmt, ...)
 {
     char* arg_start = nullptr;
@@ -350,5 +379,6 @@ void printf(const char* fmt, ...)
 
     va_end(args);
 
-    // flush();
+    if (auto_flush)
+        flush();
 }
