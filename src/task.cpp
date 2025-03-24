@@ -345,7 +345,8 @@ int Task::execve(const char* path, char* const argv[], char* const envp[])
     *(u64*)cpu->rsp = argc;
 
     // very important since we store the user stack here
-    tss.rsp2 = cpu->rsp;
+    if (this == running)
+        tss.rsp2 = cpu->rsp;
 
     return 0;
 }
