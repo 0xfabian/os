@@ -4,6 +4,9 @@ FileTable file_table;
 
 result_ptr<File> File::open(const char* path, u32 flags)
 {
+    if (flags & O_DIRECTORY && (flags & O_CREAT || flags & O_TRUNC))
+        return -ERR_BAD_ARG;
+
     if (flags & O_EXCL && !(flags & O_CREAT))
         return -ERR_BAD_ARG;
 
@@ -50,6 +53,11 @@ result_ptr<File> File::open(const char* path, u32 flags)
             inode->put();
             return err;
         }
+    }
+    else if (flags & O_DIRECTORY && !inode->is_dir())
+    {
+        inode->put();
+        return -ERR_NOT_DIR;
     }
 
     auto file = file_table.alloc();
@@ -129,10 +137,8 @@ isize File::read(void* buf, usize size)
 
     isize ret = ops.read(this, buf, size, offset);
 
-    if (ret < 0)
-        return ret;
-
-    offset += ret;
+    if (ret > 0)
+        offset += ret;
 
     return ret;
 }
@@ -144,10 +150,8 @@ isize File::write(const void* buf, usize size)
 
     isize ret = ops.write(this, buf, size, offset);
 
-    if (ret < 0)
-        return ret;
-
-    offset += ret;
+    if (ret > 0)
+        offset += ret;
 
     return ret;
 }
@@ -186,10 +190,8 @@ int File::iterate(void* buf, usize size)
 
     int ret = ops.iterate(this, buf, size);
 
-    if (ret < 0)
-        return ret;
-
-    offset += ret;
+    if (ret > 0)
+        offset += ret;
 
     return ret;
 }
