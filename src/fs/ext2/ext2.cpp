@@ -199,7 +199,9 @@ int ext2_iterate(File* file, void* buf, usize size)
     memcpy(d->name, dirent->name, dirent->name_len);
     d->name[dirent->name_len] = 0;
 
-    return dirent->size;
+    file->offset += dirent->size;
+
+    return sizeof(Dirent);
 }
 
 Filesystem ext2fs =

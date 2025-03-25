@@ -58,11 +58,13 @@ void tree(const char* path, const char* prefix = "", bool last_dir = true)
     char entries[100][32];
     int count = 0;
 
-    struct Dirent dent;
+    Dirent dents[16];
+    int read_bytes = 0;
 
-    while (getdents(fd, &dent, sizeof(dent)) > 0)
-        if (dent.name[0] != '.')
-            strcpy(entries[count++], dent.name);
+    while ((read_bytes = getdents(fd, dents, sizeof(dents))) > 0)
+        for (int i = 0; i < read_bytes / sizeof(Dirent); i++)
+            if (dents[i].name[0] != '.')
+                strcpy(entries[count++], dents[i].name);
 
     close(fd);
 

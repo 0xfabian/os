@@ -188,12 +188,7 @@ int File::iterate(void* buf, usize size)
     if (!inode->is_dir())
         return -ERR_NOT_DIR;
 
-    int ret = ops.iterate(this, buf, size);
-
-    if (ret > 0)
-        offset += ret;
-
-    return ret;
+    return ops.iterate(this, buf, size);
 }
 
 int File::ioctl(int cmd, void* arg)

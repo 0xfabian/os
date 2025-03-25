@@ -346,33 +346,62 @@ isize ramfs_write(File* file, const void* buf, usize size, usize offset)
 
 int ramfs_iterate(File* file, void* buf, usize size)
 {
-    if (file->offset >= file->inode->size)
-        return 0;
-
-    Dirent* dirents = (Dirent*)file->inode->data;
-    int count = file->inode->size / sizeof(Dirent);
-    int index = file->offset / sizeof(Dirent);
-
-    Dirent* dirent = &dirents[index];
-
-    usize len = sizeof(Dirent);
-
-    if (len > size)
+    if (sizeof(Dirent) > size)
         return -1;
 
-    memcpy(buf, dirent, len);
+    usize offset = file->offset;
+    usize dir_size = file->inode->size;
+    Dirent* dirent = (Dirent*)((u8*)file->inode->data + offset);
 
-    int skip = 1;
+    int bytes_read = 0;
 
-    for (int i = index + 1; i < count; i++)
+    while (offset < dir_size && (size - bytes_read) >= sizeof(Dirent))
     {
-        if (dirents[i].name[0] != 0)
-            break;
+        if (dirent->name[0] != 0)
+        {
+            memcpy((u8*)buf + bytes_read, dirent, sizeof(Dirent));
+            bytes_read += sizeof(Dirent);
+        }
 
-        skip++;
+        offset += sizeof(Dirent);
+        dirent++;
     }
 
-    return skip * sizeof(Dirent);
+    file->offset = offset;
+
+    return bytes_read;
+
+    // int requested = size / sizeof(Dirent);
+    // int count = dir
+
+    //     if (file->offset >= file->inode->size)
+    //         return 0;
+
+    // int requested = size / sizeof(Dirent);
+    // Dirent* dirents = (Dirent*)file->inode->data;
+    // int count = file->inode->size / sizeof(Dirent);
+    // int index = file->offset / sizeof(Dirent);
+
+    // Dirent* dirent = &dirents[index];
+
+    // usize len = sizeof(Dirent);
+
+    // if (len > size)
+    //     return -1;
+
+    // memcpy(buf, dirent, len);
+
+    // int skip = 1;
+
+    // for (int i = index + 1; i < count; i++)
+    // {
+    //     if (dirents[i].name[0] != 0)
+    //         break;
+
+    //     skip++;
+    // }
+
+    // return skip * sizeof(Dirent);
 }
 
 Filesystem ramfs =
