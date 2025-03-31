@@ -103,7 +103,7 @@ void FramebufferTerminal::init()
     default_fb.init(framebuffer_response->framebuffers[0]);
 
     fb = &default_fb;
-    font = &sf_mono24;
+    font = &sf_mono20;
 
     width = fb->width / font->header->width;
     height = fb->height / font->header->height;
