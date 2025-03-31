@@ -23,3 +23,5 @@ struct PSF2
 extern PSF2 zap_light20;
 extern PSF2 sf_mono20;
 extern PSF2 sf_mono24;
+extern PSF2 bios8;
+extern PSF2 vga16;
