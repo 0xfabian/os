@@ -37,9 +37,9 @@ struct IDT
     IDTEntry entries[256];
 
     void init();
-    void set(u8 index, void* isr);
-    void set(u8 index, void (*isr)(interrupt_frame*));
-    void set(u8 index, void (*isr)(interrupt_frame*, u64));
+    void set(u8 index, void* isr, u8 dpl);
+    void set(u8 index, void (*isr)(interrupt_frame*), u8 dpl = 0);
+    void set(u8 index, void (*isr)(interrupt_frame*, u64), u8 dpl = 0);
 }
 __attribute__((packed));
 
