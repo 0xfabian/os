@@ -155,18 +155,3 @@ void kfree(void* ptr)
 {
     heap.free(ptr);
 }
-
-// void* operator new(usize size)
-// {
-//     return heap.alloc(size);
-// }
-
-// void operator delete(void* ptr)
-// {
-//     heap.free(ptr);
-// }
-
-// void operator delete(void* ptr, usize size)
-// {
-//     heap.free(ptr);
-// }
