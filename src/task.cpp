@@ -96,13 +96,17 @@ int load_elf(Task* task, const char* path, u64* entry)
 
     // kprintf("executable contains %d segments\n", hdr.phnum);
 
+    u64 elf_end = 0;
+    bool is_tcc = false;
+
     for (ELF::ProgramHeader* phdr = phdrs; phdr < phdrs + hdr.phnum; phdr++)
     {
         // kprintf("segment align: %lx filesize: %lx flags: %x memsz: %lx offset: %lx paddr: %lx type: %x vaddr: %lx\n", phdr->align, phdr->filesz, phdr->flags, phdr->memsz, phdr->offset, phdr->paddr, phdr->type, phdr->vaddr);
 
         if (phdr->type == PT_TLS)
         {
-            wrmsr(0xc0000100, phdr->vaddr);
+            // wrmsr(0xc0000100, phdr->vaddr);
+            is_tcc = true;
             continue;
         }
 
@@ -110,7 +114,7 @@ int load_elf(Task* task, const char* path, u64* entry)
         if (phdr->type != PT_LOAD)
             continue;
 
-        // is this possible anyway?
+        // is this possible anyway? YES
         if (phdr->align != PAGE_SIZE)
             kprintf(WARN "Non-page aligned segment %lx\n", phdr->align);
 
@@ -122,11 +126,26 @@ int load_elf(Task* task, const char* path, u64* entry)
         memset((u8*)aligned_vaddr, 0, gap);
         src->pread((u8*)phdr->vaddr, phdr->filesz, phdr->offset);
         memset((u8*)phdr->vaddr + phdr->filesz, 0, phdr->memsz - phdr->filesz);
+
+        u64 new_end = phdr->vaddr + phdr->memsz;
+
+        if (new_end > elf_end)
+            elf_end = new_end;
     }
 
     src->close();
 
+    task->mm->start_brk = PAGE_ALIGN(elf_end);
+    task->mm->brk = task->mm->start_brk;
+
     *entry = hdr.entry;
+
+    // if (is_tcc)
+    // {
+    //     *(u8*)0x44c985 = 0x90;
+    //     *(u8*)0x44c986 = 0x90;
+    //     *(u8*)0x44c987 = 0x90;
+    // }
 
     return 0;
 }
@@ -266,6 +285,17 @@ Task* Task::fork()
     return task;
 }
 
+#define AT_NULL         0
+#define AT_EXECFN       31
+#define AT_PLATFORM     15
+#define AT_RANDOM      25
+
+struct auxv
+{
+    u64 type;
+    u64 value;
+};
+
 int Task::execve(const char* path, char* const argv[], char* const envp[])
 {
     // we save the argv in kernel memory
@@ -327,8 +357,86 @@ int Task::execve(const char* path, char* const argv[], char* const envp[])
     // we should align the stack to 16 bytes
     cpu->rsp &= ~0x0f;
 
+    cpu->rsp -= 16;
+    char* filename = (char*)cpu->rsp;
+    strcpy(filename, "/mnt/bin/tcc");
+
+    cpu->rsp -= 16;
+    char* platform = (char*)cpu->rsp;
+    strcpy(platform, "x86_64");
+
+    cpu->rsp -= 16;
+    void* random = (void*)cpu->rsp;
+    memset(random, 0, 16);
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { AT_NULL, 0 };
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { AT_PLATFORM, (u64)platform };
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { AT_EXECFN, (u64)filename };
+
+    // cpu->rsp -= sizeof(auxv);
+    // *(auxv*)cpu->rsp = { 0x1a, HW_CAP2}
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { AT_RANDOM, (u64)random };
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { 0x17, 0 };
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { 0xe, 0 };
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { 0xd, 0 };
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { 0xc, 0 };
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { 0xb, 0 };
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { 0x9, 0x401ef0 };
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { 0x8, 0 };
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { 0x7, 0 };
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { 0x5, 10 };
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { 0x4, sizeof(ELF::ProgramHeader) };
+
+    // cpu->rsp -= sizeof(auxv);
+    // *(auxv*)cpu->rsp = { 0x3, ephdr };
+
+    // cpu->rsp -= sizeof(auxv);
+    // *(auxv*)cpu->rsp = { 0x11, 64 };
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { 0x6, PAGE_SIZE };
+
+    // cpu->rsp -= sizeof(auxv);
+    // *(auxv*)cpu->rsp = { 0x10, HW_CAP };
+
+    cpu->rsp -= sizeof(auxv);
+    *(auxv*)cpu->rsp = { 0x33, 0xd30 };
+
+    // cpu->rsp -= sizeof(auxv);
+    // *(auxv*)cpu->rsp = { 0x21, ? ? ? };
+
     cpu->rsp -= 8;
-    *(u64*)cpu->rsp = 0; // the null terminator
+    *(u64*)cpu->rsp = 0; // envp null terminator, basically no env
+
+    cpu->rsp -= 8;
+    *(u64*)cpu->rsp = 0; // argv null terminator
 
     off = 0;
 
