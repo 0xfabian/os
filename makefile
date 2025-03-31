@@ -1,7 +1,7 @@
 WIN_PATH = C:/Users/spide/Desktop/os
 IMG = $(shell wslpath -a $(WIN_PATH))/image.hdd
 DISK = $(shell wslpath -a $(WIN_PATH))/disk.img
-QEMU_FLAGS = -cpu qemu64 -m 1G -net none \
+QEMU_FLAGS = -cpu qemu64,+sse -m 1G -net none \
 	-drive format=raw,file=$(WIN_PATH)/image.hdd \
 	-drive if=pflash,format=raw,unit=0,file=$(WIN_PATH)/OVMFbin/OVMF_CODE-pure-efi.fd,readonly=on \
 	-drive if=pflash,format=raw,unit=1,file=$(WIN_PATH)/OVMFbin/OVMF_VARS-pure-efi.fd \

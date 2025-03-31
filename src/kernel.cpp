@@ -11,6 +11,29 @@
 
 #include <bin.h>
 
+void enable_sse()
+{
+    uint64_t cr0, cr4;
+
+    // Read CR0
+    asm volatile ("mov %%cr0, %0" : "=r"(cr0));
+    // Clear EM (bit 2, x87 emulation must be disabled)
+    cr0 &= ~(1 << 2);
+    // Set MP (bit 1, must be set when EM is 0)
+    cr0 |= (1 << 1);
+    // Write back CR0
+    asm volatile ("mov %0, %%cr0" :: "r"(cr0));
+
+    // Read CR4
+    asm volatile ("mov %%cr4, %0" : "=r"(cr4));
+    // Set OSFXSR (bit 9, enable SSE)
+    cr4 |= (1 << 9);
+    // Set OSXMMEXCPT (bit 10, enable SSE exceptions)
+    cr4 |= (1 << 10);
+    // Write back CR4
+    asm volatile ("mov %0, %%cr4" :: "r"(cr4));
+}
+
 extern "C" void kmain(void)
 {
     if (!LIMINE_BASE_REVISION_SUPPORTED)
@@ -77,6 +100,8 @@ extern "C" void kmain(void)
 
     if (!mnt)
         kprintf(WARN "Failed to mount /mnt\n");
+
+    enable_sse();
 
     sched_init();
 
