@@ -2,12 +2,14 @@
 
 extern timer_handler
 extern syscall_handler
+extern breakpoint_handler
 extern running
 extern schedule
 extern leave_and_sched
 
 global timer_handler_asm
 global syscall_handler_asm
+global breakpoint_handler_asm
 global yield
 global pause
 global switch_now
@@ -206,3 +208,12 @@ switch_now:
     POP_REGS
 
     iretq
+
+breakpoint_handler_asm:
+
+    PUSH_REGS
+
+    mov rdi, [running]
+    mov [rdi], rsp
+    
+    call breakpoint_handler
