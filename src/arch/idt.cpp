@@ -148,7 +148,5 @@ extern "C" void breakpoint_handler()
     kprintf("rbp:    %a    r14:    %a\n", cpu->rbp, cpu->r14);
     kprintf("rsp:    %a    r15:    %a\n", cpu->rsp, cpu->r15);
 
-    hexdump((void*)0x544ac0, 32);
-
     idle();
 }
