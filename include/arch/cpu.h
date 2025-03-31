@@ -102,6 +102,14 @@ static inline u64 read_rflags()
     return rflags;
 }
 
+static inline u64 read_cr2()
+{
+    u64 cr2;
+    asm volatile("mov %%cr2, %0" : "=r"(cr2));
+
+    return cr2;
+}
+
 static inline u64 read_cr3()
 {
     u64 cr3;
