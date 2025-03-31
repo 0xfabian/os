@@ -30,6 +30,8 @@ struct MemoryMap
 {
     PML4* pml4;
 
+    u64 start_brk;
+    u64 brk;
     void* user_stack;
     void* kernel_stack;
 };
