@@ -97,18 +97,10 @@ int load_elf(Task* task, const char* path, u64* entry)
     // kprintf("executable contains %d segments\n", hdr.phnum);
 
     u64 elf_end = 0;
-    bool is_tcc = false;
 
     for (ELF::ProgramHeader* phdr = phdrs; phdr < phdrs + hdr.phnum; phdr++)
     {
         // kprintf("segment align: %lx filesize: %lx flags: %x memsz: %lx offset: %lx paddr: %lx type: %x vaddr: %lx\n", phdr->align, phdr->filesz, phdr->flags, phdr->memsz, phdr->offset, phdr->paddr, phdr->type, phdr->vaddr);
-
-        if (phdr->type == PT_TLS)
-        {
-            // wrmsr(0xc0000100, phdr->vaddr);
-            is_tcc = true;
-            continue;
-        }
 
         // skip non-loadable segments
         if (phdr->type != PT_LOAD)
@@ -139,13 +131,6 @@ int load_elf(Task* task, const char* path, u64* entry)
     task->mm->brk = task->mm->start_brk;
 
     *entry = hdr.entry;
-
-    // if (is_tcc)
-    // {
-    //     *(u8*)0x44c985 = 0x90;
-    //     *(u8*)0x44c986 = 0x90;
-    //     *(u8*)0x44c987 = 0x90;
-    // }
 
     return 0;
 }
