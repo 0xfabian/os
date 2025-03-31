@@ -7,7 +7,8 @@
 
 #define PAGE_SIZE       4096
 #define PAGE_SHIFT      12
-#define PAGE_COUNT(x)   ((x + PAGE_SIZE - 1) / PAGE_SIZE)
+#define PAGE_COUNT(x)   ((x + PAGE_SIZE - 1) >> PAGE_SHIFT)
+#define PAGE_ALIGN(x)   ((x + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
 
 #define KERNEL_HHDM     0xffff800000000000
 
