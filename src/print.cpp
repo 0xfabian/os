@@ -61,15 +61,10 @@ void append_address(void* addr)
 {
     u64 num = (u64)addr;
 
-    num &= 0x0000ffffffffffff;
+    if (num >> 63 == 0)
+        append_string("\e[90m");
 
-    if ((num >> 47) & 1)
-    {
-        num |= 0xffff000000000000;
-        append_string("0x");
-    }
-    else
-        append_string("\e[90m0x\e[m");
+    append_string("0x");
 
     static const char* hex = "0123456789abcdef";
 
