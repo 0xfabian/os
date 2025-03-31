@@ -9,6 +9,10 @@
 #define O_APPEND    0x400
 #define O_DIRECTORY 0x10000
 
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 #define FBTERM_CLEAR        1
 #define FBTERM_ECHO_ON      2
 #define FBTERM_ECHO_OFF     3
