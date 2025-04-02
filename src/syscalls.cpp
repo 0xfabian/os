@@ -41,8 +41,8 @@ extern "C" void syscall_handler(CPU* cpu, int num)
 {
     cpu->rax = do_syscall(cpu, num);
 
-    if ((ErrorCode)cpu->rax == -ERR_NOT_IMPL)
-        kprintf(WARN "syscall %d not implemented\n", num);
+    // if ((ErrorCode)cpu->rax == -ERR_NOT_IMPL)
+    //     kprintf(WARN "syscall %d not implemented\n", num);
     // else
     //     kprintf(INFO "syscall %d returned %lx\n", num, cpu->rax);
 }
@@ -268,7 +268,16 @@ int sys_uname(void* buf)
 
 int sys_fcntl(int fd, int op, u64 arg)
 {
-    return 1;
+    auto file = running->fdt.get(fd);
+
+    if (!file)
+        return file.error();
+
+    // F_GETFL
+    if (op == 3)
+        return file->flags;
+
+    return -1;
 }
 
 int sys_getdents(int fd, void* buf, usize size)
@@ -332,12 +341,32 @@ int sys_chdir(const char* path)
 
 int sys_unlink(const char* path)
 {
-    return 0;
+    auto inode = Inode::get(path);
+
+    if (!inode)
+        return inode.error();
+
+    if (inode->is_dir())
+    {
+        inode->put();
+        return -ERR_IS_DIR;
+    }
+
+    inode->put();
+
+    // can this fail?
+    auto dir = Inode::get(dirname(path));
+
+    int ret = dir->unlink(basename(path));
+
+    dir->put();
+
+    return ret;
 }
 
 isize sys_readlink(const char* path, char* buf, usize size)
 {
-    return -1;
+    return -ERR_NOT_FOUND;
 }
 
 int sys_getuid()
@@ -365,6 +394,7 @@ int sys_arch_prctl(int op, u64* addr)
     // ARCH_SET_FS
     if (op == 0x1002)
     {
+        // IA32_FS_BASE
         wrmsr(0xc0000100, (u64)addr);
         return 0;
     }
