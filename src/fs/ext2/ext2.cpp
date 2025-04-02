@@ -120,6 +120,18 @@ int ext2_lookup(Inode* _dir, const char* name, Inode* result)
     return -1;
 }
 
+struct BlockCache
+{
+    u32 block;
+
+    union
+    {
+        u8 data[4096];
+        u32 ptrs[1024];
+    };
+};
+
+BlockCache block_cache;
 u32 logical_block_to_physical(Ext2Inode* inode, BlockDevice* bdev, u32 bn)
 {
     if (bn < 12)
@@ -129,10 +141,13 @@ u32 logical_block_to_physical(Ext2Inode* inode, BlockDevice* bdev, u32 bn)
 
     if (bn < 1024)
     {
-        u32 block_ptr[1024];
-        bdev->read(inode->block_ptr[12] * 4096, (u8*)block_ptr, 4096);
+        if (block_cache.block != inode->block_ptr[12])
+        {
+            block_cache.block = inode->block_ptr[12];
+            bdev->read(block_cache.block * 4096, block_cache.data, 4096);
+        }
 
-        return block_ptr[bn];
+        return block_cache.ptrs[bn];
     }
 
     return 0;
@@ -145,13 +160,14 @@ isize ext2_read(File* file, void* buf, usize size, usize offset)
     if (size == 0 || offset >= inode->size_low)
         return 0;
 
+    BlockDevice* bdev = file->inode->sb->dev;
     usize remaining = inode->size_low - offset;
 
     if (size > remaining)
         size = remaining;
 
     u32 bn = offset / 4096;
-    u32 block = logical_block_to_physical(inode, file->inode->sb->dev, bn);
+    u32 block = logical_block_to_physical(inode, bdev, bn);
 
     if (!block)
         return -1;
@@ -166,11 +182,11 @@ isize ext2_read(File* file, void* buf, usize size, usize offset)
         if (4096 - off < to_read)
             to_read = 4096 - off;
 
-        file->inode->sb->dev->read(block * 4096 + off, (u8*)buf + read, to_read);
+        bdev->read(block * 4096 + off, (u8*)buf + read, to_read);
 
         read += to_read;
         bn++;
-        block = logical_block_to_physical(inode, file->inode->sb->dev, bn);
+        block = logical_block_to_physical(inode, bdev, bn);
 
         if (!block)
             return read;
