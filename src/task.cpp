@@ -106,13 +106,14 @@ int load_elf(Task* task, const char* path, u64* entry)
         if (phdr->type != PT_LOAD)
             continue;
 
-        // is this possible anyway? YES
-        if (phdr->align != PAGE_SIZE)
-            kprintf(WARN "Non-page aligned segment %lx\n", phdr->align);
+        // // is this possible anyway? YES
+        // if (phdr->align != PAGE_SIZE)
+        //     kprintf(WARN "Non-page aligned segment %lx\n", phdr->align);
 
         u64 aligned_vaddr = phdr->vaddr & ~0xfff;
         u64 gap = phdr->vaddr & 0xfff;
         u64 pages = PAGE_COUNT(phdr->memsz + gap);
+
         vmm.alloc_pages(task->mm->pml4, aligned_vaddr, pages, PE_WRITE | PE_USER);
 
         memset((u8*)aligned_vaddr, 0, gap);
