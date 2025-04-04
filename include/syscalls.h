@@ -26,6 +26,8 @@ enum SyscallNumber
     SYS_GETDENTS = 78,
     SYS_GETCWD,
     SYS_CHDIR,
+    SYS_MKDIR = 83,
+    SYS_RMDIR,
     SYS_UNLINK = 87,
     SYS_READLINK = 89,
     SYS_GETUID = 102,
@@ -64,6 +66,8 @@ int sys_fcntl(int fd, int op, u64 arg);
 int sys_getdents(int fd, void* buf, usize size);
 int sys_getcwd(char* buf, usize size);
 int sys_chdir(const char* path);
+int sys_mkdir(const char* path);
+int sys_rmdir(const char* path);
 int sys_unlink(const char* path);
 isize sys_readlink(const char* path, char* buf, usize size);
 int sys_getuid();

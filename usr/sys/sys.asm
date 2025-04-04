@@ -35,6 +35,8 @@ SYSCALL4    wait4,      61
 SYSCALL     exit,       60
 SYSCALL     getcwd,     79
 SYSCALL     chdir,      80
+SYSCALL     mkdir,      83
+SYSCALL     rmdir,      84
 SYSCALL     getdents,   78
 SYSCALL     debug,      512
 

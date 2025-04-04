@@ -24,6 +24,8 @@ u64 do_syscall(CPU* cpu, int num)
     case SYS_GETDENTS:      return sys_getdents(cpu->rdi, (char*)cpu->rsi, cpu->rdx);
     case SYS_GETCWD:        return sys_getcwd((char*)cpu->rdi, cpu->rsi);
     case SYS_CHDIR:         return sys_chdir((const char*)cpu->rdi);
+    case SYS_MKDIR:         return sys_mkdir((const char*)cpu->rdi);
+    case SYS_RMDIR:         return sys_rmdir((const char*)cpu->rdi);
     case SYS_UNLINK:        return sys_unlink((const char*)cpu->rdi);
     case SYS_READLINK:      return sys_readlink((const char*)cpu->rdi, (char*)cpu->rsi, cpu->rdx);
     case SYS_GETUID:        return sys_getuid();
@@ -339,6 +341,65 @@ int sys_chdir(const char* path)
     return 0;
 }
 
+int sys_mkdir(const char* path)
+{
+    auto inode = Inode::get(path);
+
+    if (inode)
+    {
+        inode->put();
+        return -ERR_EXISTS;
+    }
+
+    auto dir = Inode::get(dirname(path));
+
+    if (!dir)
+        return dir.error();
+
+    int ret = dir->mkdir(basename(path));
+
+    dir->put();
+    inode->put();
+
+    return ret;
+}
+
+int sys_rmdir(const char* path)
+{
+    const char* name = basename(path);
+
+    if (!name || strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
+        return -ERR_BAD_ARG;
+
+    auto inode = Inode::get(path);
+
+    if (!inode)
+        return inode.error();
+
+    // becuase of how the path resolution works,
+    // when we call rmdir on a mountpoint
+    // we get the root of the mount
+
+    // so in this case we can't remove the dir because something is mounted on it
+    if (inode.ptr == inode->sb->root)
+    {
+        inode->put();
+        return -ERR_MNT_BUSY;
+    }
+
+    auto dir = Inode::get(dirname(path));
+
+    if (!dir)
+        return dir.error();
+
+    int ret = dir->rmdir(name);
+
+    dir->put();
+    inode->put();
+
+    return ret;
+}
+
 int sys_unlink(const char* path)
 {
     auto inode = Inode::get(path);
@@ -352,14 +413,13 @@ int sys_unlink(const char* path)
         return -ERR_IS_DIR;
     }
 
-    inode->put();
-
     // can this fail?
     auto dir = Inode::get(dirname(path));
 
     int ret = dir->unlink(basename(path));
 
     dir->put();
+    inode->put();
 
     return ret;
 }

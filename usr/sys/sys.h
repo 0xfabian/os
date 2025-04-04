@@ -39,5 +39,7 @@ extern int wait4(int pid, int* status, int options, void* rusage);
 extern void exit(int status);
 extern int getcwd(char* buf, unsigned long size);
 extern int chdir(const char* path);
+extern int mkdir(const char* path, int mode);
+extern int rmdir(const char* path);
 extern int getdents(int fd, void* buf, unsigned long size);
 extern int debug(const char* str);
