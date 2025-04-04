@@ -317,7 +317,9 @@ int sys_chdir(const char* path)
         return -ERR_NOT_DIR;
     }
 
-    kfree(running->cwd_str);
+    // we should use the dentry cache to resolve the cwd_str
+    // but we don't have that so we do it in this hacky way
+    // by manipulating the cwd_str using the cd path
 
     char* new_cwd_str;
 
@@ -332,11 +334,16 @@ int sys_chdir(const char* path)
         strcat(new_cwd_str, path);
     }
 
-    // this frees new_cwd_str and allocates a new one
-    running->cwd_str = path_normalize(new_cwd_str);
-
+    kfree(running->cwd_str);
     running->cwd->put();
+
+    running->cwd_str = path_normalize(new_cwd_str);
     running->cwd = inode.ptr;
+
+    kfree(new_cwd_str);
+
+    // the path normalization maybe could be done in place
+    // so no need for kmalloc
 
     return 0;
 }
@@ -359,7 +366,6 @@ int sys_mkdir(const char* path)
     int ret = dir->mkdir(basename(path));
 
     dir->put();
-    inode->put();
 
     return ret;
 }
