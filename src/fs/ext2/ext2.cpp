@@ -120,6 +120,13 @@ int ext2_lookup(Inode* _dir, const char* name, Inode* result)
     return -1;
 }
 
+int ext2_sync(Inode* inode)
+{
+    kfree(inode->data);
+
+    return 0;
+}
+
 struct BlockCache
 {
     u32 block;
@@ -230,12 +237,13 @@ Filesystem ext2fs =
 
 InodeOps ext2_reg_inode_ops =
 {
-
+    .sync = ext2_sync
 };
 
 InodeOps ext2_dir_inode_ops =
 {
     .lookup = ext2_lookup,
+    .sync = ext2_sync
 };
 
 FileOps ext2_reg_file_ops =

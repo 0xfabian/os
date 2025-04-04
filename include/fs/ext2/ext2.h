@@ -120,6 +120,7 @@ result_ptr<Superblock> ext2_create_sb(Filesystem* fs, BlockDevice* dev);
 void ext2_destroy_sb(Superblock* sb);
 
 int ext2_lookup(Inode* _dir, const char* name, Inode* result);
+int ext2_sync(Inode* inode);
 
 isize ext2_read(File* file, void* buf, usize size, usize offset);
 int ext2_iterate(File* file, void* buf, usize size);
