@@ -92,6 +92,12 @@ int ext2_lookup(Inode* _dir, const char* name, Inode* result)
         {
             result->sb = _dir->sb;
             result->ino = dirent->ino;
+
+            // this avoid the memory leak
+            // but is bad since this gets checked in inode_table.insert anyway
+            if (inode_table.find(result->sb, result->ino))
+                return 0;
+
             result->type = ext2_type_mapping[dirent->type];
             result->data = kmalloc(sizeof(Ext2Inode));
             ext2_read_inode(result->sb, dirent->ino, (Ext2Inode*)result->data);
