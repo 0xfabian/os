@@ -39,6 +39,8 @@ struct Line
             return false;
 
         data[size++] = c;
+        data[size] = 0;
+
         return true;
     }
 
@@ -53,6 +55,8 @@ struct Line
         memmove(data + pos + 1, data + pos, size - pos);
         data[pos] = c;
         size++;
+
+        data[size] = 0;
 
         return true;
     }
@@ -85,11 +89,22 @@ struct Editor
     int sel_line = 2;
     Dirent sel_dent;
     bool has_sel = false;
+    bool on_new = false;
+    Line new_name;
+    int new_cursor = 0;
 
     void insert(char c)
     {
-        if (cwd.insert(cursor, c))
-            cursor++;
+        if (on_new)
+        {
+            if (new_name.insert(new_cursor, c))
+                new_cursor++;
+        }
+        else
+        {
+            if (cwd.insert(cursor, c))
+                cursor++;
+        }
     }
 
     void backspace_one()
@@ -103,33 +118,66 @@ struct Editor
 
     void backspace()
     {
-        if (cwd.data[cwd.size - 1] == '/' && cwd.size > 1)
-            backspace_one();
+        if (on_new)
+        {
+            if (new_cursor > 0)
+            {
+                new_name.erase(new_cursor - 1);
+                new_cursor--;
+            }
+        }
+        else
+        {
+            if (cwd.data[cwd.size - 1] == '/' && cwd.size > 1)
+                backspace_one();
 
-        while (cwd.size > 0 && cwd.data[cwd.size - 1] != '/')
-            backspace_one();
+            while (cwd.size > 0 && cwd.data[cwd.size - 1] != '/')
+                backspace_one();
+        }
     }
 
     void move_right()
     {
-        if (cursor < cwd.size)
-            cursor++;
+        if (on_new)
+        {
+            if (new_cursor < new_name.size)
+                new_cursor++;
+        }
+        else
+        {
+            if (cursor < cwd.size)
+                cursor++;
+        }
     }
 
     void move_left()
     {
-        if (cursor > 0)
-            cursor--;
+        if (on_new)
+        {
+            if (new_cursor > 0)
+                new_cursor--;
+        }
+        else
+        {
+            if (cursor > 0)
+                cursor--;
+        }
     }
 
     void move_home()
     {
-        cursor = 0;
+        if (on_new)
+            new_cursor = 0;
+        else
+            cursor = 0;
     }
 
     void move_end()
     {
-        cursor = cwd.size;
+        if (on_new)
+            new_cursor = new_name.size;
+        else
+            cursor = cwd.size;
     }
 
     void move_up()
@@ -140,6 +188,9 @@ struct Editor
 
     void move_down()
     {
+        if (on_new)
+            return;
+
         sel_line++;
     }
 
@@ -150,6 +201,8 @@ struct Editor
 
         if ((sel_dent.type & IT_DIR) == 0)
             unlink(sel_dent.name);
+        else
+            rmdir(sel_dent.name);
     }
 
     void enter_ed()
@@ -202,7 +255,43 @@ struct Editor
     void enter()
     {
         if (!has_sel)
+        {
+            if (on_new)
+            {
+                if (new_name.size > 0)
+                {
+                    if (new_name.data[new_name.size - 1] == '/')
+                    {
+                        new_name.data[new_name.size - 1] = 0;
+
+                        int err = mkdir(new_name.data, 0);
+
+                        new_name.data[new_name.size - 1] = '/';
+
+                        if (!err)
+                        {
+                            new_name.size = 0;
+                            new_name.data[0] = 0;
+                            new_cursor = 0;
+                        }
+                    }
+                    else
+                    {
+                        int fd = open(new_name.data, O_EXCL | O_CREAT, 0);
+
+                        if (fd > 0)
+                        {
+                            close(fd);
+                            new_name.size = 0;
+                            new_name.data[0] = 0;
+                            new_cursor = 0;
+                        }
+                    }
+                }
+            }
+
             return;
+        }
 
         if ((sel_dent.type & IT_DIR) == IT_DIR)
             enter_dir();
@@ -373,6 +462,7 @@ void process_keys(Editor* ed)
         case ARROW_UP:          ed->move_up();                  break;
         case ARROW_DOWN:        ed->move_down();                break;
         case '\n':              ed->enter();                    break;
+        case CTRL_X:
         case DELETE:            ed->_delete();                  break;
         }
     }
@@ -441,6 +531,15 @@ void set_cooked()
     flush();
 }
 
+bool is_elf(int fd)
+{
+    char hdr[4];
+    int ret = read(fd, hdr, 4);
+    seek(fd, 0, SEEK_SET);
+
+    return ret == 4 && hdr[0] == 0x7f && hdr[1] == 'E' && hdr[2] == 'L' && hdr[3] == 'F';
+}
+
 void draw(Editor* ed)
 {
     int height = get_height();
@@ -468,6 +567,7 @@ void draw(Editor* ed)
     line++;
 
     ed->has_sel = false;
+    ed->on_new = false;
 
     int fd = ed->cwd.size == 0 ? -1 : open(ed->cwd.data, O_RDONLY | O_DIRECTORY, 0);
 
@@ -525,6 +625,33 @@ void draw(Editor* ed)
         }
 
         close(fd);
+
+        if (ed->sel_line >= ls_line)
+        {
+            ed->on_new = true;
+            move_cursor(line, 0);
+            printf("  \e[90m+\e[m ");
+
+            bool is_dir = ed->new_name.size > 0 && ed->new_name.data[ed->new_name.size - 1] == '/';
+
+            for (int i = 0; i <= ed->new_name.size; i++)
+            {
+                char ch = i < ed->new_name.size ? ed->new_name.data[i] : ' ';
+
+                if (i == ed->new_cursor)
+                    printf("\e[107;30m%c\e[m", ch);
+                else
+                {
+                    if (is_dir && ch != '/')
+                        printf("\e[94m%c\e[m", ch);
+                    else
+                        printf("%c", ch);
+                }
+            }
+
+            clear_eol();
+            line++;
+        }
     }
 
     for (int i = line; i < height; i++)
@@ -539,33 +666,27 @@ void draw(Editor* ed)
     if (ed->has_sel && (ed->sel_dent.type & IT_REG) == IT_REG)
     {
         int fd = open(ed->sel_dent.name, O_RDONLY, 0);
-        char buf[64];
-        int left = width - split;
 
         move_cursor(line, split);
         printf("\e[90m");
 
-        char hdr[4];
-        read(fd, hdr, 4);
-        seek(fd, 0, SEEK_SET);
-
-        if (hdr[0] == 0x7f && hdr[1] == 'E' && hdr[2] == 'L' && hdr[3] == 'F')
+        if (is_elf(fd))
         {
             printf("ELF file");
-            clear_eol();
             line++;
         }
         else
         {
+            int left = width - split;
+            char buf[512];
+
             while (true)
             {
                 int bytes_read = read(fd, buf, sizeof(buf));
 
                 if (bytes_read <= 0)
                 {
-                    clear_eol();
                     line++;
-
                     break;
                 }
 
@@ -573,9 +694,6 @@ void draw(Editor* ed)
                 {
                     if (buf[i] == '\n')
                     {
-                        if (left > 0)
-                            clear_eol();
-
                         line++;
 
                         if (line >= height)
@@ -583,7 +701,6 @@ void draw(Editor* ed)
 
                         move_cursor(line, split);
                         left = width - split;
-                        printf("\e[90m");
                     }
                     else
                     {
