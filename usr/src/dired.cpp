@@ -223,7 +223,6 @@ struct Editor
         {
             wait4(-1, 0, 0, 0);
             set_raw();
-            draw(this);
         }
     }
 
@@ -319,7 +318,6 @@ struct Editor
         {
             wait4(-1, 0, 0, 0);
             set_raw();
-            draw(this);
         }
     }
 };
