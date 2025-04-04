@@ -1054,7 +1054,7 @@ bool parse_ident(char*& ptr)
     return true;
 }
 
-bool has_directive;
+bool has_inc_directive;
 bool parse_directive(char*& ptr)
 {
     if (*ptr != '#')
@@ -1066,15 +1066,17 @@ bool parse_directive(char*& ptr)
     if (!parse_ident(cpy))
         return false;
 
+    if (match_word(ptr, cpy, "#include"))
+        has_inc_directive = true;
+
     ptr = cpy;
-    has_directive = true;
 
     return true;
 }
 
 bool parse_include_path(char*& ptr)
 {
-    if (!has_directive || *ptr != '<')
+    if (!has_inc_directive || *ptr != '<')
         return false;
 
     while (*ptr && *ptr != '>')
@@ -1083,7 +1085,7 @@ bool parse_include_path(char*& ptr)
     if (*ptr)
         ptr++;
 
-    has_directive = false;
+    has_inc_directive = false;
     return true;
 }
 
@@ -1183,7 +1185,10 @@ bool parse_braces(char*& ptr)
 Token next_c_token(char*& ptr)
 {
     if (*ptr == 0)
+    {
+        has_inc_directive = false;
         return { ptr, 0, 90 };
+    }
 
     Token ret;
     ret.start = ptr;
