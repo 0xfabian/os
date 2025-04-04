@@ -506,9 +506,6 @@ void Task::exit(int code)
     state = TASK_ZOMBIE;
     exit_code = code;
 
-    kfree(cwd_str);
-    cwd->put();
-
     for (int i = 0; i < FD_TABLE_SIZE; i++)
         if (fdt.files[i])
             fdt.files[i]->close();
@@ -520,6 +517,18 @@ void Task::exit(int code)
         if (parent->state == TASK_SLEEPING)
             parent->return_from_syscall(running->tid);
     }
+
+    // this is temporary
+    // this should be freed in the TASK_DEAD state
+    // after the parent has read the exit code
+
+    kfree(cwd_str);
+    cwd->put();
+
+    // this doesn't properly free the memory
+    // we should also free the pages allocated in the page table
+    kfree(mm);
+    kfree(this);
 
     schedule();
 }
