@@ -49,6 +49,8 @@ struct PhysicalMemoryManager
 
     void free_page(void* addr);
     void free_pages(void* addr, usize count);
+
+    void debug();
 };
 
 extern PhysicalMemoryManager pmm;

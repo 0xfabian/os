@@ -300,3 +300,21 @@ void PhysicalMemoryManager::free_pages(void* addr, usize count)
         }
     }
 }
+
+void PhysicalMemoryManager::debug()
+{
+    kprintf("\e[7m %-8s %-18s    %-18s        %-12s %-12s %-12s \e[27m\n", "ENTRY", "BASE", "END", "TOTAL", "USED", "FREE");
+
+    for (usize i = 0; i < region_count; i++)
+    {
+        MemoryRegion* region = &regions[i];
+
+        kprintf(" %-8d %a    %a        %-12lu %-12lu %-12lu\n", i + 1, region->base, region->end, region->bitmap.size, region->used_pages, region->bitmap.size - region->used_pages);
+    }
+
+    usize free_pages = total_pages - used_pages;
+    usize free_percent = free_pages * 100 / total_pages;
+    usize used_percent = 100 - free_percent;
+
+    kprintf("total: %lu    used: %lu (%lu%%)    free: %lu (%lu%%)\n", total_pages, used_pages, used_percent, free_pages, free_percent);
+}

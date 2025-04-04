@@ -486,6 +486,8 @@ int sys_debug(const char* str)
         file_table.debug();
     else if (strcmp(str, "heap") == 0)
         heap.debug();
+    else if (strcmp(str, "pmm") == 0)
+        pmm.debug();
 
     return 0;
 }
