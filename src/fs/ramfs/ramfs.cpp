@@ -142,6 +142,8 @@ int ramfs_mknod(Inode* dir, const char* name, u32 dev)
     inode->sb = dir->sb;
     inode->type = IT_CDEV;
     inode->dev = dev;
+    // maybe create ramfs_dev_inode_ops
+    inode->ops = { .sync = ramfs_sync };
 
     int err = ramfs_link(dir, name, inode);
 
@@ -255,8 +257,18 @@ int ramfs_rmdir(Inode* dir, const char* name)
 
     auto inode = inode_table.find(dir->sb, dirent->ino);
 
+    // if this is true it means that the dir contains subdirctories
+    // and those link to this dir through ..
     if (inode->nlinks > 2)
         return -ERR_DIR_NOT_EMPTY;
+
+    // else we need to hard check if the dir is empty
+    usize count = inode->size / sizeof(Dirent);
+    Dirent* dents = (Dirent*)inode->data;
+
+    for (usize i = 2; i < count; i++)
+        if (dents[i].name[0] != 0)
+            return -ERR_DIR_NOT_EMPTY;
 
     // directories dont have hard links other than . or ..
 
