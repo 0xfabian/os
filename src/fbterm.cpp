@@ -93,6 +93,74 @@ void Framebuffer::init(limine_framebuffer* fb)
     addr = (u32*)fb->address;
 }
 
+isize fb_read(File* file, void* buf, usize size, usize offset)
+{
+    if (size == 0 || offset >= default_fb.width * default_fb.height * sizeof(u32))
+        return 0;
+
+    usize remaining = default_fb.width * default_fb.height * sizeof(u32) - offset;
+
+    if (size > remaining)
+        size = remaining;
+
+    memcpy(buf, (u8*)default_fb.addr + offset, size);
+
+    return size;
+}
+
+isize fb_write(File* file, const void* buf, usize size, usize offset)
+{
+    if (size == 0 || offset >= default_fb.width * default_fb.height * sizeof(u32))
+        return 0;
+
+    usize remaining = default_fb.width * default_fb.height * sizeof(u32) - offset;
+
+    if (size > remaining)
+        size = remaining;
+
+    memcpy((u8*)default_fb.addr + offset, buf, size);
+
+    return size;
+}
+
+usize fb_seek(File* file, usize offset, int whence)
+{
+    usize size = default_fb.width * default_fb.height;
+
+    if (offset > size)
+        offset = size;
+
+    file->offset = offset * sizeof(u32);
+
+    return file->offset;
+}
+
+#define FB_GET_WIDTH    1
+#define FB_GET_HEIGHT   2
+
+int fb_ioctl(File* file, int cmd, void* arg)
+{
+    switch (cmd)
+    {
+    case FB_GET_WIDTH:  *(u32*)arg = default_fb.width;      break;
+    case FB_GET_HEIGHT: *(u32*)arg = default_fb.height;     break;
+    default:                                                return -1;
+    }
+
+    return 0;
+}
+
+void Framebuffer::give_fops(FileOps* fops)
+{
+    fops->open = nullptr;
+    fops->close = nullptr;
+    fops->read = fb_read;
+    fops->write = fb_write;
+    fops->seek = fb_seek;
+    fops->iterate = nullptr;
+    fops->ioctl = fb_ioctl;
+}
+
 void FramebufferTerminal::init()
 {
     limine_framebuffer_response* framebuffer_response = framebuffer_request.response;

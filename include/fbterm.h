@@ -8,6 +8,8 @@
 
 #define INPUT_BUFFER_SIZE 256
 
+struct FileOps;
+
 struct Framebuffer
 {
     u32 width;
@@ -15,10 +17,11 @@ struct Framebuffer
     u32* addr;
 
     void init(limine_framebuffer* fb);
+
+    void give_fops(FileOps* fops);
 };
 
 struct Task;
-struct FileOps;
 
 struct ReadRequest
 {
