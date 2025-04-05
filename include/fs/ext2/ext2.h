@@ -77,7 +77,7 @@ struct Ext2Superblock
 
 struct Ext2Inode
 {
-    u16 type;
+    u16 mode;
     u16 uid;
     u32 size_low;
     u32 last_access_time;

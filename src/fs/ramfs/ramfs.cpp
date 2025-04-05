@@ -84,7 +84,7 @@ result_ptr<Superblock> ramfs_create_sb(Filesystem* fs, BlockDevice* dev)
     Inode* root = ramfs_alloc_inode();
 
     root->sb = sb;
-    root->type = IT_DIR;
+    root->mode = IT_DIR | IP_RWX;
     root->refs = 1; // referenced by sb
     root->ops = ramfs_dir_inode_ops;
     root->fops = ramfs_dir_file_ops;
@@ -115,12 +115,12 @@ void ramfs_destroy_sb(Superblock* sb)
     kfree(sb);
 }
 
-int ramfs_create(Inode* dir, const char* name)
+int ramfs_create(Inode* dir, const char* name, u32 mode)
 {
     Inode* inode = ramfs_alloc_inode();
 
     inode->sb = dir->sb;
-    inode->type = IT_REG;
+    inode->mode = IT_REG | mode;
     inode->ops = ramfs_reg_inode_ops;
     inode->fops = ramfs_reg_file_ops;
 
@@ -135,12 +135,12 @@ int ramfs_create(Inode* dir, const char* name)
     return 0;
 }
 
-int ramfs_mknod(Inode* dir, const char* name, u32 dev)
+int ramfs_mknod(Inode* dir, const char* name, u32 mode, u32 dev)
 {
     Inode* inode = ramfs_alloc_inode();
 
     inode->sb = dir->sb;
-    inode->type = IT_CDEV;
+    inode->mode = mode;
     inode->dev = dev;
     // maybe create ramfs_dev_inode_ops
     inode->ops = { .sync = ramfs_sync };
@@ -178,7 +178,7 @@ int ramfs_link(Inode* dir, const char* name, Inode* inode)
     {
         strcpy(free->name, name);
         free->ino = inode->ino;
-        free->type = inode->type;
+        free->type = inode->mode & IT_MASK;
 
         inode->nlinks++;
         return 0;
@@ -187,7 +187,7 @@ int ramfs_link(Inode* dir, const char* name, Inode* inode)
     Dirent dirent;
     strcpy(dirent.name, name);
     dirent.ino = inode->ino;
-    dirent.type = inode->type;
+    dirent.type = inode->mode & IT_MASK;
 
     int err = ramfs_writei(dir, &dirent, sizeof(Dirent), dir->size);
 
@@ -224,7 +224,7 @@ int ramfs_mkdir(Inode* dir, const char* name)
     Inode* inode = ramfs_alloc_inode();
 
     inode->sb = dir->sb;
-    inode->type = IT_DIR;
+    inode->mode = IT_DIR | IP_RWX;
     inode->ops = ramfs_dir_inode_ops;
     inode->fops = ramfs_dir_file_ops;
 
@@ -382,38 +382,6 @@ int ramfs_iterate(File* file, void* buf, usize size)
     file->offset = offset;
 
     return bytes_read;
-
-    // int requested = size / sizeof(Dirent);
-    // int count = dir
-
-    //     if (file->offset >= file->inode->size)
-    //         return 0;
-
-    // int requested = size / sizeof(Dirent);
-    // Dirent* dirents = (Dirent*)file->inode->data;
-    // int count = file->inode->size / sizeof(Dirent);
-    // int index = file->offset / sizeof(Dirent);
-
-    // Dirent* dirent = &dirents[index];
-
-    // usize len = sizeof(Dirent);
-
-    // if (len > size)
-    //     return -1;
-
-    // memcpy(buf, dirent, len);
-
-    // int skip = 1;
-
-    // for (int i = index + 1; i < count; i++)
-    // {
-    //     if (dirents[i].name[0] != 0)
-    //         break;
-
-    //     skip++;
-    // }
-
-    // return skip * sizeof(Dirent);
 }
 
 Filesystem ramfs =

@@ -2,7 +2,7 @@
 
 FileTable file_table;
 
-result_ptr<File> File::open(const char* path, u32 flags)
+result_ptr<File> File::open(const char* path, u32 flags, u32 mode)
 {
     if (flags & O_DIRECTORY && (flags & O_CREAT || flags & O_TRUNC))
         return -ERR_BAD_ARG;
@@ -27,7 +27,7 @@ result_ptr<File> File::open(const char* path, u32 flags)
         if (!dir)
             return dir.error();
 
-        int err = dir->create(name);
+        int err = dir->create(name, mode);
         dir->put();
 
         if (err)
@@ -44,7 +44,7 @@ result_ptr<File> File::open(const char* path, u32 flags)
         return -ERR_EXISTS;
     }
 
-    if (flags & O_TRUNC)
+    if (flags & O_TRUNC && !inode->is_device())
     {
         int err = inode->truncate(0);
 
@@ -75,7 +75,10 @@ result_ptr<File> File::open(const char* path, u32 flags)
 
     if (inode->is_device())
     {
-        fbterm.give_fops(&file->ops);
+        if (inode->dev == 0x80)
+            default_fb.give_fops(&file->ops);
+        else if (inode->dev == 0x81)
+            fbterm.give_fops(&file->ops);
 
         // Device* dev = inode->get_device();
 

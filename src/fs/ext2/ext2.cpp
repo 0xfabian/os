@@ -51,16 +51,20 @@ result_ptr<Superblock> ext2_create_sb(Filesystem* fs, BlockDevice* dev)
 
     sb->data = ext2_sb;
 
+    Ext2Inode* ext2_root = (Ext2Inode*)kmalloc(sizeof(Ext2Inode));
+    ext2_read_inode(sb, 2, ext2_root);
+
     Inode root;
     root.sb = sb;
-    root.type = IT_DIR;
+    root.ino = 2;
+    root.mode = ext2_root->mode;
+    root.dev = 0;
+    root.size = ext2_root->size_low; // maybe or with size_high
+    root.data = ext2_root;
+    root.nlinks = ext2_root->nlinks;
+    root.flags = 0;
     root.ops = ext2_dir_inode_ops;
     root.fops = ext2_dir_file_ops;
-    root.data = kmalloc(sizeof(Ext2Inode));
-    ext2_read_inode(sb, 2, (Ext2Inode*)root.data);
-    root.nlinks = ((Ext2Inode*)root.data)->nlinks;
-    root.size = ((Ext2Inode*)root.data)->size_low;
-    root.flags = 0;
 
     sb->root = inode_table.insert(&root).ptr;
 
@@ -93,16 +97,20 @@ int ext2_lookup(Inode* _dir, const char* name, Inode* result)
             result->sb = _dir->sb;
             result->ino = dirent->ino;
 
-            // this avoid the memory leak
+            // this avoid the memory leak caused by allocating a new Ext2Inode
+            // and not freeing if the inode is already in the table
             // but is bad since this gets checked in inode_table.insert anyway
             if (inode_table.find(result->sb, result->ino))
                 return 0;
 
-            result->type = ext2_type_mapping[dirent->type];
-            result->data = kmalloc(sizeof(Ext2Inode));
-            ext2_read_inode(result->sb, dirent->ino, (Ext2Inode*)result->data);
-            result->nlinks = ((Ext2Inode*)result->data)->nlinks;
-            result->size = ((Ext2Inode*)result->data)->size_low;
+            Ext2Inode* inode = (Ext2Inode*)kmalloc(sizeof(Ext2Inode));
+            ext2_read_inode(result->sb, result->ino, inode);
+
+            result->mode = inode->mode;
+            result->dev = 0;
+            result->size = inode->size_low; // maybe or with size_high
+            result->data = inode;
+            result->nlinks = inode->nlinks;
             result->flags = 0;
 
             if (result->is_dir())

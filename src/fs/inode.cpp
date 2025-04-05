@@ -109,12 +109,12 @@ void Inode::put()
 
 bool Inode::is_reg()
 {
-    return (type & IT_REG) == IT_REG;
+    return (mode & IT_MASK) == IT_REG;
 }
 
 bool Inode::is_dir()
 {
-    return (type & IT_DIR) == IT_DIR;
+    return (mode & IT_MASK) == IT_DIR;
 }
 
 bool Inode::is_device()
@@ -124,28 +124,48 @@ bool Inode::is_device()
 
 bool Inode::is_block_device()
 {
-    return (type & IT_BDEV) == IT_BDEV;
+    return (mode & IT_MASK) == IT_BDEV;
 }
 
 bool Inode::is_char_device()
 {
-    return (type & IT_CDEV) == IT_CDEV;
+    return (mode & IT_MASK) == IT_CDEV;
 }
 
-int Inode::create(const char* name)
+bool Inode::is_readable()
+{
+    return (mode & IP_MASK) & IP_R;
+}
+
+bool Inode::is_writable()
+{
+    return (mode & IP_MASK) & IP_W;
+}
+
+bool Inode::is_executable()
+{
+    return (mode & IP_MASK) & IP_X;
+}
+
+int Inode::create(const char* name, u32 mode)
 {
     if (!ops.create)
         return -ERR_NOT_IMPL;
 
-    return ops.create(this, name);
+    return ops.create(this, name, mode & IP_MASK);
 }
 
-int Inode::mknod(const char* name, u32 dev)
+int Inode::mknod(const char* name, u32 mode, u32 dev)
 {
     if (!ops.mknod)
         return -ERR_NOT_IMPL;
 
-    return ops.mknod(this, name, dev);
+    u32 type = mode & IT_MASK;
+
+    if (type != IT_CDEV && type != IT_BDEV)
+        return -ERR_BAD_ARG;
+
+    return ops.mknod(this, name, mode, dev);
 }
 
 int Inode::link(const char* name, Inode* inode)
@@ -211,6 +231,26 @@ int Inode::sync()
     return ops.sync(this);
 }
 
+void Inode::fill_stat(stat* buf)
+{
+    buf->st_dev = 0;
+    buf->st_ino = ino;
+    buf->st_nlink = nlinks;
+    buf->st_mode = mode;
+    buf->st_uid = 0;
+    buf->st_gid = 0;
+    buf->st_rdev = dev;
+    buf->st_size = size;
+    buf->st_blksize = 4096;
+    buf->st_blocks = (size + 511) / 512;
+    buf->st_atime = 0;
+    buf->st_atimensec = 0;
+    buf->st_mtime = 0;
+    buf->st_mtimensec = 0;
+    buf->st_ctime = 0;
+    buf->st_ctimensec = 0;
+}
+
 result_ptr<Inode> InodeTable::insert(Inode* inode)
 {
     // pointer to a free entry in the table
@@ -269,7 +309,7 @@ usize InodeTable::get_sb_refs(Superblock* sb)
 
 void InodeTable::debug()
 {
-    kprintf("\e[7m %-8s %-18s    %-8s %-8s    %-8s %-8s %-8s %-8s %-57s \e[27m\n", "ENTRY", "SUPERBLOCK", "INO", "TYPE", "SIZE", "REFS", "NLINKS", "FLAGS", "OPERATIONS");
+    kprintf("\e[7m %-8s %-18s    %-8s %-10s    %-8s %-8s %-8s %-8s %-57s \e[27m\n", "ENTRY", "SUPERBLOCK", "INO", "MODE", "SIZE", "REFS", "NLINKS", "FLAGS", "OPERATIONS");
 
     for (int i = 0; i < INODE_TABLE_SIZE; i++)
     {
@@ -278,7 +318,22 @@ void InodeTable::debug()
         if ((inode->flags & IF_ALLOC) == 0)
             continue;
 
-        kprintf(" %-8d %p    %-8lu %x    %-8lu %-8d %-8d %-8hhx ", i + 1, inode->sb, inode->ino, inode->type, inode->size, inode->refs, inode->nlinks, inode->flags);
+        char mode_str[11];
+        static const char* type_str = "?pc d b - l s   ";
+
+        mode_str[0] = type_str[(inode->mode & IT_MASK) >> 12];
+        mode_str[1] = (inode->mode & IP_R_U) ? 'r' : '-';
+        mode_str[2] = (inode->mode & IP_W_U) ? 'w' : '-';
+        mode_str[3] = (inode->mode & IP_X_U) ? 'x' : '-';
+        mode_str[4] = (inode->mode & IP_R_G) ? 'r' : '-';
+        mode_str[5] = (inode->mode & IP_W_G) ? 'w' : '-';
+        mode_str[6] = (inode->mode & IP_X_G) ? 'x' : '-';
+        mode_str[7] = (inode->mode & IP_R_O) ? 'r' : '-';
+        mode_str[8] = (inode->mode & IP_W_O) ? 'w' : '-';
+        mode_str[9] = (inode->mode & IP_X_O) ? 'x' : '-';
+        mode_str[10] = '\0';
+
+        kprintf(" %-8d %p    %-8lu %s    %-8lu %-8d %-8d %-8hhx ", i + 1, inode->sb, inode->ino, mode_str, inode->size, inode->refs, inode->nlinks, inode->flags);
 
         if (inode->ops.create)
             kprintf("create ");

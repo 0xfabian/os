@@ -26,7 +26,7 @@ struct File
 
     FileOps ops;
 
-    static result_ptr<File> open(const char* path, u32 flags);
+    static result_ptr<File> open(const char* path, u32 flags, u32 mode = 0);
     int close();
 
     isize read(void* buf, usize size);

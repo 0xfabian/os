@@ -17,8 +17,8 @@ extern FileOps ramfs_dir_file_ops;
 result_ptr<Superblock> ramfs_create_sb(Filesystem* fs, BlockDevice* dev);
 void ramfs_destroy_sb(Superblock* sb);
 
-int ramfs_create(Inode* dir, const char* name);
-int ramfs_mknod(Inode* dir, const char* name, u32 dev);
+int ramfs_create(Inode* dir, const char* name, u32 mode);
+int ramfs_mknod(Inode* dir, const char* name, u32 mode, u32 dev);
 int ramfs_link(Inode* dir, const char* name, Inode* inode);
 int ramfs_unlink(Inode* dir, const char* name);
 int ramfs_mkdir(Inode* dir, const char* name);

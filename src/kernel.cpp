@@ -65,34 +65,35 @@ extern "C" void kmain(void)
     inode->put();
 
     inode = Inode::get("/dev");
-    inode->mknod("fbterm", 0x81);
+    inode->mknod("fb", IT_CDEV | IP_RW, 0x80);
+    inode->mknod("fbterm", IT_CDEV | IP_RW, 0x81);
     inode->put();
 
     inode = Inode::get("/bin");
-    inode->create("sh");
-    inode->create("echo");
-    inode->create("ls");
-    inode->create("clear");
-    inode->create("ed");
+    inode->create("sh", IP_RWX);
+    inode->create("echo", IP_RWX);
+    inode->create("ls", IP_RWX);
+    inode->create("clear", IP_RWX);
+    inode->create("ed", IP_RWX);
     inode->put();
 
-    auto file = File::open("/bin/sh", 0);
+    auto file = File::open("/bin/sh", O_WRONLY);
     file->write((const char*)sh_code, sizeof(sh_code));
     file->close();
 
-    file = File::open("/bin/echo", 0);
+    file = File::open("/bin/echo", O_WRONLY);
     file->write((const char*)echo_code, sizeof(echo_code));
     file->close();
 
-    file = File::open("/bin/ls", 0);
+    file = File::open("/bin/ls", O_WRONLY);
     file->write((const char*)ls_code, sizeof(ls_code));
     file->close();
 
-    file = File::open("/bin/clear", 0);
+    file = File::open("/bin/clear", O_WRONLY);
     file->write((const char*)clear_code, sizeof(clear_code));
     file->close();
 
-    file->File::open("/bin/ed", 0);
+    file->File::open("/bin/ed", O_WRONLY);
     file->write((const char*)ed_data, sizeof(ed_data));
     file->close();
 
