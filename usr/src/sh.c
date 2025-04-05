@@ -30,18 +30,6 @@ int find(const char* str, char ch)
     return -1;
 }
 
-int exists(const char* path)
-{
-    int fd = open(path, 0, 0);
-
-    if (fd < 0)
-        return 0;
-
-    close(fd);
-
-    return 1;
-}
-
 #define BUF_SIZE    1024
 #define CWD_SIZE    256
 #define ARG_MAX     16
@@ -107,8 +95,46 @@ char full_path[256];
 
 void do_exec(const char* path)
 {
-    if (!exists(path))
-        return;
+    struct stat st;
+
+    if (stat(path, &st) < 0 || (st.st_mode & IT_MASK) != IT_REG || st.st_mode & IP_X == 0)
+        return;    
+
+    if (argc > 2)
+    {
+        if (strcmp(argv[argc - 2], ">") == 0)
+        {
+            int fd = open(argv[argc - 1], O_WRONLY | O_CREAT | O_TRUNC, 0);
+
+            if (fd < 0)
+            {
+                write(1, "sh: open failed\n", 16);
+                exit(1);
+            }
+
+            close(1);
+            dup(fd);
+            close(fd);
+
+            argv[argc - 2] = 0;
+        }
+        else if (strcmp(argv[argc - 2], "<") == 0)
+        {
+            int fd = open(argv[argc - 1], O_RDONLY, 0);
+
+            if (fd < 0)
+            {
+                write(1, "sh: open failed\n", 16);
+                exit(1);
+            }
+
+            close(0);
+            dup(fd);
+            close(fd);
+
+            argv[argc - 2] = 0;
+        }
+    }
 
     execve(path, argv, 0);
     write(1, "sh: execve failed\n", 18);
@@ -201,6 +227,6 @@ int main()
             exit(1);
         }
         else
-            wait4(-1, 0, 0, 0);
+            wait(-1, 0, 0);
     }
 }
