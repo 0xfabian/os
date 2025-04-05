@@ -66,6 +66,12 @@ int load_elf(Task* task, const char* path, u64* entry)
     if (!src)
         return src.error();
 
+    if (!src->inode->is_reg() || !src->inode->is_executable())
+    {
+        src->close();
+        return -ERR_NO_EXEC;
+    }
+
     ELF::Header hdr;
 
     isize read = src->pread((char*)&hdr, sizeof(ELF::Header), 0);
@@ -274,7 +280,7 @@ Task* Task::fork()
 #define AT_NULL         0
 #define AT_EXECFN       31
 #define AT_PLATFORM     15
-#define AT_RANDOM      25
+#define AT_RANDOM       25
 
 struct auxv
 {
@@ -310,10 +316,12 @@ int Task::execve(const char* path, char* const argv[], char* const envp[])
     // loading the elf will replace the page table
     // but it will keep mm->kernel_stack
     u64 entry;
-    if (load_elf(this, path, &entry) != 0)
+    int err = load_elf(this, path, &entry);
+
+    if (err)
     {
         kfree(argv_mem);
-        return -1;
+        return err;
     }
 
     // !!! we are not freeing the previous mm
