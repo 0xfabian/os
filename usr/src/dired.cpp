@@ -1,20 +1,5 @@
 #include <user.h>
 
-int unlink(const char* path)
-{
-    int ret;
-
-    asm volatile (
-        "mov $87, %%eax\n"
-        "syscall"
-        : "=a"(ret)
-        : "D"(path)
-        : "rcx", "r11", "memory"
-        );
-
-    return ret;
-}
-
 struct Dirent
 {
     unsigned long ino;
@@ -73,6 +58,23 @@ struct Line
     }
 };
 
+enum Redraw
+{
+    ALL,
+    JUST_CWD,
+    JUST_NEWNAME,
+    NOTHING
+};
+
+Redraw redraw;
+
+struct Entry
+{
+    char display_name[40];
+    char name[32];
+    struct stat st;
+};
+
 struct Editor;
 
 void draw(Editor* ed);
@@ -81,128 +83,259 @@ void move_cursor(int line, int col);
 void set_cooked();
 void clear_screen();
 
+#define MAX_ENTRIES 100
+
 struct Editor
 {
-    Line cwd;
     char real_cwd[256];
+    Line cwd;
     int cursor = 0;
-    int sel_line = 2;
-    Dirent sel_dent;
-    bool has_sel = false;
-    bool on_new = false;
+    int sel_line = 1;
     Line new_name;
     int new_cursor = 0;
 
+    struct Entry entries[MAX_ENTRIES];
+    int entry_count = 0;
+
+    void get_entries()
+    {
+        entry_count = 0;
+
+        int fd = cwd.size == 0 ? -1 : open(cwd.data, O_RDONLY | O_DIRECTORY, 0);
+
+        if (fd < 0)
+        {
+            sel_line = -1;
+            return;
+        }
+
+        if (strcmp(cwd.data, real_cwd) != 0)
+        {
+            if (sel_line >= 0)
+                sel_line = 1;
+
+            strcpy(real_cwd, cwd.data);
+            chdir(cwd.data);
+        }
+
+        Dirent dents[64];
+        long bytes_read = 0;
+
+        while ((bytes_read = getdents(fd, dents, sizeof(dents))) > 0)
+        {
+            int count = bytes_read / sizeof(Dirent);
+
+            for (Dirent* dent = dents; dent < dents + count; dent++)
+            {
+                if (dent->name[0] == '.' && dent->name[1] == 0)
+                    continue;
+
+                Entry* ent = entries + entry_count;
+
+                if (stat(dent->name, &ent->st) < 0)
+                    continue;
+
+                strcpy(ent->name, dent->name);
+
+                int type = ent->st.st_mode & IT_MASK;
+                int perm = ent->st.st_mode & IP_MASK;
+
+                if (type == IT_DIR)
+                    strcpy(ent->display_name, "\e[94m");
+                else if (type == IT_CDEV || type == IT_BDEV)
+                    strcpy(ent->display_name, "\e[93m");
+                else if (perm & IP_X)
+                    strcpy(ent->display_name, "\e[92m");
+                else
+                    strcpy(ent->display_name, "\e[39m");
+
+                strcat(ent->display_name, dent->name);
+
+                entry_count++;
+            }
+        }
+
+        close(fd);
+    }
+
     void insert(char c)
     {
-        if (on_new)
+        if (entry_count > 0 && sel_line == entry_count)
         {
             if (new_name.insert(new_cursor, c))
                 new_cursor++;
+
+            redraw = JUST_NEWNAME;
         }
-        else
+        else if (sel_line == -1)
         {
             if (cwd.insert(cursor, c))
+            {
                 cursor++;
+                get_entries();
+            }
         }
+        else
+            redraw = NOTHING;
     }
 
     void backspace_one()
     {
-        if (cursor > 0)
+        if (cursor > 1)
         {
             cwd.erase(cursor - 1);
             cursor--;
         }
     }
 
+    void backspace_dir()
+    {
+        cursor = cwd.size;
+
+        if (cwd.data[cwd.size - 1] == '/' && cwd.size > 1)
+            backspace_one();
+
+        while (cwd.size > 0 && cwd.data[cwd.size - 1] != '/')
+            backspace_one();
+    }
+
     void backspace()
     {
-        if (on_new)
+        if (entry_count > 0 && sel_line == entry_count)
         {
             if (new_cursor > 0)
             {
                 new_name.erase(new_cursor - 1);
                 new_cursor--;
             }
+
+            redraw = JUST_NEWNAME;
         }
         else
         {
-            if (cwd.data[cwd.size - 1] == '/' && cwd.size > 1)
+            if (sel_line == -1 && cursor != cwd.size)
                 backspace_one();
+            else
+                backspace_dir();
 
-            while (cwd.size > 0 && cwd.data[cwd.size - 1] != '/')
-                backspace_one();
+            get_entries();
         }
     }
 
     void move_right()
     {
-        if (on_new)
+        if (entry_count > 0 && sel_line == entry_count)
         {
             if (new_cursor < new_name.size)
                 new_cursor++;
+
+            redraw = JUST_NEWNAME;
         }
-        else
+        else if (sel_line == -1)
         {
             if (cursor < cwd.size)
                 cursor++;
+
+            redraw = JUST_CWD;
         }
+        else
+            redraw = NOTHING;
     }
 
     void move_left()
     {
-        if (on_new)
+        if (entry_count > 0 && sel_line == entry_count)
         {
             if (new_cursor > 0)
                 new_cursor--;
+
+            redraw = JUST_NEWNAME;
         }
-        else
+        else if (sel_line == -1)
         {
             if (cursor > 0)
                 cursor--;
+
+            redraw = JUST_CWD;
         }
+        else
+            redraw = NOTHING;
     }
 
     void move_home()
     {
-        if (on_new)
-            new_cursor = 0;
-        else
+        if (sel_line == -1)
+        {
             cursor = 0;
+            redraw = JUST_CWD;
+        }
+        else if (entry_count > 0)
+        {
+            if (sel_line >= 0 && sel_line < entry_count)
+                sel_line = -1;
+            else if (sel_line == entry_count)
+            {
+                new_cursor = 0;
+                redraw = JUST_NEWNAME;
+            }
+        }
+        else
+            redraw = NOTHING;
     }
 
     void move_end()
     {
-        if (on_new)
-            new_cursor = new_name.size;
-        else
+        if (sel_line == -1)
+        {
             cursor = cwd.size;
+            redraw = JUST_CWD;
+        }
+        else if (entry_count > 0)
+        {
+            if (sel_line >= 0 && sel_line < entry_count)
+                sel_line = entry_count;
+            else if (sel_line == entry_count)
+            {
+                new_cursor = new_name.size;
+                redraw = JUST_NEWNAME;
+            }
+        }
+        else
+            redraw = NOTHING;
     }
 
     void move_up()
     {
-        if (sel_line > 0)
+        if (sel_line >= 0)
             sel_line--;
+        else
+            redraw = NOTHING;
     }
 
     void move_down()
     {
-        if (on_new)
-            return;
-
-        sel_line++;
+        if (entry_count > 0 && sel_line < entry_count)
+            sel_line++;
+        else
+            redraw = NOTHING;
     }
 
     void _delete()
     {
-        if (!has_sel)
+        if (entry_count == 0 || sel_line < 0 || sel_line >= entry_count)
             return;
 
-        if ((sel_dent.type & IT_DIR) == 0)
-            unlink(sel_dent.name);
+        int err;
+
+        if ((entries[sel_line].st.st_mode & IT_MASK) == IT_DIR)
+            err = rmdir(entries[sel_line].name);
         else
-            rmdir(sel_dent.name);
+            err = unlink(entries[sel_line].name);
+
+        if (!err)
+            get_entries();
+        else
+            redraw = NOTHING;
     }
 
     void enter_ed()
@@ -213,7 +346,7 @@ struct Editor
         {
             char* argv[3];
             argv[0] = (char*)"/mnt/bin/ed";
-            argv[1] = (char*)sel_dent.name;
+            argv[1] = (char*)entries[sel_line].name;
             argv[2] = nullptr;
 
             execve(argv[0], argv, nullptr);
@@ -221,81 +354,108 @@ struct Editor
         }
         else
         {
-            wait4(-1, 0, 0, 0);
+            wait(-1, 0, 0);
             set_raw();
         }
     }
 
     void enter_dir()
     {
-        int len = strlen(sel_dent.name);
+        if (strcmp(entries[sel_line].name, ".") == 0)
+        {
+            redraw = NOTHING;
+            return;
+        }
+
+        if (strcmp(entries[sel_line].name, "..") == 0)
+        {
+            backspace();
+            return;
+        }
+
+        int len = strlen(entries[sel_line].name);
+        int req_size = len + 1;
+
+        if (cwd.data[cwd.size - 1] != '/')
+            req_size++;
+
+        if (cwd.size + req_size > MAX_LINE_SIZE)
+        {
+            redraw = NOTHING;
+            return;
+        }
+
+        if (cwd.data[cwd.size - 1] != '/')
+            cwd.insert(cwd.size, '/');
+
+        strcat(cwd.data, entries[sel_line].name);
+        cwd.size += len;
+        cwd.insert(cwd.size, '/');
 
         cursor = cwd.size;
 
-        if (strcmp(sel_dent.name, ".") == 0)
-            return;
-
-        if (strcmp(sel_dent.name, "..") == 0)
-        {
-            backspace();
-        }
-        else
-        {
-            if (cwd.data[cwd.size - 1] != '/')
-                insert('/');
-
-            for (int i = 0; i < len; i++)
-                insert(sel_dent.name[i]);
-
-            insert('/');
-        }
+        get_entries();
     }
 
     void enter()
     {
-        if (!has_sel)
+        if (entry_count == 0)
         {
-            if (on_new)
-            {
-                if (new_name.size > 0)
-                {
-                    if (new_name.data[new_name.size - 1] == '/')
-                    {
-                        new_name.data[new_name.size - 1] = 0;
+            redraw = NOTHING;
+            return;
+        }
 
-                        int err = mkdir(new_name.data, 0);
+        if (sel_line >= 0 && sel_line < entry_count)
+        {
+            int type = entries[sel_line].st.st_mode & IT_MASK;
 
-                        new_name.data[new_name.size - 1] = '/';
-
-                        if (!err)
-                        {
-                            new_name.size = 0;
-                            new_name.data[0] = 0;
-                            new_cursor = 0;
-                        }
-                    }
-                    else
-                    {
-                        int fd = open(new_name.data, O_EXCL | O_CREAT, 0);
-
-                        if (fd > 0)
-                        {
-                            close(fd);
-                            new_name.size = 0;
-                            new_name.data[0] = 0;
-                            new_cursor = 0;
-                        }
-                    }
-                }
-            }
+            if (type == IT_DIR)
+                enter_dir();
+            else if (type == IT_REG)
+                enter_ed();
 
             return;
         }
 
-        if ((sel_dent.type & IT_DIR) == IT_DIR)
-            enter_dir();
-        else if ((sel_dent.type & IT_REG) == IT_REG)
-            enter_ed();
+        if (sel_line != entry_count || new_name.size == 0)
+        {
+            redraw = NOTHING;
+            return;
+        }
+
+        if (new_name.data[new_name.size - 1] == '/')
+        {
+            new_name.data[new_name.size - 1] = 0;
+
+            int err = mkdir(new_name.data);
+
+            new_name.data[new_name.size - 1] = '/';
+
+            if (!err)
+            {
+                new_name.size = 0;
+                new_name.data[0] = 0;
+                new_cursor = 0;
+                get_entries();
+            }
+            else
+                redraw = NOTHING;
+        }
+        else
+        {
+            int fd = open(new_name.data, O_EXCL | O_CREAT, 0);
+
+            if (fd > 0)
+            {
+                close(fd);
+                new_name.size = 0;
+                new_name.data[0] = 0;
+                new_cursor = 0;
+                get_entries();
+            }
+            else
+                redraw = NOTHING;
+        }
     }
 
     void switch_to_shell()
@@ -316,7 +476,7 @@ struct Editor
         }
         else
         {
-            wait4(-1, 0, 0, 0);
+            wait(-1, 0, 0);
             set_raw();
         }
     }
@@ -440,6 +600,8 @@ void process_keys(Editor* ed)
     if (!key)
         return;
 
+    redraw = ALL;
+
     if (isprint(key))
     {
         if (key == '`')
@@ -451,7 +613,7 @@ void process_keys(Editor* ed)
     {
         switch (key)
         {
-        case CTRL_Q:            quit = true;                    break;
+        case CTRL_Q:            quit = true; redraw = NOTHING;  break;
         case BACKSPACE:         ed->backspace();                break;
         case ARROW_LEFT:        ed->move_left();                break;
         case ARROW_RIGHT:       ed->move_right();               break;
@@ -538,118 +700,89 @@ bool is_elf(int fd)
     return ret == 4 && hdr[0] == 0x7f && hdr[1] == 'E' && hdr[2] == 'L' && hdr[3] == 'F';
 }
 
-void draw(Editor* ed)
+void draw_cwd(Editor* ed)
 {
-    int height = get_height();
-    int width = get_width();
-
-    int line = 0;
-
-    move_cursor(line, 0);
+    move_cursor(0, 0);
 
     for (int j = 0; j <= ed->cwd.size; j++)
     {
         char ch = j < ed->cwd.size ? ed->cwd.data[j] : ' ';
 
-        // if (j == ed->cursor)
-        // {
-        //     printf("\e[107;30m%c\e[m", ch);
-        //     continue;
-        // }
-
-        printf(ch == '/' ? "\e[91m" : "\e[94m");
-        printf("%c", ch);
+        if (ed->sel_line == -1 && j == ed->cursor)
+            printf("\e[107;30m%c\e[m", ch);
+        else
+            printf("\e[9%cm%c", ch == '/' ? '1' : '4', ch);
     }
 
     clear_eol();
+}
+
+void draw_newname(Editor* ed)
+{
+    move_cursor(1 + ed->entry_count, 0);
+    printf("  \e[90m+\e[m ");
+
+    bool is_dir = ed->new_name.size > 0 && ed->new_name.data[ed->new_name.size - 1] == '/';
+
+    for (int i = 0; i <= ed->new_name.size; i++)
+    {
+        char ch = i < ed->new_name.size ? ed->new_name.data[i] : ' ';
+
+        if (i == ed->new_cursor)
+            printf("\e[107;30m%c\e[m", ch);
+        else
+        {
+            if (is_dir && ch != '/')
+                printf("\e[94m%c\e[m", ch);
+            else
+                printf("%c", ch);
+        }
+    }
+
+    clear_eol();
+}
+
+void draw(Editor* ed)
+{
+    if (redraw == NOTHING)
+        return;
+
+    if (redraw == JUST_CWD)
+    {
+        draw_cwd(ed);
+        flush();
+        return;
+    }
+    else if (redraw == JUST_NEWNAME)
+    {
+        draw_newname(ed);
+        flush();
+        return;
+    }
+
+    int height = get_height();
+    int width = get_width();
+    int split = width / 3;
+    int line = 0;
+
+    draw_cwd(ed);
     line++;
 
-    ed->has_sel = false;
-    ed->on_new = false;
-
-    int fd = ed->cwd.size == 0 ? -1 : open(ed->cwd.data, O_RDONLY | O_DIRECTORY, 0);
-
-    if (fd < 0)
+    if (ed->entry_count > 0)
     {
-        move_cursor(line, 0);
-        printf("dir not found");
-        clear_eol();
-        line++;
-    }
-    else
-    {
-        if (strcmp(ed->cwd.data, ed->real_cwd) != 0)
+        for (int i = 0; i < ed->entry_count; i++)
         {
-            ed->sel_line = 2;
-            strcpy(ed->real_cwd, ed->cwd.data);
-            chdir(ed->cwd.data);
-        }
-
-        Dirent dents[64];
-        long bytes_read = 0;
-        int ls_line = 0;
-
-        while ((bytes_read = getdents(fd, dents, sizeof(dents))) > 0)
-        {
-            int count = bytes_read / sizeof(Dirent);
-
-            for (Dirent* dent = dents; dent < dents + count; dent++)
-            {
-                bool at_sel = ls_line == ed->sel_line;
-
-                move_cursor(line, 0);
-
-                printf("    ");
-
-                if (at_sel)
-                    printf("\e[7m");
-
-                printf((dent->type & IT_DIR) == IT_DIR ? "\e[94m%s\e[m " : "%s", dent->name);
-
-                if (at_sel)
-                    printf("\e[27m");
-
-                clear_eol();
-
-                if (at_sel)
-                {
-                    ed->sel_dent = *dent;
-                    ed->has_sel = true;
-                }
-
-                line++;
-                ls_line++;
-            }
-        }
-
-        close(fd);
-
-        if (ed->sel_line >= ls_line)
-        {
-            ed->on_new = true;
             move_cursor(line, 0);
-            printf("  \e[90m+\e[m ");
-
-            bool is_dir = ed->new_name.size > 0 && ed->new_name.data[ed->new_name.size - 1] == '/';
-
-            for (int i = 0; i <= ed->new_name.size; i++)
-            {
-                char ch = i < ed->new_name.size ? ed->new_name.data[i] : ' ';
-
-                if (i == ed->new_cursor)
-                    printf("\e[107;30m%c\e[m", ch);
-                else
-                {
-                    if (is_dir && ch != '/')
-                        printf("\e[94m%c\e[m", ch);
-                    else
-                        printf("%c", ch);
-                }
-            }
-
+            printf("    %s%s", i == ed->sel_line ? "\e[7m" : "", ed->entries[i].display_name);
             clear_eol();
             line++;
         }
+    }
+
+    if (ed->sel_line == ed->entry_count)
+    {
+        draw_newname(ed);
+        line++;
     }
 
     for (int i = line; i < height; i++)
@@ -658,15 +791,23 @@ void draw(Editor* ed)
         clear_eol();
     }
 
-    int split = 60;
-    line = 0;
-
-    if (ed->has_sel && (ed->sel_dent.type & IT_REG) == IT_REG)
+    if (ed->entry_count == 0 || ed->sel_line == ed->entry_count)
     {
-        int fd = open(ed->sel_dent.name, O_RDONLY, 0);
+        flush();
+        return;
+    }
+
+    line = 0;
+    Entry* ent = ed->entries + ed->sel_line;
+    int type = ent->st.st_mode & IT_MASK;
+
+    printf("\e[90m");
+
+    if (type == IT_REG)
+    {
+        int fd = open(ent->name, O_RDONLY, 0);
 
         move_cursor(line, split);
-        printf("\e[90m");
 
         if (is_elf(fd))
         {
@@ -717,9 +858,9 @@ void draw(Editor* ed)
 
         close(fd);
     }
-    else if (ed->has_sel && (ed->sel_dent.type & IT_DIR) == IT_DIR)
+    else if (type == IT_DIR)
     {
-        int fd = open(ed->sel_dent.name, O_RDONLY | O_DIRECTORY, 0);
+        int fd = open(ent->name, O_RDONLY | O_DIRECTORY, 0);
 
         Dirent dents[64];
         long bytes_read = 0;
@@ -730,24 +871,23 @@ void draw(Editor* ed)
 
             for (Dirent* dent = dents; dent < dents + count; dent++)
             {
+                if (dent->name[0] == '.' && dent->name[1] == 0)
+                    continue;
+
                 move_cursor(line, split);
-                printf("\e[90m");
-
-                printf("%s", dent->name);
-
-                clear_eol();
+                printf("\e[90m%s", dent->name);
                 line++;
             }
         }
 
         close(fd);
     }
-
-    // for (int i = line; i < height; i++)
-    // {
-    //     move_cursor(i, 0);
-    //     clear_eol();
-    // }
+    else if (type == IT_CDEV || type == IT_BDEV)
+    {
+        move_cursor(line, split);
+        printf("Device file");
+        line++;
+    }
 
     flush();
 }
@@ -760,6 +900,7 @@ int main(int argc, char** argv)
     ed.cwd.size = strlen(ed.cwd.data);
     ed.cursor = ed.cwd.size;
     strcpy(ed.real_cwd, ed.cwd.data);
+    ed.get_entries();
 
     set_raw();
 
