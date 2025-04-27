@@ -1,20 +1,17 @@
-WIN_PATH = C:/Users/spide/Desktop/os
-IMG = $(shell wslpath -a $(WIN_PATH))/image.hdd
-DISK = $(shell wslpath -a $(WIN_PATH))/disk.img
-QEMU_FLAGS = -cpu qemu64,+sse -m 1G -net none \
-	-drive format=raw,file=$(WIN_PATH)/image.hdd \
-	-drive if=pflash,format=raw,unit=0,file=$(WIN_PATH)/OVMFbin/OVMF_CODE-pure-efi.fd,readonly=on \
-	-drive if=pflash,format=raw,unit=1,file=$(WIN_PATH)/OVMFbin/OVMF_VARS-pure-efi.fd \
-	-drive if=ide,format=raw,file=$(WIN_PATH)/disk.img
-
 CC = g++
-ASMC = nasm
+AS = nasm
 LD = ld
-LDSCRIPT = link.ld
+LD_SCRIPT = link.ld
 
-CFLAGS = -Iinclude -O2 -Wall -mno-red-zone -mgeneral-regs-only -ffreestanding -fno-exceptions -fno-rtti
-ASMFLAGS = 
-LDFLAGS = -T $(LDSCRIPT) -static -Bsymbolic -nostdlib
+CC_FLAGS = -Iinclude -O2 -Wall -mno-red-zone -mgeneral-regs-only -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector
+AS_FLAGS = 
+LD_FLAGS = -T $(LD_SCRIPT) -static -Bsymbolic -nostdlib
+
+QEMU_FLAGS = -display sdl -cpu qemu64,+sse -m 1G -net none \
+	-drive format=raw,file=image.hdd \
+	-drive if=pflash,format=raw,readonly=on,file=ovmf/OVMF_CODE.4m.fd \
+	-drive if=pflash,format=raw,file=ovmf/OVMF_VARS.4m.fd \
+	-drive if=ide,format=raw,file=disk.img
 
 SRCDIR := src
 OBJDIR := build
@@ -22,26 +19,26 @@ OBJDIR := build
 rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 
 SRC = $(call rwildcard,$(SRCDIR),*.cpp)
-ASMSRC = $(call rwildcard,$(SRCDIR),*.asm)
+ASM_SRC = $(call rwildcard,$(SRCDIR),*.asm)
 OBJS = $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SRC))
-OBJS += $(patsubst $(SRCDIR)/%.asm, $(OBJDIR)/%_asm.o, $(ASMSRC))
+OBJS += $(patsubst $(SRCDIR)/%.asm, $(OBJDIR)/%_asm.o, $(ASM_SRC))
 DIRS = $(wildcard $(SRCDIR)/*)
 
 kernel: esp/boot/kernel
 
-esp/boot/kernel: $(OBJS) $(LDSCRIPT)
+esp/boot/kernel: $(OBJS) $(LD_SCRIPT)
 	@ echo linking kernel...
-	@ $(LD) $(LDFLAGS) -o esp/boot/kernel $(OBJS)
+	@ $(LD) $(LD_FLAGS) -o esp/boot/kernel $(OBJS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@ echo 'g++   ' $^
 	@ mkdir -p $(@D)
-	@ $(CC) $(CFLAGS) -c $^ -o $@
+	@ $(CC) $(CC_FLAGS) -c $^ -o $@
 
 $(OBJDIR)/%_asm.o: $(SRCDIR)/%.asm
 	@ echo 'nasm  ' $^
 	@ mkdir -p $(@D)
-	@ $(ASMC) $(ASMFLAGS) $^ -f elf64 -o $@
+	@ $(AS) $(AS_FLAGS) $^ -f elf64 -o $@
 
 buildimg:
 	dd if=/dev/zero bs=1M count=0 seek=256 of=image.hdd
@@ -51,20 +48,17 @@ buildimg:
 	mcopy -i image.hdd@@1M esp/EFI/BOOT/BOOTX64.EFI ::/EFI/BOOT
 	mcopy -i image.hdd@@1M esp/boot/limine/limine.conf ::/boot/limine
 	mcopy -i image.hdd@@1M esp/boot/kernel ::/boot
-	mv image.hdd $(IMG)
 
-updateimg: $(IMG)
-
-$(IMG): esp/boot/kernel
+updateimg: esp/boot/kernel
 	@ echo updating image...
-	@ mcopy -o -i $(IMG)@@1M esp/boot/kernel ::/boot
+	@ mcopy -o -i image.hdd@@1M esp/boot/kernel ::/boot
 
 clean:
 	@ rm -rf $(OBJDIR)
 
 run:
 	@ sudo umount disk 2> /dev/null || true
-	@ powershell.exe -Command "qemu-system-x86_64 $(QEMU_FLAGS)" 2> /dev/null
-	@ sudo mount -o loop $(DISK) disk
+	@ qemu-system-x86_64 $(QEMU_FLAGS) 2> /dev/null
+	@ sudo mount -o loop disk.img disk
 
 all: kernel updateimg run
