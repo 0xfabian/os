@@ -147,4 +147,4 @@ extern int arch_prctl(int op, u64* addr);
 extern int mount(const char* source, const char* target, const char* fstype);
 extern int umount(const char* target);
 extern int openat(int dirfd, const char* path, u32 flags, u32 mode);
-extern int sys_debug(const char* str);
+extern int debug(const char* str);

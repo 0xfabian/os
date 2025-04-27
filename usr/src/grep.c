@@ -115,7 +115,7 @@ int main(int argc, char** argv)
 
     if (argc > 2)
     {
-        fd = open(argv[2], 0);
+        fd = open(argv[2], O_RDONLY, 0);
 
         if (fd < 0)
         {

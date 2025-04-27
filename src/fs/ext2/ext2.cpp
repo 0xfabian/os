@@ -1,5 +1,8 @@
 #include <fs/ext2/ext2.h>
 
+// This assumes 4k blocks and 128 bytes inodes
+// which is not always the case
+
 u32 ext2_type_mapping[] =
 {
     0,
@@ -20,7 +23,7 @@ int ext2_read_inode(Superblock* sb, u32 ino, Ext2Inode* inode)
     u32 index = (ino - 1) % ext2_sb->disk_sb.inodes_per_group;
 
     Ext2GroupDesc* gd = &ext2_sb->group_desc[group];
-    sb->dev->read(gd->inode_table * ext2_sb->block_size + index * sizeof(Ext2Inode), (u8*)inode, sizeof(Ext2Inode));
+    sb->dev->read(gd->inode_table * ext2_sb->block_size + index * ext2_sb->disk_sb.inode_size, (u8*)inode, sizeof(Ext2Inode));
 
     return 0;
 }
