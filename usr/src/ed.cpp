@@ -1187,14 +1187,14 @@ Token next_c_token(char*& ptr)
     if (*ptr == 0)
     {
         has_inc_directive = false;
-        return { ptr, 0, 90 };
+        return { ptr, 0, 39 };
     }
 
     Token ret;
     ret.start = ptr;
 
     if (parse_whitespace(ptr))
-        ret.color = 90;
+        ret.color = 39;
     else if (parse_comment(ptr))
         ret.color = 37;
     else if (parse_directive(ptr))
@@ -1392,13 +1392,13 @@ bool parse_asm_comment(char*& ptr)
 Token next_asm_token(char*& ptr)
 {
     if (*ptr == 0)
-        return { ptr, 0, 90 };
+        return { ptr, 0, 39 };
 
     Token ret;
     ret.start = ptr;
 
     if (parse_whitespace(ptr))
-        ret.color = 90;
+        ret.color = 39;
     else if (parse_asm_comment(ptr))
         ret.color = 37;
     else if (parse_asm_directive(ptr))
@@ -1445,13 +1445,13 @@ Token next_asm_token(char*& ptr)
 Token next_regular_token(char*& ptr)
 {
     if (*ptr == 0)
-        return { ptr, 0, 90 };
+        return { ptr, 0, 39 };
 
     Token ret;
     ret.start = ptr;
 
     if (parse_whitespace(ptr))
-        ret.color = 90;
+        ret.color = 39;
     else
     {
         while (*ptr && !isspace(*ptr))
@@ -1538,21 +1538,7 @@ void draw(Editor* ed)
         {
             char ch = col < ln->size ? ln->data[col] : ' ';
             bool at_cursor = line == ed->line && col == ed->col;
-            bool inside_selection = sel.contains(line, col);
-            bool should_reverse = at_cursor || inside_selection;
-
-            if (should_reverse != in_reverse)
-            {
-                printf(should_reverse ? "\e[100m" : "\e[49m");
-                in_reverse = should_reverse;
-            }
-
-            if (at_cursor)
-            {
-                printf("\e[107;30m%c\e[%dm", ch, in_reverse ? 100 : 49);
-                color = -1;
-                continue;
-            }
+            bool should_reverse = !at_cursor && sel.contains(line, col);
 
             if (color_buf[col] != color)
             {
@@ -1560,7 +1546,13 @@ void draw(Editor* ed)
                 printf("\e[%dm", color);
             }
 
-            printf("%c", ch);
+            if (should_reverse != in_reverse)
+            {
+                in_reverse = should_reverse;
+                printf(in_reverse ? "\e[100m" : "\e[49m");
+            }
+
+            printf(at_cursor ? "\e[7m%c\e[27m" : "%c", ch);
         }
 
         // clear screen from cursor until the end of line
