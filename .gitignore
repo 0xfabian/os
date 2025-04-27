@@ -5,3 +5,6 @@ disk.img
 zap-light20.psf
 /usr/bin
 /usr/cc
+/ovmf
+image.hdd
+disk.img
