@@ -150,7 +150,17 @@ Task* Task::from(const char* path)
 
     u64 entry;
     if (load_elf(task, path, &entry) != 0)
+    {
+        kfree(task->cwd_str);
+        task->cwd->put();
+        kfree(task->mm);
+        kfree(task);
+
+        // like in Task::exit the actual pages don't get freed
+        // we should add a proper free_task function
+
         return nullptr;
+    }
 
     u64 ustack_top = (u64)task->mm->user_stack + USER_STACK_SIZE;
     u64 kstack_top = (u64)task->mm->kernel_stack + KERNEL_STACK_SIZE;

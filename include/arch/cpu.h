@@ -58,7 +58,7 @@ static inline void cpuid(u32 code, u32* eax, u32* ebx, u32* ecx, u32* edx)
 static inline u8 inb(u16 port)
 {
     u8 ret;
-    asm volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
+    asm volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
 
     return ret;
 }
@@ -66,7 +66,7 @@ static inline u8 inb(u16 port)
 static inline u16 inw(u16 port)
 {
     u16 ret;
-    asm volatile ("inw %1, %0" : "=a"(ret) : "d"(port));
+    asm volatile("inw %1, %0" : "=a"(ret) : "d"(port));
 
     return ret;
 }
@@ -74,24 +74,24 @@ static inline u16 inw(u16 port)
 static inline u32 inl(u16 port)
 {
     u32 ret;
-    asm volatile ("inl %1, %0" : "=a"(ret) : "d"(port));
+    asm volatile("inl %1, %0" : "=a"(ret) : "d"(port));
 
     return ret;
 }
 
 static inline void outb(u16 port, u8 val)
 {
-    asm volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
+    asm volatile("outb %0, %1" : : "a"(val), "Nd"(port));
 }
 
 static inline void outw(u16 port, u16 val)
 {
-    asm volatile ("outw %0, %1" : : "a"(val), "d"(port));
+    asm volatile("outw %0, %1" : : "a"(val), "d"(port));
 }
 
 static inline void outl(u16 port, u32 val)
 {
-    asm volatile ("outl %0, %1" : : "a"(val), "d"(port));
+    asm volatile("outl %0, %1" : : "a"(val), "d"(port));
 }
 
 static inline u64 read_rflags()
@@ -100,6 +100,14 @@ static inline u64 read_rflags()
     asm volatile("pushfq; popq %0" : "=r"(rflags));
 
     return rflags;
+}
+
+static inline u64 read_cr0()
+{
+    u64 cr0;
+    asm volatile("mov %%cr0, %0" : "=r"(cr0));
+
+    return cr0;
 }
 
 static inline u64 read_cr2()
@@ -118,28 +126,46 @@ static inline u64 read_cr3()
     return cr3;
 }
 
+static inline u64 read_cr4()
+{
+    u64 cr4;
+    asm volatile("mov %%cr4, %0" : "=r"(cr4));
+
+    return cr4;
+}
+
+static inline void write_cr0(u64 cr0)
+{
+    asm volatile("mov %0, %%cr0" : : "r"(cr0));
+}
+
 static inline void write_cr3(u64 cr3)
 {
     asm volatile("mov %0, %%cr3" : : "r"(cr3));
 }
 
+static inline void write_cr4(u64 cr4)
+{
+    asm volatile("mov %0, %%cr4" : : "r"(cr4));
+}
+
 static inline u64 rdmsr(u64 msr)
 {
     u32 eax, edx;
-    asm volatile ("rdmsr" : "=a"(eax), "=d"(edx) : "c"(msr) : "memory");
+    asm volatile("rdmsr" : "=a"(eax), "=d"(edx) : "c"(msr) : "memory");
 
     return ((u64)edx << 32) | eax;
 }
 
 static inline void wrmsr(u64 msr, u64 value)
 {
-    asm volatile ("wrmsr" : : "c"(msr), "a"(value & 0xffffffff), "d"(value >> 32) : "memory");
+    asm volatile("wrmsr" : : "c"(msr), "a"(value & 0xffffffff), "d"(value >> 32) : "memory");
 }
 
 static inline u64 rdtsc()
 {
     u32 lo, hi;
-    asm volatile ("rdtsc" : "=a"(lo), "=d"(hi));
+    asm volatile("rdtsc" : "=a"(lo), "=d"(hi));
 
     return ((u64)hi << 32) | lo;
 }
@@ -149,3 +175,5 @@ void setup_syscall(u64 syscall_handler_address);
 bool check_pat_support();
 bool check_apic_support();
 bool check_x2apic_support();
+
+void enable_sse();

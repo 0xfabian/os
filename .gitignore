@@ -1,10 +1,10 @@
 /.vscode
 /build
 /disk
-disk.img
-zap-light20.psf
-/usr/bin
-/usr/cc
 /ovmf
+
+/usr/bin
+/usr/sys/sys.o
+
 image.hdd
 disk.img

@@ -58,3 +58,20 @@ bool check_x2apic_support()
 
     return ecx & (1 << 21);
 }
+
+void enable_sse()
+{
+    u64 cr0 = read_cr0();
+
+    cr0 &= ~(1 << 2);   // EM
+    cr0 |= (1 << 1);    // MP
+
+    write_cr0(cr0);
+
+    u64 cr4 = read_cr4();
+
+    cr4 |= (1 << 9);    // OSFXSR
+    cr4 |= (1 << 10);   // OSXMMEXCPT
+
+    write_cr4(cr4);
+}

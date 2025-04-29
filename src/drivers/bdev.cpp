@@ -4,12 +4,30 @@
 ATA* ata;
 BlockDevice ata_bdev;
 
+// this is just a hack
+// the kernel must deal with devices in a more organized way
+
+bool BlockDevice::init()
+{
+    ata = ATA::from(0x1f0, false);
+
+    if (!ata->identify())
+    {
+        kfree(ata);
+        ata = nullptr;
+
+        return false;
+    }
+
+    return true;
+}
+
 bool BlockDevice::read(u64 offset, u8* buf, usize count)
 {
     // kprintf("BlockDevice::read\n");
 
     if (!ata)
-        ata = ATA::from(0x1f0, false);
+        return false;
 
     u64 lba = offset / 512;
     u32 sector_offset = offset % 512;

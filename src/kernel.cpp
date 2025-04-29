@@ -11,33 +11,39 @@
 
 #include <bin.h>
 
-void enable_sse()
+void load_exec(const char* path, const u8* data, usize size)
 {
-    uint64_t cr0, cr4;
+    auto file = File::open(path, O_WRONLY | O_CREAT, IP_RWX);
+    file->write((const char*)data, size);
+    file->close();
+}
 
-    // Read CR0
-    asm volatile ("mov %%cr0, %0" : "=r"(cr0));
-    // Clear EM (bit 2, x87 emulation must be disabled)
-    cr0 &= ~(1 << 2);
-    // Set MP (bit 1, must be set when EM is 0)
-    cr0 |= (1 << 1);
-    // Write back CR0
-    asm volatile ("mov %0, %%cr0" :: "r"(cr0));
+void populate_root()
+{
+    auto inode = Inode::get("/");
+    inode->mkdir("dev");
+    inode->mkdir("bin");
+    inode->mkdir("mnt");
+    inode->put();
 
-    // Read CR4
-    asm volatile ("mov %%cr4, %0" : "=r"(cr4));
-    // Set OSFXSR (bit 9, enable SSE)
-    cr4 |= (1 << 9);
-    // Set OSXMMEXCPT (bit 10, enable SSE exceptions)
-    cr4 |= (1 << 10);
-    // Write back CR4
-    asm volatile ("mov %0, %%cr4" :: "r"(cr4));
+    inode = Inode::get("/dev");
+    inode->mknod("fb", IT_CDEV | IP_RW, 0x80);
+    inode->mknod("fbterm", IT_CDEV | IP_RW, 0x81);
+    inode->put();
+
+    load_exec("/bin/sh", sh_code, sizeof(sh_code));
+    load_exec("/bin/echo", echo_code, sizeof(echo_code));
+    load_exec("/bin/ls", ls_code, sizeof(ls_code));
+    load_exec("/bin/clear", clear_code, sizeof(clear_code));
+    load_exec("/bin/ed", ed_code, sizeof(ed_code));
 }
 
 extern "C" void kmain(void)
 {
     if (!LIMINE_BASE_REVISION_SUPPORTED)
         idle();
+
+    enable_sse();
 
     fbterm.init();
 
@@ -58,58 +64,23 @@ extern "C" void kmain(void)
 
     Mount::mount_root(nullptr, &ramfs);
 
-    auto inode = Inode::get("/");
-    inode->mkdir("dev");
-    inode->mkdir("bin");
-    inode->mkdir("mnt");
-    inode->put();
+    populate_root();
 
-    inode = Inode::get("/dev");
-    inode->mknod("fb", IT_CDEV | IP_RW, 0x80);
-    inode->mknod("fbterm", IT_CDEV | IP_RW, 0x81);
-    inode->put();
-
-    inode = Inode::get("/bin");
-    inode->create("sh", IP_RWX);
-    inode->create("echo", IP_RWX);
-    inode->create("ls", IP_RWX);
-    inode->create("clear", IP_RWX);
-    inode->create("ed", IP_RWX);
-    inode->put();
-
-    auto file = File::open("/bin/sh", O_WRONLY);
-    file->write((const char*)sh_code, sizeof(sh_code));
-    file->close();
-
-    file = File::open("/bin/echo", O_WRONLY);
-    file->write((const char*)echo_code, sizeof(echo_code));
-    file->close();
-
-    file = File::open("/bin/ls", O_WRONLY);
-    file->write((const char*)ls_code, sizeof(ls_code));
-    file->close();
-
-    file = File::open("/bin/clear", O_WRONLY);
-    file->write((const char*)clear_code, sizeof(clear_code));
-    file->close();
-
-    file->File::open("/bin/ed", O_WRONLY);
-    file->write((const char*)ed_data, sizeof(ed_data));
-    file->close();
-
-    auto mnt = Mount::mount("/mnt", &ata_bdev, &ext2fs);
-
-    if (!mnt)
-        kprintf(WARN "Failed to mount /mnt\n");
-
-    enable_sse();
+    if (!ata_bdev.init() || !Mount::mount("/mnt", &ata_bdev, &ext2fs))
+        kprintf(WARN "Failed to mount disk\n");
 
     sched_init();
 
     kbd_task = Task::from(keyboard_task);
     kbd_task->state = TASK_SLEEPING;
 
-    Task* sh = Task::from(mnt ? "/mnt/bin/sh" : "/bin/sh");
+    Task* sh = Task::from("/mnt/bin/sh");
+
+    if (!sh)
+        sh = Task::from("/bin/sh");
+
+    if (!sh)
+        panic("Failed to start a shell");
 
     sh->ready();
 
