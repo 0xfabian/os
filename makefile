@@ -4,7 +4,7 @@ LD = ld
 LD_SCRIPT = link.ld
 
 CC_FLAGS = -Iinclude -O2 -Wall -mno-red-zone -mgeneral-regs-only -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector
-AS_FLAGS = 
+AS_FLAGS = -f elf64
 LD_FLAGS = -T $(LD_SCRIPT) -static -Bsymbolic -nostdlib
 
 QEMU_FLAGS = -display sdl -cpu qemu64,+sse -m 1G -net none \
@@ -38,7 +38,7 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 $(OBJDIR)/%_asm.o: $(SRCDIR)/%.asm
 	@ echo 'nasm  ' $^
 	@ mkdir -p $(@D)
-	@ $(AS) $(AS_FLAGS) $^ -f elf64 -o $@
+	@ $(AS) $(AS_FLAGS) $^ -o $@
 
 buildimg:
 	dd if=/dev/zero bs=1M count=0 seek=256 of=image.hdd
