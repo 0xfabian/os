@@ -1,13 +1,13 @@
 #include <sys.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 4096
 
 void cat(int fd)
 {
     char buffer[BUFFER_SIZE];
     long bytes_read;
 
-    while((bytes_read = read(fd, buffer, BUFFER_SIZE)) > 0)
+    while ((bytes_read = read(fd, buffer, BUFFER_SIZE)) > 0)
         write(1, buffer, bytes_read);
 }
 

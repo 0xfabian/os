@@ -2,12 +2,16 @@
 
 isize ramfs_writei(Inode* inode, const void* buf, usize size, usize offset)
 {
+    // this is very slow
+    // since we are reallocating on every write
+
     if (size == 0)
         return 0;
 
-    if (offset + size > inode->size)
+    usize newsize = offset + size;
+
+    if (newsize > inode->size)
     {
-        usize newsize = offset + size;
         void* newdata = kmalloc(newsize);
 
         if (!newdata)
