@@ -7,6 +7,11 @@ u8 kbd_state;
 
 void KeyQueue::push(char key)
 {
+    // this could happen if the task hasn't spawned yet
+    // so just ignore the key press
+    if (!kbd_task)
+        return;
+
     if (empty() && kbd_task->state == TASK_SLEEPING)
         kbd_task->ready();
 
@@ -94,6 +99,12 @@ char translate_key(int key)
 
 void keyboard_task()
 {
+    // we need to clear the keyboard buffer
+    // because sometimes the buffer is not empty on kernel entry
+    // and so it won't generate interrupts
+    if (inb(0x64) & 1)
+        inb(0x60);
+
     // e0 53 delete     \e[3~
     // e0 47 home       \e[H
     // e0 4f end        \e[F
