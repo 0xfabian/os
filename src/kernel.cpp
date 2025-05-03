@@ -36,6 +36,7 @@ void populate_root()
     load_exec("/bin/ls", ls_code, sizeof(ls_code));
     load_exec("/bin/clear", clear_code, sizeof(clear_code));
     load_exec("/bin/ed", ed_code, sizeof(ed_code));
+    load_exec("/bin/cow", cow_code, sizeof(cow_code));
 }
 
 extern "C" void kmain(void)
@@ -72,7 +73,7 @@ extern "C" void kmain(void)
     sched_init();
 
     kbd_task = Task::from(keyboard_task);
-    kbd_task->state = TASK_SLEEPING;
+    kbd_task->ready();
 
     Task* sh = Task::from("/mnt/bin/sh");
 
