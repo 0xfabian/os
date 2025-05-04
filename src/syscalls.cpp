@@ -351,9 +351,7 @@ void sys_exit(int status)
 
 int sys_wait(int pid, int* status, int options)
 {
-    running->wait();
-
-    return 0;
+    return running->wait(status);
 }
 
 int sys_uname(void* buf)

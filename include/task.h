@@ -40,7 +40,8 @@ struct Task
 {
     u64 krsp;
     Task* parent;
-    u32 active_children;
+    Task* children;
+    Task* next_sibling;
     u64 tid;
 
     TaskState state;
@@ -62,13 +63,15 @@ struct Task
     Task* fork();
     int execve(const char* path, char* const argv[], char* const envp[]);
 
+    void add_child(Task* child);
+    void remove_child(Task* child);
+    Task* find_zombie_child();
+
     void enter_rq();
     void leave_rq();
     void ready();
-    void sleep();
     void exit(int code);
-    void wait();
-    void return_from_syscall(int ret);
+    int wait(int* status);
 };
 
 extern Task* running;

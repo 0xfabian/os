@@ -13,8 +13,15 @@ Task* alloc_task()
 {
     Task* task = (Task*)kmalloc(sizeof(Task));
 
-    task->parent = running;
-    task->active_children = 0;
+    if (!running)
+    {
+        task->parent = nullptr;
+        task->next_sibling = nullptr;
+    }
+    else
+        running->add_child(task);
+
+    task->children = nullptr;
     task->tid = global_tid++;
 
     task->state = TASK_BORN;
@@ -31,6 +38,24 @@ Task* alloc_task()
     task->prev = nullptr;
 
     return task;
+}
+
+void free_task(Task* task)
+{
+    if (task->parent)
+        task->parent->remove_child(task);
+
+    for (int i = 0; i < FD_TABLE_SIZE; i++)
+        if (task->fdt.files[i])
+            task->fdt.files[i]->close();
+
+    kfree(task->cwd_str);
+    task->cwd->put();
+
+    // this doesn't properly free the memory
+    // we should also free the pages allocated in the page table
+    kfree(task->mm);
+    kfree(task);
 }
 
 Task* Task::from(void (*func)(void))
@@ -151,14 +176,7 @@ Task* Task::from(const char* path)
     u64 entry;
     if (load_elf(task, path, &entry) != 0)
     {
-        kfree(task->cwd_str);
-        task->cwd->put();
-        kfree(task->mm);
-        kfree(task);
-
-        // like in Task::exit the actual pages don't get freed
-        // we should add a proper free_task function
-
+        free_task(task);
         return nullptr;
     }
 
@@ -298,68 +316,10 @@ struct auxv
     u64 value;
 };
 
-int Task::execve(const char* path, char* const argv[], char* const envp[])
+void do_auxv_magic(CPU* cpu)
 {
-    // we save the argv in kernel memory
-    // because we will change the page table
-
-    usize argv_size = 0;
-    usize argc = 0;
-
-    for (usize i = 0; argv[i]; i++)
-    {
-        argv_size += strlen(argv[i]) + 1;
-        argc++;
-    }
-
-    u8* argv_mem = (u8*)kmalloc(argv_size);
-
-    usize off = 0;
-
-    for (usize i = 0; argv[i]; i++)
-    {
-        usize len = strlen(argv[i]) + 1;
-        memcpy(argv_mem + off, argv[i], len);
-        off += len;
-    }
-
-    // loading the elf will replace the page table
-    // but it will keep mm->kernel_stack
-    u64 entry;
-    int err = load_elf(this, path, &entry);
-
-    if (err)
-    {
-        kfree(argv_mem);
-        return err;
-    }
-
-    // !!! we are not freeing the previous mm
-
-    u64 ustack_top = (u64)mm->user_stack + USER_STACK_SIZE;
-
-    CPU* cpu = (CPU*)krsp;
-    memset(cpu, 0, sizeof(CPU));
-
-    cpu->rbp = ustack_top;
-    cpu->rip = entry;
-    cpu->cs = USER_CS;
-    cpu->rflags = 0x202;
-    cpu->rsp = ustack_top;
-    cpu->ss = USER_DS;
-    cpu->rcx = cpu->rip;
-    cpu->r11 = cpu->rflags;
-
-    // i don't know if it's a good idea to store
-    // the actual argv strings on the stack too
-
-    cpu->rsp -= argv_size;
-    memcpy((void*)cpu->rsp, argv_mem, argv_size);
-
-    u64 stack_addr = cpu->rsp;
-
-    // we should align the stack to 16 bytes
-    cpu->rsp &= ~0x0f;
+    // just a hack to get tcc working
+    // at some point we should set the proper auxilary vectors
 
     cpu->rsp -= 16;
     char* filename = (char*)cpu->rsp;
@@ -435,6 +395,72 @@ int Task::execve(const char* path, char* const argv[], char* const envp[])
 
     // cpu->rsp -= sizeof(auxv);
     // *(auxv*)cpu->rsp = { 0x21, ? ? ? };
+}
+
+int Task::execve(const char* path, char* const argv[], char* const envp[])
+{
+    // we save the argv in kernel memory
+    // because we will change the page table
+
+    usize argv_size = 0;
+    usize argc = 0;
+
+    for (usize i = 0; argv[i]; i++)
+    {
+        argv_size += strlen(argv[i]) + 1;
+        argc++;
+    }
+
+    u8* argv_mem = (u8*)kmalloc(argv_size);
+
+    usize off = 0;
+
+    for (usize i = 0; argv[i]; i++)
+    {
+        usize len = strlen(argv[i]) + 1;
+        memcpy(argv_mem + off, argv[i], len);
+        off += len;
+    }
+
+    // loading the elf will replace the page table
+    // but it will keep mm->kernel_stack
+    u64 entry;
+    int err = load_elf(this, path, &entry);
+
+    if (err)
+    {
+        kfree(argv_mem);
+        return err;
+    }
+
+    // !!! we are not freeing the previous mm
+
+    u64 ustack_top = (u64)mm->user_stack + USER_STACK_SIZE;
+
+    CPU* cpu = (CPU*)krsp;
+    memset(cpu, 0, sizeof(CPU));
+
+    cpu->rbp = ustack_top;
+    cpu->rip = entry;
+    cpu->cs = USER_CS;
+    cpu->rflags = 0x202;
+    cpu->rsp = ustack_top;
+    cpu->ss = USER_DS;
+    cpu->rcx = cpu->rip;
+    cpu->r11 = cpu->rflags;
+
+    // i don't know if it's a good idea to store
+    // the actual argv strings on the stack too
+
+    cpu->rsp -= argv_size;
+    memcpy((void*)cpu->rsp, argv_mem, argv_size);
+
+    u64 stack_addr = cpu->rsp;
+
+    // we should align the stack to 16 bytes
+    cpu->rsp &= ~0x0f;
+
+    do_auxv_magic(cpu);
 
     cpu->rsp -= 8;
     *(u64*)cpu->rsp = 0; // envp null terminator, basically no env
@@ -461,6 +487,66 @@ int Task::execve(const char* path, char* const argv[], char* const envp[])
         tss.rsp2 = cpu->rsp;
 
     return 0;
+}
+
+void Task::add_child(Task* child)
+{
+    if (!children)
+        children = child;
+    else
+    {
+        Task* tail = children;
+
+        while (tail->next_sibling)
+            tail = tail->next_sibling;
+
+        tail->next_sibling = child;
+    }
+
+    child->parent = this;
+    child->next_sibling = nullptr;
+}
+
+void Task::remove_child(Task* child)
+{
+    Task* prev = nullptr;
+    Task* current = children;
+
+    while (current)
+    {
+        if (current == child)
+        {
+            if (prev)
+                prev->next_sibling = current->next_sibling;
+            else
+                children = current->next_sibling;
+
+            child->parent = nullptr;
+            child->next_sibling = nullptr;
+
+            return;
+        }
+
+        prev = current;
+        current = current->next_sibling;
+    }
+
+    kprintf(WARN "Task %ld: remove_child called on a non-child task %ld\n", this->tid, child->tid);
+}
+
+Task* Task::find_zombie_child()
+{
+    Task* child = children;
+
+    while (child)
+    {
+        if (child->state == TASK_ZOMBIE)
+            return child;
+
+        child = child->next_sibling;
+    }
+
+    return nullptr;
 }
 
 void Task::enter_rq()
@@ -503,18 +589,6 @@ void Task::ready()
     state = TASK_READY;
 
     enter_rq();
-
-    if (parent)
-        parent->active_children++;
-}
-
-void Task::sleep()
-{
-    leave_rq();
-
-    state = TASK_SLEEPING;
-
-    schedule();
 }
 
 void Task::exit(int code)
@@ -524,45 +598,40 @@ void Task::exit(int code)
     state = TASK_ZOMBIE;
     exit_code = code;
 
-    for (int i = 0; i < FD_TABLE_SIZE; i++)
-        if (fdt.files[i])
-            fdt.files[i]->close();
+    // we should probably reparent the children
 
-    if (parent)
-    {
-        parent->active_children--;
-
-        if (parent->state == TASK_SLEEPING)
-            parent->return_from_syscall(running->tid);
-    }
-
-    // this is temporary
-    // this should be freed in the TASK_DEAD state
-    // after the parent has read the exit code
-
-    kfree(cwd_str);
-    cwd->put();
-
-    // this doesn't properly free the memory
-    // we should also free the pages allocated in the page table
-    kfree(mm);
-    kfree(this);
+    if (parent && parent->state == TASK_SLEEPING)
+        parent->ready();
+    // else
+    //     if this has no parent, we can probably just free it here
 
     schedule();
 }
 
-void Task::wait()
+int Task::wait(int* status)
 {
-    if (active_children > 0)
-        sleep();
-}
+    if (!children)
+        return -ERR_NO_CHILD;
 
-void Task::return_from_syscall(int ret)
-{
-    CPU* cpu = (CPU*)krsp;
-    cpu->rax = ret;
+    while (true)
+    {
+        Task* zombie = find_zombie_child();
 
-    ready();
+        if (zombie)
+        {
+            if (status)
+                *status = zombie->exit_code;
+
+            int tid = zombie->tid;
+
+            free_task(zombie);
+
+            return tid;
+        }
+
+        // at this point we didn't find a zombie so sleep until a child dies
+        pause();
+    }
 }
 
 void sched_init()
@@ -622,5 +691,8 @@ void schedule()
 
 void leave_and_sched()
 {
-    running->sleep();
+    running->leave_rq();
+    running->state = TASK_SLEEPING;
+
+    schedule();
 }
