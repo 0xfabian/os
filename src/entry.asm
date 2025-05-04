@@ -88,30 +88,29 @@ timer_handler_asm:
 
 yield:
 
-    ; this should be used only in kernel tasks for now
     ; !!! the context is saved on top of the current stack
-    ; so at the end krsp is not mm->kernel_stack + KERNEL_STACK_SIZE
-
-    ; this is a critical section
-    cli
-
-    ; use rax and rdx to rip and rsp
-    pop rax
-    mov rdx, rsp
-
-    ; use kernel cs and ss since they should be only called from kernel
-    sub rsp, 8
-    mov qword [rsp], 0x10
-
-    push rdx
+    ; since this is called from C++ code
+    ; we can use rdi, rsi and rax as temporary registers to save the cpu context
 
     pushfq
-    or qword [rsp], 0x200
+    pop rdi         ; save the flags pre cli
+
+    cli             ; this is a critical section
+
+    pop rax         ; save rip
+    mov rsi, rsp
+
+    ; use kernel cs and ss since this should only be called from kernel
+    sub rsp, 8
+    mov qword [rsp], 0x10   ; push ss
+
+    push rsi                ; push rsp
+    push rdi                ; push rflags
 
     sub rsp, 8
-    mov qword [rsp], 0x08
+    mov qword [rsp], 0x08   ; push cs
 
-    push rax
+    push rax                ; push rip
 
     PUSH_REGS
     
@@ -122,30 +121,32 @@ yield:
 
 pause:
 
-    ; this should be used only in kernel tasks for now
+    ; this function is nearly identical to yield
+    ; we just call leave_and_sched instead of schedule
+
     ; !!! the context is saved on top of the current stack
-    ; so at the end krsp is not mm->kernel_stack + KERNEL_STACK_SIZE
-
-    ; this is a critical section
-    cli
-
-    ; use rax and rdx to rip and rsp
-    pop rax
-    mov rdx, rsp
-
-    ; use kernel cs and ss since they should be only called from kernel
-    sub rsp, 8
-    mov qword [rsp], 0x10
-
-    push rdx
+    ; since this is called from C++ code
+    ; we can use rdi, rsi and rax as temporary registers to save the cpu context
 
     pushfq
-    or qword [rsp], 0x200
+    pop rdi         ; save the flags pre cli
+
+    cli             ; this is a critical section
+
+    pop rax         ; save rip
+    mov rsi, rsp
+
+    ; use kernel cs and ss since this should only be called from kernel
+    sub rsp, 8
+    mov qword [rsp], 0x10   ; push ss
+
+    push rsi                ; push rsp
+    push rdi                ; push rflags
 
     sub rsp, 8
-    mov qword [rsp], 0x08
+    mov qword [rsp], 0x08   ; push cs
 
-    push rax
+    push rax                ; push rip
 
     PUSH_REGS
     
@@ -192,7 +193,11 @@ syscall_handler_asm:
 
     POP_REGS
 
-    mov rsp, [gs:20]
+    ; we can't use gs:20 here because if this syscall blocks,
+    ; another task might call a syscall and overwrite gs:20
+    ; so instead we restore the user rsp from the kernel stack
+    ; !!! if the syscall paused, the task krsp is not where the syscall left it, this might be a problem
+    mov rsp, [rsp + 24]
 
     o64 sysret
 
