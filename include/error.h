@@ -10,6 +10,7 @@ enum ErrorCode
     ERR_NO_PERM,
     ERR_NO_DEV,
     ERR_NO_SPACE,
+    ERR_NO_CHILD,
     ERR_NOT_FOUND,
     ERR_NOT_DIR,
     ERR_IS_DIR,
