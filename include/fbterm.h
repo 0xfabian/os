@@ -23,15 +23,10 @@ struct Framebuffer
 
 struct Task;
 
-struct ReadRequest
+struct TaskList
 {
     Task* task;
-
-    void* buffer;
-    usize len;
-    usize read;
-
-    ReadRequest* next;
+    TaskList* next;
 };
 
 struct FramebufferTerminal
@@ -73,8 +68,9 @@ struct FramebufferTerminal
 
     char input_buffer[INPUT_BUFFER_SIZE];
     usize input_cursor;
+    bool eof_received;
 
-    ReadRequest* read_queue;
+    TaskList* blocked_readers;
 
     void init();
     void enable_backbuffer();
@@ -90,9 +86,10 @@ struct FramebufferTerminal
     void putchar(char ch);
     void receive_char(char ch);
     void clear_input();
+    isize get_read_size();
     void tick();
-    void add_request(void* buffer, usize len);
-    void handle_requests();
+    void block_reader();
+    void unblock_readers();
 
     void draw_bitmap(char ch);
     void draw_cursor(bool on);

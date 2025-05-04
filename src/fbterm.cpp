@@ -204,7 +204,7 @@ void FramebufferTerminal::init()
 
     input_cursor = 0;
 
-    read_queue = nullptr;
+    blocked_readers = nullptr;
 
     clear();
 
@@ -396,33 +396,24 @@ void FramebufferTerminal::write(const void* buffer, usize len)
 
 isize FramebufferTerminal::read(void* buffer, usize len)
 {
-    if (line_buffered && len > input_cursor)
+    while (true)
     {
-        add_request(buffer, len);
+        isize read = get_read_size();
 
-        // this should never be reached
-        return 0;
-    }
-
-    usize read = input_cursor;
-
-    if (read > len)
-        read = len;
-
-    for (usize i = 0; i < read; i++)
-    {
-        if (input_buffer[i] == '\n')
+        if (read >= 0)
         {
-            read = i + 1;
-            break;
+            if ((usize)read > len)
+                read = len;
+
+            memcpy(buffer, input_buffer, read);
+            input_cursor -= read;
+            memmove(input_buffer, input_buffer + read, input_cursor);
+
+            return read;
         }
+
+        block_reader();
     }
-
-    memcpy(buffer, input_buffer, read);
-    input_cursor -= read;
-    memmove(input_buffer, input_buffer + read, input_cursor);
-
-    return read;
 }
 
 bool in_ansi_H = false;
@@ -523,28 +514,23 @@ void FramebufferTerminal::putchar(char ch)
 
 void FramebufferTerminal::receive_char(char ch)
 {
-    if (ch == '\b' && line_buffered)
+    if (line_buffered)
     {
-        if (input_cursor > 0)
-            input_cursor--;
-    }
-    else
-    {
-        if (!line_buffered)
+        if (ch == '\b')
         {
-            if (kbd_state & KBD_CTRL && isalpha(ch))
-                ch = ch - 'a' + 1;
-
-            if (ch == '\b')
-                ch = 0x7f;
+            if (input_cursor > 0)
+                input_cursor--;
         }
-
-        if (input_cursor < INPUT_BUFFER_SIZE)
+        else if (input_cursor < INPUT_BUFFER_SIZE)
+        {
             input_buffer[input_cursor++] = ch;
 
-        if (ch == '\n' && line_buffered)
-            handle_requests();
+            if (ch == '\n')
+                unblock_readers();
+        }
     }
+    else if (input_cursor < INPUT_BUFFER_SIZE)
+        input_buffer[input_cursor++] = ch;
 
     if (echo)
         write(&ch, 1);
@@ -557,6 +543,24 @@ void FramebufferTerminal::clear_input()
         write("\b", 1);
         input_cursor--;
     }
+}
+
+isize FramebufferTerminal::get_read_size()
+{
+    if (!line_buffered)
+        return input_cursor;
+
+    if (eof_received)
+    {
+        eof_received = false;
+        return input_cursor;
+    }
+
+    for (usize i = 0; i < input_cursor; i++)
+        if (input_buffer[i] == '\n')
+            return i + 1;
+
+    return -1;
 }
 
 void FramebufferTerminal::tick()
@@ -572,69 +576,37 @@ void FramebufferTerminal::tick()
     cursor_ticks++;
 }
 
-void FramebufferTerminal::add_request(void* buffer, usize len)
+void FramebufferTerminal::block_reader()
 {
-    ReadRequest* rr = (ReadRequest*)kmalloc(sizeof(ReadRequest));
+    TaskList* node = (TaskList*)kmalloc(sizeof(TaskList));
 
-    rr->task = running;
+    node->task = running;
+    node->next = nullptr;
 
-    // if the read came from a user task
-    // i think it's better to store the kernel mapping of the buffer
-    // so we can write to it without switching the page table
-
-    if (running->mm->pml4)
-        rr->buffer = (void*)vmm.user_to_kernel(running->mm->pml4, (u64)buffer);
-    else
-        rr->buffer = buffer;
-
-    rr->len = len;
-    rr->read = input_cursor;
-    rr->next = nullptr;
-
-    memcpy(buffer, input_buffer, input_cursor);
-    input_cursor = 0;
-
-    if (!read_queue)
-        read_queue = rr;
+    if (!blocked_readers)
+        blocked_readers = node;
     else
     {
-        ReadRequest* last = read_queue;
+        TaskList* tail = blocked_readers;
 
-        while (last->next)
-            last = last->next;
+        while (tail->next)
+            tail = tail->next;
 
-        last->next = rr;
+        tail->next = node;
     }
 
-    running->sleep();
+    pause();
 }
 
-void FramebufferTerminal::handle_requests()
+void FramebufferTerminal::unblock_readers()
 {
-    ReadRequest* rr = read_queue;
-
-    while (rr)
+    while (blocked_readers)
     {
-        usize read = rr->len - rr->read;
+        TaskList* first = blocked_readers;
+        first->task->ready();
+        kfree(first);
 
-        if (read > input_cursor)
-            read = input_cursor;
-
-        memcpy((u8*)rr->buffer + rr->read, input_buffer, read);
-        rr->read += read;
-        input_cursor -= read;
-
-        memmove(input_buffer, input_buffer + read, input_cursor);
-
-        rr->task->return_from_syscall(rr->read);
-
-        read_queue = rr->next;
-        kfree(rr);
-
-        if (input_cursor == 0)
-            break;
-
-        rr = read_queue;
+        blocked_readers = blocked_readers->next;
     }
 }
 

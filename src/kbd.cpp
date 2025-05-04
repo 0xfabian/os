@@ -174,11 +174,23 @@ void keyboard_task()
                 char ch = translate_key(key);
 
                 if (ch == 'd' && kbd_state & KBD_CTRL)
-                    fbterm.handle_requests();
+                {
+                    fbterm.eof_received = true;
+                    fbterm.unblock_readers();
+                }
                 else if (ch == 'u' && kbd_state & KBD_CTRL)
+                {
                     fbterm.clear_input();
+                }
                 else if (ch)
+                {
+                    if (isalpha(ch) && kbd_state & KBD_CTRL)
+                        ch = ch - 'a' + 1;
+                    else if (ch == '\b' && !fbterm.line_buffered)
+                        ch = 0x7f;
+
                     fbterm.receive_char(ch);
+                }
             }
         }
         else
