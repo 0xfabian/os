@@ -7,7 +7,7 @@ CC_FLAGS = -Iinclude -O2 -Wall -mno-red-zone -mgeneral-regs-only -ffreestanding 
 AS_FLAGS = -f elf64
 LD_FLAGS = -T $(LD_SCRIPT) -static -Bsymbolic -nostdlib
 
-QEMU_FLAGS = -display sdl -cpu qemu64,+sse -m 1G -net none \
+QEMU_FLAGS = -display sdl -enable-kvm -cpu host -m 1G -net none \
 	-drive format=raw,file=image.hdd \
 	-drive if=pflash,format=raw,readonly=on,file=ovmf/OVMF_CODE.4m.fd \
 	-drive if=pflash,format=raw,file=ovmf/OVMF_VARS.4m.fd \
