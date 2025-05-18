@@ -51,18 +51,6 @@ float _tan(float x)
     return _sin(x) / _cos(x);
 }
 
-float _sqrt(float x)
-{
-    if (x < 0) return -1;
-
-    float guess = x;
-    float epsilon = 0.00001f;
-    while ((guess * guess - x > epsilon) || (x - guess * guess > epsilon)) {
-        guess = (guess + x / guess) * 0.5f;
-    }
-    return guess;
-}
-
 int fb;
 uint32_t* backbuf;
 float* depthbuf;
@@ -6033,26 +6021,14 @@ uint32_t color_mix(uint32_t c1, uint32_t c2, uint32_t c3, float alpha, float bet
     return ((int)r << 16) | ((int)g << 8) | (int)b;
 }
 
-uint32_t compute_light(struct Vertex* v1, struct Vertex* v2, struct Vertex* v3)
+uint32_t compute_light(float nx, float ny, float nz)
 {
-    float nx = (v2->y - v1->y) * (v3->z - v1->z) - (v2->z - v1->z) * (v3->y - v1->y);
-    float ny = (v2->z - v1->z) * (v3->x - v1->x) - (v2->x - v1->x) * (v3->z - v1->z);
-    float nz = (v2->x - v1->x) * (v3->y - v1->y) - (v2->y - v1->y) * (v3->x - v1->x);
-    float len = _sqrt(nx * nx + ny * ny + nz * nz);
-
-    nx /= len;
-    ny /= len;
-    nz /= len;
-
-    float light_dir[3] = { 0, 0, -1 };
+    const float light_dir[3] = { 0, 0, -1 };
     float dot = nx * light_dir[0] + ny * light_dir[1] + nz * light_dir[2];
 
     if (dot < 0)
         dot = 0;
 
-    // uint8_t r = 0.5 * (nx + 1) * 255;
-    // uint8_t g = 0.5 * (ny + 1) * 255;
-    // uint8_t b = 0.5 * (nz + 1) * 255;
     uint8_t c = dot * 255;
 
     return (c << 16) | (c << 8) | c;
@@ -6112,6 +6088,54 @@ void normalize_coords(struct Vertex* v)
     v->w = 1.0f;
 }
 
+#include <xmmintrin.h>
+
+static inline __m128 cross_product(__m128 a, __m128 b) {
+    // a = (ax, ay, az, 0)
+    // b = (bx, by, bz, 0)
+    __m128 a_yzx = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 0, 2, 1)); // ay, az, ax
+    __m128 b_yzx = _mm_shuffle_ps(b, b, _MM_SHUFFLE(3, 0, 2, 1)); // by, bz, bx
+
+    __m128 c = _mm_sub_ps(
+        _mm_mul_ps(a, b_yzx),
+        _mm_mul_ps(a_yzx, b)
+    );
+
+    return _mm_shuffle_ps(c, c, _MM_SHUFFLE(3, 0, 2, 1)); // rotate back
+}
+
+void compute_normal(struct Vertex* v1, struct Vertex* v2, struct Vertex* v3, float n[3]) {
+    // Load v1, v2, v3 into SSE registers
+    __m128 p1 = _mm_set_ps(0.0f, v1->z, v1->y, v1->x);
+    __m128 p2 = _mm_set_ps(0.0f, v2->z, v2->y, v2->x);
+    __m128 p3 = _mm_set_ps(0.0f, v3->z, v3->y, v3->x);
+
+    // Compute edge vectors
+    __m128 ab = _mm_sub_ps(p2, p1);
+    __m128 ac = _mm_sub_ps(p3, p1);
+
+    // Cross product: normal = ab x ac
+    __m128 normal = cross_product(ab, ac);
+
+    // Compute length squared: dot(normal, normal)
+    __m128 squared = _mm_mul_ps(normal, normal);
+    __m128 shuf1 = _mm_shuffle_ps(squared, squared, _MM_SHUFFLE(2, 1, 0, 3));
+    __m128 sum = _mm_add_ps(squared, shuf1);
+    __m128 shuf2 = _mm_movehl_ps(sum, sum);
+    __m128 len_sq = _mm_add_ss(sum, shuf2);
+
+    __m128 inv_len = _mm_rsqrt_ss(len_sq);
+    inv_len = _mm_shuffle_ps(inv_len, inv_len, _MM_SHUFFLE(0, 0, 0, 0)); // broadcast
+
+    // Normalize
+    __m128 norm = _mm_mul_ps(normal, inv_len);
+
+    // Store result
+    _mm_store_ss(&n[0], norm);                             // x
+    _mm_store_ss(&n[1], _mm_shuffle_ps(norm, norm, 0x55)); // y
+    _mm_store_ss(&n[2], _mm_shuffle_ps(norm, norm, 0xAA)); // z
+}
+
 void draw_vertices(struct Vertex* verts, int count, struct mat4x4* mat)
 {
     for (int i = 0; i < count; i += 3)
@@ -6120,7 +6144,7 @@ void draw_vertices(struct Vertex* verts, int count, struct mat4x4* mat)
         struct Vertex v2 = verts[i + 1];
         struct Vertex v3 = verts[i + 2];
 
-        uint32_t color = compute_light(&v1, &v2, &v3);
+        float n[3];
 
         if (mat)
         {
@@ -6128,6 +6152,13 @@ void draw_vertices(struct Vertex* verts, int count, struct mat4x4* mat)
             transform_vertex(&v2, mat);
             transform_vertex(&v3, mat);
         }
+
+        compute_normal(&v1, &v2, &v3, n);
+
+        if (n[0] * v1.x + n[1] * v1.y + n[2] * v1.z > 0)
+            continue;
+
+        uint32_t color = compute_light(n[0], n[1], n[2]);
 
         normalize_coords(&v1);
         normalize_coords(&v2);
