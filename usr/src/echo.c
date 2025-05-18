@@ -1,6 +1,6 @@
 #include <sys.h>
 
-int _strlen(const char* str)
+int strlen(const char* str)
 {
     int len = 0;
 
@@ -14,11 +14,9 @@ int main(int argc, char** argv)
 {
     for (int i = 1; i < argc; i++)
     {
-        write(1, argv[i], _strlen(argv[i]));
-        write(1, " ", 1);
+        write(1, argv[i], strlen(argv[i]));
+        write(1, (i < argc - 1) ? " " : "\n", 1);
     }
-
-    write(1, "\n", 1);
 
     return 0;
 }
