@@ -18,6 +18,7 @@ u64 do_syscall(CPU* cpu, int num)
     case SYS_PWRITE:        return sys_pwrite(cpu->rdi, (const void*)cpu->rsi, cpu->rdx, cpu->r10);
     case SYS_WRITEV:        return sys_writev(cpu->rdi, (const iovec*)cpu->rsi, cpu->rdx);
     case SYS_ACCESS:        return sys_access((const char*)cpu->rdi, cpu->rsi);
+    case SYS_PIPE:          return sys_pipe((int*)cpu->rdi);
     case SYS_DUP:           return sys_dup(cpu->rdi);
     case SYS_DUP2:          return sys_dup2(cpu->rdi, cpu->rsi);
     case SYS_FORK:          return sys_fork();
@@ -45,6 +46,7 @@ u64 do_syscall(CPU* cpu, int num)
     case SYS_ARCH_PRCTL:    return sys_arch_prctl(cpu->rdi, (u64*)cpu->rsi);
     case SYS_MOUNT:         return sys_mount((const char*)cpu->rdi, (const char*)cpu->rsi, (const char*)cpu->rdx);
     case SYS_UMOUNT:        return sys_umount((const char*)cpu->rdi);
+    case SYS_EXIT_GROUP:    sys_exit(cpu->rdi); return 0;
     case SYS_OPENAT:        return sys_openat(cpu->rdi, (const char*)cpu->rsi, cpu->rdx, cpu->r10);
     case SYS_DEBUG:         return sys_debug((const char*)cpu->rdi);
     default:                return -ERR_NOT_IMPL;
@@ -107,9 +109,7 @@ int sys_close(unsigned int fd)
     if (!file)
         return file.error();
 
-    file->close();
-
-    return 0;
+    return file->close();
 }
 
 int sys_stat(const char* path, stat* buf)
@@ -254,10 +254,10 @@ isize sys_writev(int fd, const iovec* iov, int iovcnt)
     return total;
 }
 
-#define F_OK         0
-#define X_OK         1
-#define W_OK         2
-#define R_OK         4
+#define F_OK    0
+#define X_OK    1
+#define W_OK    2
+#define R_OK    4
 
 int sys_access(const char* path, int mode)
 {
@@ -287,19 +287,64 @@ int sys_access(const char* path, int mode)
     return 0;
 }
 
-int sys_dup(int oldfd)
+int sys_pipe(int fds[2])
 {
     FDTable* fdt = &running->fdt;
 
-    int newfd = fdt->get_unused();
+    int read_fd = fdt->get_unused();
 
-    if (newfd < 0)
-        return newfd;
+    if (read_fd < 0)
+    {
+        // kprintf("%lu: read_fd < 0\n", running->tid);
+        return read_fd;
+    }
+
+    int write_fd = fdt->get_unused();
+
+    if (write_fd < 0)
+    {
+        // kprintf("%lu: write_fd < 0\n", running->tid);
+        return write_fd;
+    }
+    else
+    {
+        // temp because get_unused will return the same fd 
+        // if we dont install it eariler
+        write_fd++;
+    }
+
+    auto pipe = Pipe::open();
+
+    if (!pipe)
+    {
+        // kprintf("%lu: pipe open failed\n", running->tid);
+        return pipe.error();
+    }
+
+    fdt->install(read_fd, pipe->read_end);
+    fdt->install(write_fd, pipe->write_end);
+
+    fds[0] = read_fd;
+    fds[1] = write_fd;
+
+    // kprintf("%lu: pipe fds %d %d\n", running->tid, read_fd, write_fd);
+
+    return 0;
+}
+
+int sys_dup(int oldfd)
+{
+    FDTable* fdt = &running->fdt;
 
     auto file = fdt->get(oldfd);
 
     if (!file)
         return file.error();
+
+    int newfd = fdt->get_unused();
+
+    if (newfd < 0)
+        return newfd;
 
     fdt->install(newfd, file->dup());
 
@@ -310,17 +355,18 @@ int sys_dup2(int oldfd, int newfd)
 {
     FDTable* fdt = &running->fdt;
 
-    if (!fdt->is_usable(newfd))
-        return -ERR_BAD_FD;
-
     auto file = fdt->get(oldfd);
 
     if (!file)
         return file.error();
 
-    fdt->install(newfd, file->dup());
+    if (newfd == oldfd)
+        return oldfd;
 
-    return newfd;
+    // install closes newfd if it was already in use
+    int err = fdt->install(newfd, file->dup());
+
+    return (err == 0) ? newfd : err;
 }
 
 int sys_fork()
