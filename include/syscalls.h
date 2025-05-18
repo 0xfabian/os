@@ -21,6 +21,7 @@ enum SyscallNumber
     SYS_READV,
     SYS_WRITEV,
     SYS_ACCESS,
+    SYS_PIPE,
     SYS_DUP = 32,
     SYS_DUP2,
     SYS_FORK = 57,
@@ -50,6 +51,7 @@ enum SyscallNumber
     SYS_ARCH_PRCTL = 158,
     SYS_MOUNT = 165,
     SYS_UMOUNT,
+    SYS_EXIT_GROUP = 231,
     SYS_OPENAT = 257,
     SYS_DEBUG = 512
 };
@@ -75,6 +77,7 @@ isize sys_pwrite(int fd, const void* buf, usize size, usize offset);
 isize sys_readv(int fd, const iovec* iov, int iovcnt);
 isize sys_writev(int fd, const iovec* iov, int iovcnt);
 int sys_access(const char* path, int mode);
+int sys_pipe(int fds[2]);
 int sys_dup(int oldfd);
 int sys_dup2(int oldfd, int newfd);
 int sys_fork();
