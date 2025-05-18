@@ -61,7 +61,7 @@ void default_handler(interrupt_frame* frame)
     if (running)
     {
         kprintf(PANIC "Unhandled interrupt in task %lu\n", running->tid);
-        idle();
+        running->exit(-1);
     }
     else
         panic("Unhandled interrupt");
@@ -74,7 +74,7 @@ __attribute__((interrupt)) void opcode_fault_handler(interrupt_frame* frame)
         kprintf(PANIC "Invalid opcode fault in task %lu\n", running->tid);
         kprintf("rip: %p\n", frame->rip);
         hexdump((void*)frame->rip, 16);
-        idle();
+        running->exit(-1);
     }
     else
         panic("Invalid opcode fault");
@@ -87,7 +87,7 @@ void gp_fault_handler(interrupt_frame* frame, u64 error_code)
         kprintf(PANIC "General protection fault in task %lu (%lx)\n", running->tid, error_code);
         kprintf("rip: %p\n", frame->rip);
         hexdump((void*)frame->rip, 16);
-        idle();
+        running->exit(-1);
     }
     else
         panic("General protection fault");
@@ -100,22 +100,35 @@ void page_fault_handler(interrupt_frame* frame, u64 error_code)
         kprintf(PANIC "Page fault in task %lu (%lx) caused by %p\n", running->tid, error_code, read_cr2());
         kprintf("rip: %p\n", frame->rip);
         hexdump((void*)frame->rip, 16);
-        idle();
+        running->exit(-1);
     }
     else
         panic("Page fault");
 }
 
+bool kbd_escape = false;
 void keyboard_handler(interrupt_frame* frame)
 {
     u8 key = inb(0x60);
-    key_queue.push(key);
 
-    if (key == 0xe0)
+    if (kbd_escape)
     {
-        key = inb(0x60);
+        kbd_escape = false;
+        key_queue.push(0xe0);
         key_queue.push(key);
     }
+    else if (key == 0xe0)
+        kbd_escape = true;
+    else
+        key_queue.push(key);
+
+    // key_queue.push(key);
+
+    // if (key == 0xe0)
+    // {
+    //     key = inb(0x60);
+    //     key_queue.push(key);
+    // }
 
     pic::send_eoi(1);
 }
