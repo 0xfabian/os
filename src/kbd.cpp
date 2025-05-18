@@ -97,14 +97,62 @@ char translate_key(int key)
     return ch;
 }
 
+void wait_input_buffer_empty()
+{
+    while (inb(0x64) & 2);
+}
+
+void wait_output_buffer_full()
+{
+    while (!(inb(0x64) & 1));
+}
+
+void send_command(u8 command)
+{
+    wait_input_buffer_empty();
+    outb(0x60, command);
+}
+
+u8 read_response()
+{
+    wait_output_buffer_full();
+    return inb(0x60);
+}
+
+bool set_typematic(u8 typematic)
+{
+    send_command(0xf3);
+    u8 resp = read_response();
+
+    if (resp != 0xfa)
+        return false;
+
+    send_command(typematic);
+    resp = read_response();
+
+    if (resp != 0xfa)
+        return false;
+
+    return true;
+}
+
 void keyboard_task()
 {
+    cli();
+
     // we need to clear the keyboard buffer
     // because sometimes the buffer is not empty on kernel entry
     // and so it won't generate interrupts
     if (inb(0x64) & 1)
         inb(0x60);
 
+    if (!set_typematic(0b00100000))
+        kprintf(WARN "Failed to set keyboard typematic\n");
+
+    sti();
+
+    // 16    u
+    // 20    d
     // e0 53 delete     \e[3~
     // e0 47 home       \e[H
     // e0 4f end        \e[F
@@ -129,63 +177,75 @@ void keyboard_task()
                 key = key_queue.pop();
             }
 
-            if (extended && (key & 0x80) == 0)
+            if (extended)
             {
-                if (fbterm.echo)
+                if ((key & 0x80) == 0)
                 {
-                    fbterm.receive_char('^');
-                    fbterm.receive_char('[');
-                }
-                else
-                    fbterm.receive_char('\e');
+                    char buf[16];
+                    char* end = buf;
 
-                fbterm.receive_char('[');
-
-                if (key == 0x53)
-                {
-                    fbterm.receive_char('3');
-                    fbterm.receive_char('~');
-                }
-                else
-                {
-                    if (kbd_state & KBD_LSHIFT || kbd_state & KBD_RSHIFT)
+                    if (fbterm.echo)
                     {
-                        fbterm.receive_char('1');
-                        fbterm.receive_char(';');
-                        fbterm.receive_char('2');
+                        *end++ = '^';
+                        *end++ = '[';
+                    }
+                    else
+                        *end++ = '\e';
+
+                    *end++ = '[';
+
+                    if (key == 0x53)
+                    {
+                        *end++ = '3';
+                        *end++ = '~';
+                    }
+                    else
+                    {
+                        if (kbd_state & KBD_LSHIFT || kbd_state & KBD_RSHIFT)
+                        {
+                            *end++ = '1';
+                            *end++ = ';';
+                            *end++ = '2';
+                        }
+
+                        switch (key)
+                        {
+                        case 0x47:      *end++ = 'H';       break;
+                        case 0x4f:      *end++ = 'F';       break;
+                        case 0x48:      *end++ = 'A';       break;
+                        case 0x50:      *end++ = 'B';       break;
+                        case 0x4d:      *end++ = 'C';       break;
+                        case 0x4b:      *end++ = 'D';       break;
+                        default:        end = buf;          break;
+                        }
                     }
 
-                    if (key == 0x47)
-                        fbterm.receive_char('H');
-                    else if (key == 0x4f)
-                        fbterm.receive_char('F');
-                    else if (key == 0x48)
-                        fbterm.receive_char('A');
-                    else if (key == 0x50)
-                        fbterm.receive_char('B');
-                    else if (key == 0x4d)
-                        fbterm.receive_char('C');
-                    else if (key == 0x4b)
-                        fbterm.receive_char('D');
+                    for (char* ch = buf; ch < end; ch++)
+                        fbterm.receive_char(*ch);
                 }
             }
             else
             {
                 char ch = translate_key(key);
 
-                if (ch == 'd' && kbd_state & KBD_CTRL)
+                if (key == 0x20 && kbd_state & KBD_CTRL)
                 {
                     fbterm.eof_received = true;
-                    fbterm.unblock_readers();
+                    fbterm.readers_queue.wake_all();
                 }
-                else if (ch == 'u' && kbd_state & KBD_CTRL)
+                else if (key == 0x16 && kbd_state & KBD_CTRL)
                 {
                     fbterm.clear_input();
                 }
                 else if (ch)
                 {
                     if (isalpha(ch) && kbd_state & KBD_CTRL)
-                        ch = ch - 'a' + 1;
+                    {
+                        if (ch < 'a')
+                            ch = ch - 'A' + 1;
+                        else
+                            ch = ch - 'a' + 1;
+                    }
                     else if (ch == '\b' && !fbterm.line_buffered)
                         ch = 0x7f;
 
