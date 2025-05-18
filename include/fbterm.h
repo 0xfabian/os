@@ -5,6 +5,7 @@
 #include <mem/vmm.h>
 #include <print.h>
 #include <kbd.h>
+#include <waitq.h>
 
 #define INPUT_BUFFER_SIZE 256
 
@@ -19,14 +20,6 @@ struct Framebuffer
     void init(limine_framebuffer* fb);
 
     void give_fops(FileOps* fops);
-};
-
-struct Task;
-
-struct TaskList
-{
-    Task* task;
-    TaskList* next;
 };
 
 struct FramebufferTerminal
@@ -70,7 +63,7 @@ struct FramebufferTerminal
     usize input_cursor;
     bool eof_received;
 
-    TaskList* blocked_readers;
+    WaitQueue readers_queue;
 
     void init();
     void enable_backbuffer();
@@ -88,8 +81,6 @@ struct FramebufferTerminal
     void clear_input();
     isize get_read_size();
     void tick();
-    void block_reader();
-    void unblock_readers();
 
     void draw_bitmap(char ch);
     void draw_cursor(bool on);

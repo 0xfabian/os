@@ -24,7 +24,7 @@
 
 // gruvbox
 #define FOREGROUND          0xfbf1c7
-#define BACKGROUND          0x282828
+#define BACKGROUND          0x1d2021
 #define BLACK               0x282828
 #define RED                 0xcc241d
 #define GREEN               0x98971a
@@ -32,8 +32,8 @@
 #define BLUE                0x458588
 #define MAGENTA             0xb16286
 #define CYAN                0x689d6a
-#define WHITE               0xa89984
-#define BRIGHT_BLACK        0x665c54
+#define WHITE               0x928374
+#define BRIGHT_BLACK        0x3c3836
 #define BRIGHT_RED          0xfb4934
 #define BRIGHT_GREEN        0xb8bb26
 #define BRIGHT_YELLOW       0xfabd2f
@@ -204,7 +204,7 @@ void FramebufferTerminal::init()
 
     input_cursor = 0;
 
-    blocked_readers = nullptr;
+    readers_queue.init();
 
     clear();
 
@@ -412,7 +412,7 @@ isize FramebufferTerminal::read(void* buffer, usize len)
             return read;
         }
 
-        block_reader();
+        wait_on(&readers_queue);
     }
 }
 
@@ -526,7 +526,7 @@ void FramebufferTerminal::receive_char(char ch)
             input_buffer[input_cursor++] = ch;
 
             if (ch == '\n')
-                unblock_readers();
+                readers_queue.wake_all();
         }
     }
     else if (input_cursor < INPUT_BUFFER_SIZE)
@@ -574,40 +574,6 @@ void FramebufferTerminal::tick()
         draw_cursor(cursor_ticks % 40 == 0);
 
     cursor_ticks++;
-}
-
-void FramebufferTerminal::block_reader()
-{
-    TaskList* node = (TaskList*)kmalloc(sizeof(TaskList));
-
-    node->task = running;
-    node->next = nullptr;
-
-    if (!blocked_readers)
-        blocked_readers = node;
-    else
-    {
-        TaskList* tail = blocked_readers;
-
-        while (tail->next)
-            tail = tail->next;
-
-        tail->next = node;
-    }
-
-    pause();
-}
-
-void FramebufferTerminal::unblock_readers()
-{
-    while (blocked_readers)
-    {
-        TaskList* first = blocked_readers;
-        first->task->ready();
-        kfree(first);
-
-        blocked_readers = blocked_readers->next;
-    }
 }
 
 inline u32 alpha_blend(u32 c1, u32 c2, u8 alpha)
