@@ -17,18 +17,13 @@ result_ptr<File> FDTable::get(unsigned int fd)
     return files[fd];
 }
 
-bool FDTable::is_usable(unsigned int fd)
-{
-    if (fd >= FD_TABLE_SIZE || files[fd])
-        return false;
-
-    return true;
-}
-
 int FDTable::install(unsigned int fd, File* file)
 {
     if (fd >= FD_TABLE_SIZE)
         return -ERR_BAD_FD;
+
+    if (files[fd])
+        files[fd]->close();
 
     files[fd] = file;
 
