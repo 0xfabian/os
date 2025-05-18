@@ -119,6 +119,7 @@ extern isize pwrite(int fd, const void* buf, usize size, usize offset);
 extern isize readv(int fd, const struct iovec* iov, int iovcnt);
 extern isize writev(int fd, const struct iovec* iov, int iovcnt);
 extern int access(const char* path, int mode);
+extern int pipe(int fds[2]);
 extern int dup(int oldfd);
 extern int dup2(int oldfd, int newfd);
 extern int fork();

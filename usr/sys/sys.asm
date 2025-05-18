@@ -36,6 +36,7 @@ SYSCALL4    pwrite,         18
 SYSCALL     readv,          19
 SYSCALL     writev,         20
 SYSCALL     access,         21
+SYSCALL     pipe,           22
 SYSCALL     dup,            32
 SYSCALL     dup2,           33
 SYSCALL     fork,           57
