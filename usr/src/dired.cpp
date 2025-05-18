@@ -720,7 +720,7 @@ void draw_cwd(Editor* ed)
 void draw_newname(Editor* ed)
 {
     move_cursor(1 + ed->entry_count, 0);
-    printf("  \e[90m+\e[m ");
+    printf("  \e[37m+\e[m ");
 
     bool is_dir = ed->new_name.size > 0 && ed->new_name.data[ed->new_name.size - 1] == '/';
 
@@ -801,7 +801,7 @@ void draw(Editor* ed)
     Entry* ent = ed->entries + ed->sel_line;
     int type = ent->st.st_mode & IT_MASK;
 
-    printf("\e[90m");
+    printf("\e[37m");
 
     if (type == IT_REG)
     {
@@ -875,7 +875,7 @@ void draw(Editor* ed)
                     continue;
 
                 move_cursor(line, split);
-                printf("\e[90m%s", dent->name);
+                printf("\e[37m%s", dent->name);
                 line++;
             }
         }
