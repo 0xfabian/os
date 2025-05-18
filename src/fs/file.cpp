@@ -69,9 +69,10 @@ result_ptr<File> File::open(const char* path, u32 flags, u32 mode)
     }
 
     file->offset = 0;
+    file->inode = inode.ptr;
+    file->pipe = nullptr;
     file->flags = flags;
     file->refs = 1;
-    file->inode = inode.ptr;
 
     if (inode->is_device())
     {
@@ -119,16 +120,17 @@ int File::close()
 
     // at this point we dont have any references
 
-    // wake up process if the file is a pipe
-    // if (is_pipe())
-    //     wakeup_process();
+    if (inode)
+    {
+        // if the file is a device call the devices close function
+        if (inode->is_device() && ops.close)
+            ops.close(this);
 
-    // if the file is a device call the devices close function
-    if (inode->is_device() && ops.close)
+        // now the file is gone so we should release the inode
+        inode->put();
+    }
+    else if (pipe)
         ops.close(this);
-
-    // now the file is gone so we should release the inode
-    inode->put();
 
     return 0;
 }
@@ -188,7 +190,7 @@ int File::iterate(void* buf, usize size)
     if (!ops.iterate)
         return -ERR_NOT_IMPL;
 
-    if (!inode->is_dir())
+    if (inode && !inode->is_dir())
         return -ERR_NOT_DIR;
 
     return ops.iterate(this, buf, size);
@@ -228,7 +230,10 @@ void FileTable::debug()
         if (file->refs == 0)
             continue;
 
-        kprintf(" %-8d %-12lu %-8lu %-16x %-8d ", i + 1, file->offset, file->inode - inode_table.inodes + 1, file->flags, file->refs);
+        if (file->inode)
+            kprintf(" %-8d %-12lu %-8lu %-16x %-8d ", i + 1, file->offset, file->inode - inode_table.inodes + 1, file->flags, file->refs);
+        else if (file->pipe)
+            kprintf(" %-8d %-12lu %-8s %-16x %-8d ", i + 1, file->offset, "-", file->flags, file->refs);
 
         if (file->ops.open)
             kprintf("open ");

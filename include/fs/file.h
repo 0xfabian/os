@@ -3,6 +3,7 @@
 #include <print.h>
 #include <string.h>
 #include <fs/inode.h>
+#include <pipe.h>
 
 #define O_RDONLY        0
 #define O_WRONLY        1
@@ -21,6 +22,7 @@ struct File
 {
     usize offset;
     Inode* inode;
+    Pipe* pipe;
     u32 flags;
     int refs;
 
