@@ -231,7 +231,7 @@ int Inode::sync()
     return ops.sync(this);
 }
 
-void Inode::fill_stat(stat* buf)
+int Inode::fill_stat(stat* buf)
 {
     buf->st_dev = 0;
     buf->st_ino = ino;
@@ -243,12 +243,16 @@ void Inode::fill_stat(stat* buf)
     buf->st_size = size;
     buf->st_blksize = 4096;
     buf->st_blocks = (size + 511) / 512;
+
     buf->st_atime = 0;
-    buf->st_atimensec = 0;
     buf->st_mtime = 0;
-    buf->st_mtimensec = 0;
     buf->st_ctime = 0;
+
+    buf->st_atimensec = 0;
+    buf->st_mtimensec = 0;
     buf->st_ctimensec = 0;
+
+    return 0;
 }
 
 result_ptr<Inode> InodeTable::insert(Inode* inode)

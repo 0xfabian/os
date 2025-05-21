@@ -121,7 +121,7 @@ struct Inode
     result_ptr<Inode> lookup(const char* name);
     int sync();
 
-    void fill_stat(stat* buf);
+    int fill_stat(stat* buf);
 };
 
 struct Dirent
