@@ -132,9 +132,13 @@ int sys_fstat(int fd, stat* buf)
     if (!file)
         return file.error();
 
-    file->inode->fill_stat(buf);
+    if (file->inode)
+        return file->inode->fill_stat(buf);
 
-    return 0;
+    if (file->pipe)
+        return file->pipe->fill_stat(buf);
+
+    return -1;
 }
 
 isize sys_seek(int fd, isize offset, int whence)
@@ -291,43 +295,18 @@ int sys_pipe(int fds[2])
 {
     FDTable* fdt = &running->fdt;
 
-    int read_fd = fdt->get_unused();
+    int ret = fdt->get_unused(2, (unsigned int*)fds);
 
-    if (read_fd < 0)
-    {
-        // kprintf("%lu: read_fd < 0\n", running->tid);
-        return read_fd;
-    }
-
-    int write_fd = fdt->get_unused();
-
-    if (write_fd < 0)
-    {
-        // kprintf("%lu: write_fd < 0\n", running->tid);
-        return write_fd;
-    }
-    else
-    {
-        // temp because get_unused will return the same fd 
-        // if we dont install it eariler
-        write_fd++;
-    }
+    if (ret != 0)
+        return ret;
 
     auto pipe = Pipe::open();
 
     if (!pipe)
-    {
-        // kprintf("%lu: pipe open failed\n", running->tid);
         return pipe.error();
-    }
 
-    fdt->install(read_fd, pipe->read_end);
-    fdt->install(write_fd, pipe->write_end);
-
-    fds[0] = read_fd;
-    fds[1] = write_fd;
-
-    // kprintf("%lu: pipe fds %d %d\n", running->tid, read_fd, write_fd);
+    fdt->install(fds[0], pipe->read_end);
+    fdt->install(fds[1], pipe->write_end);
 
     return 0;
 }
