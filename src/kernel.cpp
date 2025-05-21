@@ -29,6 +29,9 @@ void populate_root()
     inode = Inode::get("/dev");
     inode->mknod("fb", IT_CDEV | IP_RW, 0x80);
     inode->mknod("fbterm", IT_CDEV | IP_RW, 0x81);
+    inode->mknod("null", IT_CDEV | IP_RW, 0x82);
+    inode->mknod("zero", IT_CDEV | IP_RW, 0x83);
+    inode->mknod("random", IT_CDEV | IP_RW, 0x84);
     inode->put();
 
     load_exec("/bin/sh", sh_code, sizeof(sh_code));

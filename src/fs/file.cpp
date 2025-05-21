@@ -80,6 +80,12 @@ result_ptr<File> File::open(const char* path, u32 flags, u32 mode)
             default_fb.give_fops(&file->ops);
         else if (inode->dev == 0x81)
             fbterm.give_fops(&file->ops);
+        else if (inode->dev == 0x82)
+            give_null_fops(&file->ops);
+        else if (inode->dev == 0x83)
+            give_zero_fops(&file->ops);
+        else if (inode->dev == 0x84)
+            give_random_fops(&file->ops);
 
         // Device* dev = inode->get_device();
 
