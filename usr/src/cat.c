@@ -2,43 +2,57 @@
 
 #define BUFFER_SIZE 4096
 
-void cat(int fd)
+int cat(int fd)
 {
     char buffer[BUFFER_SIZE];
-    long bytes_read;
+    isize bytes_read;
 
     while ((bytes_read = read(fd, buffer, BUFFER_SIZE)) > 0)
-        write(1, buffer, bytes_read);
+    {
+        isize bytes_written = 0;
+        while (bytes_written < bytes_read)
+        {
+            isize ret = write(1, buffer + bytes_written, bytes_read - bytes_written);
+
+            if (ret < 0)
+            {
+                write(2, "cat: error while writing\n", 25);
+                return 1;
+            }
+
+            bytes_written += ret;
+        }
+    }
+
+    return 0;
 }
 
 int main(int argc, char** argv)
 {
     if (argc == 1)
+        return cat(0);
+
+    int ret = 0;
+
+    for (int i = 1; i < argc; i++)
     {
-        cat(0);
-    }
-    else
-    {
-        for (int i = 1; i < argc; i++)
+        if (argv[i][0] == '-' && argv[i][1] == '\0')
         {
-            if (argv[i][0] == '-' && argv[i][1] == '\0')
-            {
-                cat(0);
-                continue;
-            }
-
-            int fd = open(argv[i], 0, 0);
-
-            if (fd < 0)
-            {
-                write(2, "cat: error opening file\n", 24);
-                continue;
-            }
-
-            cat(fd);
-            close(fd);
+            ret += cat(0);
+            continue;
         }
+
+        int fd = open(argv[i], 0, 0);
+
+        if (fd < 0)
+        {
+            write(2, "cat: error opening file\n", 24);
+            continue;
+        }
+
+        ret += cat(fd);
+        close(fd);
     }
 
-    return 0;
+    return ret;
 }
