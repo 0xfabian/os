@@ -4,6 +4,7 @@
 #include <string.h>
 #include <fs/inode.h>
 #include <pipe.h>
+#include <drivers/special.h>
 
 #define O_RDONLY        0
 #define O_WRONLY        1
