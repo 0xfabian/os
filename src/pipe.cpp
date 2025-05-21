@@ -75,6 +75,30 @@ void Pipe::close()
     kfree(this);
 }
 
+int Pipe::fill_stat(stat* buf)
+{
+    buf->st_dev = 0;
+    buf->st_ino = (u64)this;
+    buf->st_nlink = 1;
+    buf->st_mode = IT_FIFO | IP_RW;
+    buf->st_uid = 0;
+    buf->st_gid = 0;
+    buf->st_rdev = 0;
+    buf->st_size = 0;
+    buf->st_blksize = 4096;
+    buf->st_blocks = 0;
+
+    buf->st_atime = 0;
+    buf->st_mtime = 0;
+    buf->st_ctime = 0;
+
+    buf->st_atimensec = 0;
+    buf->st_mtimensec = 0;
+    buf->st_ctimensec = 0;
+
+    return 0;
+}
+
 isize pipe_read(File* file, void* buf, usize size, usize offset)
 {
     Pipe* pipe = file->pipe;

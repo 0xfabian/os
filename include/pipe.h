@@ -8,6 +8,7 @@
 #define PIPE_SIZE   (PIPE_PAGES * PAGE_SIZE)
 
 struct File;
+struct stat;
 
 struct Pipe
 {
@@ -25,4 +26,6 @@ struct Pipe
 
     static result_ptr<Pipe> open();
     void close();
+
+    int fill_stat(stat* buf);
 };
