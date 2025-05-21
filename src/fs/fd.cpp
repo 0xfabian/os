@@ -9,6 +9,27 @@ int FDTable::get_unused()
     return -ERR_FD_TABLE_FULL;
 }
 
+int FDTable::get_unused(usize count, unsigned int* fds)
+{
+    if (count == 0)
+        return 0;
+
+    usize filled = 0;
+
+    for (int fd = 0; fd < FD_TABLE_SIZE; fd++)
+    {
+        if (files[fd] == nullptr)
+        {
+            fds[filled++] = fd;
+
+            if (filled == count)
+                return 0;
+        }
+    }
+
+    return -ERR_FD_TABLE_FULL;
+}
+
 result_ptr<File> FDTable::get(unsigned int fd)
 {
     if (fd >= FD_TABLE_SIZE || !files[fd])
