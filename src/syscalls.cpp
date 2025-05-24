@@ -48,6 +48,7 @@ u64 do_syscall(CPU* cpu, int num)
     case SYS_UMOUNT:        return sys_umount((const char*)cpu->rdi);
     case SYS_EXIT_GROUP:    sys_exit(cpu->rdi); return 0;
     case SYS_OPENAT:        return sys_openat(cpu->rdi, (const char*)cpu->rsi, cpu->rdx, cpu->r10);
+    case SYS_SETGROUP:      return sys_setgroup(cpu->rdi);
     case SYS_DEBUG:         return sys_debug((const char*)cpu->rdi);
     default:                return -ERR_NOT_IMPL;
     }
@@ -717,6 +718,14 @@ int sys_openat(int dirfd, const char* path, u32 flags, u32 mode)
     return sys_open(path, flags, mode);
 }
 
+int sys_setgroup(int group)
+{
+    if (group >= 0)
+        running->group = group;
+
+    return running->group;
+}
+
 int sys_debug(const char* str)
 {
     if (strcmp(str, "inode_table") == 0)
@@ -727,6 +736,8 @@ int sys_debug(const char* str)
         heap.debug();
     else if (strcmp(str, "pmm") == 0)
         pmm.debug();
+    else if (strcmp(str, "task") == 0)
+        Task::debug();
 
     return 0;
 }

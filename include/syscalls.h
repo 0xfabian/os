@@ -53,6 +53,7 @@ enum SyscallNumber
     SYS_UMOUNT,
     SYS_EXIT_GROUP = 231,
     SYS_OPENAT = 257,
+    SYS_SETGROUP = 300,
     SYS_DEBUG = 512
 };
 
@@ -106,4 +107,5 @@ int sys_arch_prctl(int op, u64* addr);
 int sys_mount(const char* source, const char* target, const char* fstype);
 int sys_umount(const char* target);
 int sys_openat(int dirfd, const char* path, u32 flags, u32 mode);
+int sys_setgroup(int group);
 int sys_debug(const char* str);
