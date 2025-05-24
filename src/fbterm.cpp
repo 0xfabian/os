@@ -110,8 +110,10 @@ isize fb_read(File* file, void* buf, usize size, usize offset)
 
 isize fb_write(File* file, const void* buf, usize size, usize offset)
 {
-    if (size == 0 || offset >= default_fb.width * default_fb.height * sizeof(u32))
+    if (size == 0)
         return 0;
+
+    offset %= default_fb.width * default_fb.height * sizeof(u32);
 
     usize remaining = default_fb.width * default_fb.height * sizeof(u32) - offset;
 
@@ -201,6 +203,7 @@ void FramebufferTerminal::init()
 
     line_buffered = true;
     echo = true;
+    fg_group = 0;
 
     input_cursor = 0;
 
@@ -416,6 +419,16 @@ isize FramebufferTerminal::read(void* buffer, usize len)
     }
 }
 
+inline int min(int a, int b)
+{
+    return a < b ? a : b;
+}
+
+inline int max(int a, int b)
+{
+    return a > b ? a : b;
+}
+
 bool in_ansi_H = false;
 void FramebufferTerminal::ansi_function(char name, int arg)
 {
@@ -459,11 +472,18 @@ void FramebufferTerminal::ansi_function(char name, int arg)
     case 'H':
 
         if (!in_ansi_H)
-            cursor = (arg - 1) * width;
+        {
+            int line = min(max(arg - 1, 0), height - 1);
+            cursor = line * width;
+            in_ansi_H = true;
+        }
         else
-            cursor += arg - 1;
+        {
+            int col = min(max(arg - 1, 0), width - 1);
+            cursor += col;
+            in_ansi_H = false;
+        }
 
-        in_ansi_H = !in_ansi_H;
         break;
 
     case 'K':
@@ -490,9 +510,13 @@ void FramebufferTerminal::putchar(char ch)
     else
     {
         if (ch == '\n')
+        {
             cursor += width - cursor % width;
+        }
         else if (ch == '\r')
+        {
             cursor -= cursor % width;
+        }
         else if (ch == '\b')
         {
             if (cursor > write_cursor)
@@ -501,6 +525,13 @@ void FramebufferTerminal::putchar(char ch)
                 draw_bitmap(' ');
             }
         }
+        else if (ch == '\a')
+        {
+            if (fbterm.cursor % fbterm.width)
+                cursor += width - cursor % width;
+        }
+        // we should handle tabs and also maybe
+        // print something for non-printable characters
     }
 
     if (cursor >= width * height)
@@ -701,19 +732,21 @@ isize fbterm_write(File* file, const void* buf, usize size, usize offset)
 #define FBTERM_LB_OFF       5
 #define FBTERM_GET_WIDTH    6
 #define FBTERM_GET_HEIGHT   7
+#define FBTERM_SET_FG_GROUP 8
 
 int fbterm_ioctl(File* file, int cmd, void* arg)
 {
     switch (cmd)
     {
-    case FBTERM_CLEAR:      fbterm.clear();                 break;
-    case FBTERM_ECHO_ON:    fbterm.echo = true;             break;
-    case FBTERM_ECHO_OFF:   fbterm.echo = false;            break;
-    case FBTERM_LB_ON:      fbterm.line_buffered = true;    break;
-    case FBTERM_LB_OFF:     fbterm.line_buffered = false;   break;
-    case FBTERM_GET_WIDTH:  *(int*)arg = fbterm.width;      break;
-    case FBTERM_GET_HEIGHT: *(int*)arg = fbterm.height;     break;
-    default:                                                return -1;
+    case FBTERM_CLEAR:          fbterm.clear();                 break;
+    case FBTERM_ECHO_ON:        fbterm.echo = true;             break;
+    case FBTERM_ECHO_OFF:       fbterm.echo = false;            break;
+    case FBTERM_LB_ON:          fbterm.line_buffered = true;    break;
+    case FBTERM_LB_OFF:         fbterm.line_buffered = false;   break;
+    case FBTERM_GET_WIDTH:      *(int*)arg = fbterm.width;      break;
+    case FBTERM_GET_HEIGHT:     *(int*)arg = fbterm.height;     break;
+    case FBTERM_SET_FG_GROUP:   fbterm.fg_group = *(int*)arg;   break;
+    default:                                                    return -1;
     }
 
     return 0;

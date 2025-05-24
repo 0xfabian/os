@@ -58,6 +58,7 @@ struct FramebufferTerminal
 
     bool line_buffered;
     bool echo;
+    int fg_group;
 
     char input_buffer[INPUT_BUFFER_SIZE];
     usize input_cursor;
