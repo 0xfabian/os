@@ -237,19 +237,32 @@ void keyboard_task()
                 {
                     fbterm.clear_input();
                 }
+                else if (key == 0x2e && kbd_state & KBD_CTRL)
+                {
+                    int ret = exit_group(fbterm.fg_group);
+
+                    if (ret > 0)
+                        kprintf("\a\e[37mKilled \e[91m%d\e[37m foreground task%c\e[m\n", ret, ret > 1 ? 's' : 0);
+                }
                 else if (ch)
                 {
                     if (isalpha(ch) && kbd_state & KBD_CTRL)
                     {
-                        if (ch < 'a')
-                            ch = ch - 'A' + 1;
+                        if (ch >= 'a')
+                            ch = ch - 'a' + 'A';
+
+                        if (fbterm.echo)
+                        {
+                            fbterm.receive_char('^');
+                            fbterm.receive_char(ch);
+                        }
                         else
-                            ch = ch - 'a' + 1;
+                            fbterm.receive_char(ch - 'A' + 1);
                     }
                     else if (ch == '\b' && !fbterm.line_buffered)
-                        ch = 0x7f;
-
-                    fbterm.receive_char(ch);
+                        fbterm.receive_char(0x7f);
+                    else
+                        fbterm.receive_char(ch);
                 }
             }
         }
