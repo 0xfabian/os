@@ -411,6 +411,7 @@ isize FramebufferTerminal::read(void* buffer, usize len)
             memcpy(buffer, input_buffer, read);
             input_cursor -= read;
             memmove(input_buffer, input_buffer + read, input_cursor);
+            eof_received = false;
 
             return read;
         }
@@ -578,14 +579,8 @@ void FramebufferTerminal::clear_input()
 
 isize FramebufferTerminal::get_read_size()
 {
-    if (!line_buffered)
+    if (!line_buffered || eof_received)
         return input_cursor;
-
-    if (eof_received)
-    {
-        eof_received = false;
-        return input_cursor;
-    }
 
     for (usize i = 0; i < input_cursor; i++)
         if (input_buffer[i] == '\n')

@@ -228,21 +228,25 @@ void keyboard_task()
             {
                 char ch = translate_key(key);
 
-                if (key == 0x20 && kbd_state & KBD_CTRL)
-                {
-                    fbterm.eof_received = true;
-                    fbterm.readers_queue.wake_all();
-                }
-                else if (key == 0x16 && kbd_state & KBD_CTRL)
-                {
-                    fbterm.clear_input();
-                }
-                else if (key == 0x2e && kbd_state & KBD_CTRL)
+                if (key == 0x2e && kbd_state & KBD_CTRL)
                 {
                     int ret = exit_group(fbterm.fg_group);
 
                     if (ret > 0)
                         kprintf("\a\e[37mKilled \e[91m%d\e[37m foreground task%c\e[m\n", ret, ret > 1 ? 's' : 0);
+                }
+                else if (fbterm.line_buffered && key == 0x20 && kbd_state & KBD_CTRL)
+                {
+                    // this is a hacky way to implement EOF, what if, after we wake up the readers
+                    // we receive more input before any of the readers actually continue the read syscall
+                    // then when some task will continue the read it will get the extra input
+                    // this is a bug, it should only get the input until EOF
+                    fbterm.eof_received = true;
+                    fbterm.readers_queue.wake_all();
+                }
+                else if (fbterm.line_buffered && key == 0x16 && kbd_state & KBD_CTRL)
+                {
+                    fbterm.clear_input();
                 }
                 else if (ch)
                 {
