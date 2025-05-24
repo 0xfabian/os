@@ -65,6 +65,7 @@ SYSCALL     arch_prctl,     158
 SYSCALL     mount,          165
 SYSCALL     umount,         166
 SYSCALL     openat,         257
+SYSCALL     setgroup,       300
 SYSCALL     debug,          512
 
 global _start

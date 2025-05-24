@@ -49,6 +49,7 @@
 #define FBTERM_LB_OFF       5
 #define FBTERM_GET_WIDTH    6
 #define FBTERM_GET_HEIGHT   7
+#define FBTERM_SET_FG_GROUP 8
 
 #define FB_GET_WIDTH        1
 #define FB_GET_HEIGHT       2
@@ -148,4 +149,5 @@ extern int arch_prctl(int op, u64* addr);
 extern int mount(const char* source, const char* target, const char* fstype);
 extern int umount(const char* target);
 extern int openat(int dirfd, const char* path, u32 flags, u32 mode);
+extern int setgroup(int group);
 extern int debug(const char* str);
