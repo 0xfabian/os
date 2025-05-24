@@ -40,6 +40,10 @@ void populate_root()
     load_exec("/bin/clear", clear_code, sizeof(clear_code));
     load_exec("/bin/ed", ed_code, sizeof(ed_code));
     load_exec("/bin/cow", cow_code, sizeof(cow_code));
+
+    auto file = File::open("/a", O_WRONLY | O_CREAT, IP_RW);
+    file->write("/mnt/lib/sys.o -I/mnt/include -nostdlib -static\n", 48);
+    file->close();
 }
 
 extern "C" void kmain(void)
