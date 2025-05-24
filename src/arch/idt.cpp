@@ -60,7 +60,7 @@ void default_handler(interrupt_frame* frame)
 {
     if (running)
     {
-        kprintf(PANIC "Unhandled interrupt in task %lu\n", running->tid);
+        kprintf("\a\e[37mKilled task %lu due to unhandled interrupt\e[m\n", running->tid);
         running->exit(-1);
     }
     else
@@ -71,9 +71,7 @@ __attribute__((interrupt)) void opcode_fault_handler(interrupt_frame* frame)
 {
     if (running)
     {
-        kprintf(PANIC "Invalid opcode fault in task %lu\n", running->tid);
-        kprintf("rip: %p\n", frame->rip);
-        hexdump((void*)frame->rip, 16);
+        kprintf("\a\e[37mKilled task %lu due to \e[91minvalid opcode\e[37m at address %p\e[m\n", running->tid, frame->rip);
         running->exit(-1);
     }
     else
@@ -84,9 +82,7 @@ void gp_fault_handler(interrupt_frame* frame, u64 error_code)
 {
     if (running)
     {
-        kprintf(PANIC "General protection fault in task %lu (%lx)\n", running->tid, error_code);
-        kprintf("rip: %p\n", frame->rip);
-        hexdump((void*)frame->rip, 16);
+        kprintf("\a\e[37mKilled task %lu due to \e[91mgeneral protection fault\e[m\n", running->tid);
         running->exit(-1);
     }
     else
@@ -97,9 +93,7 @@ void page_fault_handler(interrupt_frame* frame, u64 error_code)
 {
     if (running)
     {
-        kprintf(PANIC "Page fault in task %lu (%lx) caused by %p\n", running->tid, error_code, read_cr2());
-        kprintf("rip: %p\n", frame->rip);
-        hexdump((void*)frame->rip, 16);
+        kprintf("\a\e[37mKilled task %lu due to \e[91mpage fault\e[37m at address %p\e[m\n", running->tid, read_cr2());
         running->exit(-1);
     }
     else
@@ -161,5 +155,5 @@ extern "C" void breakpoint_handler()
     kprintf("rbp:    %a    r14:    %a\n", cpu->rbp, cpu->r14);
     kprintf("rsp:    %a    r15:    %a\n", cpu->rsp, cpu->r15);
 
-    idle();
+    pause();
 }
