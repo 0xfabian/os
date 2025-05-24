@@ -15,6 +15,7 @@ struct WaitQueue
 
     void init();
     void add(Task* task);
+    void remove(Task* task);
     void wake_all();
 };
 
