@@ -6,6 +6,8 @@ u64 global_tid = 0;
 Task* running = nullptr;
 Task* idle_task = nullptr;
 Task* rq_head = nullptr;
+Task* task_list_head = nullptr;
+Task* task_list_tail = nullptr;
 
 extern "C" void switch_now();
 
@@ -22,7 +24,19 @@ Task* alloc_task()
         running->add_child(task);
 
     task->children = nullptr;
+
+    task->next_global = nullptr;
+    task->prev_global = task_list_tail;
+
+    if (task_list_tail)
+        task_list_tail->next_global = task;
+    else
+        task_list_head = task;
+
+    task_list_tail = task;
+
     task->tid = global_tid++;
+    task->group = 0;
 
     task->state = TASK_BORN;
     task->mm = (MemoryMap*)kmalloc(sizeof(MemoryMap));
@@ -31,6 +45,8 @@ Task* alloc_task()
 
     for (int i = 0; i < FD_TABLE_SIZE; i++)
         task->fdt.files[i] = nullptr;
+
+    task->waitq = nullptr;
 
     task->exit_code = 0;
 
@@ -44,6 +60,19 @@ void free_task(Task* task)
 {
     if (task->parent)
         task->parent->remove_child(task);
+
+    if (task->prev_global)
+        task->prev_global->next_global = task->next_global;
+    else
+        task_list_head = task->next_global;
+
+    if (task->next_global)
+        task->next_global->prev_global = task->prev_global;
+    else
+        task_list_tail = task->prev_global;
+
+    task->next_global = nullptr;
+    task->prev_global = nullptr;
 
     for (int i = 0; i < FD_TABLE_SIZE; i++)
         if (task->fdt.files[i])
@@ -233,6 +262,7 @@ Task* Task::fork()
     kfree(task->cwd_str);
     task->cwd->put();
 
+    task->group = running->group;
     task->cwd_str = strdup(running->cwd_str);
     task->cwd = running->cwd->get();
 
@@ -593,7 +623,11 @@ void Task::ready()
 
 void Task::exit(int code)
 {
-    leave_rq();
+    if (state == TASK_READY)
+        leave_rq();
+
+    if (waitq)
+        waitq->remove(this);
 
     state = TASK_ZOMBIE;
     exit_code = code;
@@ -605,7 +639,8 @@ void Task::exit(int code)
     // else
     //     if this has no parent, we can probably just free it here
 
-    schedule();
+    if (this == running)
+        schedule();
 }
 
 int Task::wait(int* status)
@@ -632,6 +667,36 @@ int Task::wait(int* status)
         // at this point we didn't find a zombie so sleep until a child dies
         pause();
     }
+}
+
+void Task::debug()
+{
+    Task* task = task_list_head;
+
+    while (task)
+    {
+        kprintf("Task %ld: group %d state %d\n", task->tid, task->group, task->state);
+        task = task->next_global;
+    }
+}
+
+int exit_group(int group)
+{
+    int ret = 0;
+    Task* task = task_list_head;
+
+    while (task)
+    {
+        if (task->group == group)
+        {
+            task->exit(0);
+            ret++;
+        }
+
+        task = task->next_global;
+    }
+
+    return ret;
 }
 
 void sched_init()

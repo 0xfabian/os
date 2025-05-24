@@ -7,6 +7,7 @@
 #include <fs/mount.h>
 #include <fs/fd.h>
 #include <elf.h>
+#include <waitq.h>
 
 #define KERNEL_STACK_PAGES      2   // 8KB
 #define KERNEL_STACK_SIZE       (KERNEL_STACK_PAGES * PAGE_SIZE)
@@ -39,20 +40,29 @@ struct MemoryMap
 struct Task
 {
     u64 krsp;
+
+    // used for the hierarchy
     Task* parent;
     Task* children;
     Task* next_sibling;
+
+    // pointer in the global task list
+    Task* prev_global;
+    Task* next_global;
+
     u64 tid;
+    int group;
 
     TaskState state;
     MemoryMap* mm;
     char* cwd_str;
     Inode* cwd;
     FDTable fdt;
+    WaitQueue* waitq;
 
     int exit_code;
 
-    // only relevant if in ready state
+    // pointers in the ready queue, only relevant if in ready state
     Task* prev;
     Task* next;
 
@@ -72,9 +82,13 @@ struct Task
     void ready();
     void exit(int code);
     int wait(int* status);
+
+    static void debug();
 };
 
 extern Task* running;
+
+int exit_group(int group);
 
 void sched_init();
 extern "C" void schedule();
