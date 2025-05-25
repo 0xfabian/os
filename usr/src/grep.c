@@ -46,7 +46,7 @@ void do_grep_on_line(char* pattern, int pat_len)
 {
     char* ptr = line;
 
-    while(1)
+    while (1)
     {
         char* begin = ptr;
         ptr = match_pattern(ptr, pattern, pat_len);
@@ -63,7 +63,7 @@ void do_grep_on_line(char* pattern, int pat_len)
             write(1, begin, ptr - begin);
             write(1, "\e[91m", 5);
             write(1, ptr, pat_len);
-            write(1, "\e[0m", 4);
+            write(1, "\e[39m", 5);
 
             total_matches++;
 
