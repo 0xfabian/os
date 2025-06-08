@@ -687,7 +687,7 @@ int exit_group(int group)
 
     while (task)
     {
-        if (task->group == group)
+        if (task->group == group && task->state != TASK_ZOMBIE)
         {
             task->exit(0);
             ret++;
