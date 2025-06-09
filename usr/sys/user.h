@@ -1,21 +1,7 @@
 #pragma once
 
-#include <cstdarg>
-#include <cstdint>
-#include <cstddef>
+#include <stdarg.h>
 #include <sys.h>
-
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-typedef size_t usize;
-
-typedef int8_t i8;
-typedef int16_t i16;
-typedef int32_t i32;
-typedef int64_t i64;
-typedef signed long isize;
 
 void* memcpy(void* dest, const void* src, usize n)
 {
@@ -106,12 +92,12 @@ char* strchr(const char* str, int c)
         str++;
     }
 
-    return nullptr;
+    return 0;
 }
 
 char* strrchr(const char* str, int c)
 {
-    const char* last = nullptr;
+    const char* last = 0;
 
     while (*str)
     {
@@ -124,43 +110,48 @@ char* strrchr(const char* str, int c)
     return (char*)last;
 }
 
-bool isdigit(char ch)
+int isdigit(char ch)
 {
     return ch >= '0' && ch <= '9';
 }
 
-bool isxdigit(char ch)
+int isxdigit(char ch)
 {
     return isdigit(ch) || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F');
 }
 
-bool isalpha(char ch)
+int isalpha(char ch)
 {
     return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
 }
 
-bool isalnum(char ch)
+int isalnum(char ch)
 {
     return isalpha(ch) || isdigit(ch);
 }
 
-bool isprint(char ch)
+int isprint(char ch)
 {
     return ch >= ' ' && ch <= '~';
 }
 
-bool isspace(char ch)
+int isspace(char ch)
 {
     return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\f' || ch == '\v';
 }
 
 #define BUFFER_SIZE 4096
 
+// this is used when the width is specified
+// so the thing that is being formatted should not overflow it
+//
+// it's also VERY IMPORTANT to declare this before buf_start
+// since otherwise append_ptr >= buf_start + BUFFER_SIZE
+// which will cause a flush, resetting append_ptr
+char temp_buf[256];
+
 char buf_start[BUFFER_SIZE];
 char* append_ptr = buf_start;
-
-// printing string bigger than this buffer will cause a buffer overflow
-char temp_buf[256];
 
 void flush()
 {
@@ -170,7 +161,7 @@ void flush()
 
 inline void append_char(char c)
 {
-    if (append_ptr == buf_start + BUFFER_SIZE)
+    if (append_ptr >= buf_start + BUFFER_SIZE)
         flush();
 
     *append_ptr++ = c;
@@ -222,57 +213,57 @@ void append_hex(u64 num, int size)
         append_char(hex[(num >> i) & 0x0f]);
 }
 
-int parse_width_mod(const char*& ptr)
+int parse_width_mod(const char** ptr)
 {
     int width = 0;
-    bool negative = false;
+    int negative = 0;
 
-    if (*ptr == '-')
+    if (*(*ptr) == '-')
     {
-        negative = true;
-        ptr++;
+        negative = 1;
+        (*ptr)++;
     }
 
-    while (*ptr >= '0' && *ptr <= '9')
+    while (*(*ptr) >= '0' && *(*ptr) <= '9')
     {
-        width = width * 10 + (*ptr - '0');
-        ptr++;
+        width = width * 10 + (*(*ptr) - '0');
+        (*ptr)++;
     }
 
     return negative ? -width : width;
 }
 
-int parse_size_mod(const char*& ptr)
+int parse_size_mod(const char** ptr)
 {
     int size = 2;
 
-    if (*ptr == 'l')
+    if (*(*ptr) == 'l')
     {
         size++;
-        ptr++;
+        (*ptr)++;
     }
-    else if (*ptr == 'h')
+    else if (*(*ptr) == 'h')
     {
         size--;
-        ptr++;
+        (*ptr)++;
 
-        if (*ptr == 'h')
+        if (*(*ptr) == 'h')
         {
             size--;
-            ptr++;
+            (*ptr)++;
         }
     }
 
     return size;
 }
 
-bool auto_flush = true;
+int auto_flush = 1;
 void printf(const char* fmt, ...)
 {
-    char* arg_start = nullptr;
-
     va_list args;
     va_start(args, fmt);
+
+    char* arg_start = 0;
 
     for (const char* ptr = fmt; *ptr; ptr++)
     {
@@ -284,8 +275,8 @@ void printf(const char* fmt, ...)
 
         ptr++;
 
-        int width = *ptr == '*' ? (ptr++, va_arg(args, int)) : parse_width_mod(ptr);
-        int size = parse_size_mod(ptr);
+        int width = *ptr == '*' ? (ptr++, va_arg(args, int)) : parse_width_mod(&ptr);
+        int size = parse_size_mod(&ptr);
 
         arg_start = append_ptr;
 
@@ -377,8 +368,8 @@ void printf(const char* fmt, ...)
         }
     }
 
-    va_end(args);
-
     if (auto_flush)
         flush();
+
+    va_end(args);
 }
