@@ -82,7 +82,7 @@ int check_fit(Dirent* entries, usize count, int cols, int width)
 char full_path[256];
 int reset_index = 0;
 
-void print_dents(Dirent* entries, size_t count, int cols)
+void print_dents(Dirent* entries, usize count, int cols)
 {
     int lines = count / cols + (count % cols > 0);
     int index = 0;
