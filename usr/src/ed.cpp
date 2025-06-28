@@ -3,6 +3,16 @@
 #define MAX_LINE_SIZE 80
 #define MAX_LINES 1000
 
+int view_start_line = 0;
+
+int get_height()
+{
+    int height;
+    ioctl(1, FBTERM_GET_HEIGHT, &height);
+
+    return height;
+}
+
 struct Line
 {
     char data[MAX_LINE_SIZE + 1];
@@ -39,6 +49,12 @@ struct Line
 
         memmove(data + pos, data + pos + 1, size - pos - 1);
         size--;
+    }
+
+    void from(Line* other)
+    {
+        memcpy(data, other->data, other->size);
+        size = other->size;
     }
 };
 
@@ -135,6 +151,12 @@ struct Editor
     void move_down(bool shift = false);
     void move_to_line_start(bool shift = false);
     void move_to_line_end(bool shift = false);
+
+    void swap_up();
+    void swap_down();
+
+    void page_up();
+    void page_down();
 
     void start_selection();
     void select_all();
@@ -554,6 +576,74 @@ void Editor::move_to_line_end(bool shift)
     }
 }
 
+void Editor::swap_up()
+{
+    if (line == 0)
+        return;
+
+    deselect();
+
+    Line tmp;
+    Line* current = &text->lines[line];
+    Line* above = &text->lines[line - 1];
+
+    tmp.from(current);
+    current->from(above);
+    above->from(&tmp);
+
+    line--;
+}
+
+void Editor::swap_down()
+{
+    if (line == text->size - 1)
+        return;
+
+    deselect();
+
+    Line tmp;
+    Line* current = &text->lines[line];
+    Line* below = &text->lines[line + 1];
+
+    tmp.from(current);
+    current->from(below);
+    below->from(&tmp);
+
+    line++;
+}
+
+void Editor::page_up()
+{
+    int height = get_height() - 1;
+
+    if (height < 0)
+        return;
+
+    view_start_line -= height;
+
+    if (view_start_line < 0)
+        view_start_line = 0;
+
+    line = view_start_line + height - 4 - 1;
+    col = 0;
+}
+
+void Editor::page_down()
+{
+    int height = get_height() - 1;
+
+    if (height < 0)
+        return;
+
+    view_start_line += height;
+
+    if (view_start_line >= text->size)
+        view_start_line = text->size - 4 - 1;
+
+    line = view_start_line + 4;
+    col = 0;
+}
+
 void Editor::start_selection()
 {
     if (!is_selection)
@@ -769,7 +859,7 @@ usize Editor::get_size()
 }
 
 bool quit = false;
-int view_start_line = 0;
+
 
 void draw(Editor* ed);
 
@@ -787,6 +877,8 @@ enum Key
     ARROW_DOWN,
     HOME,
     END,
+    PAGE_UP,
+    PAGE_DOWN,
 
     SHIFT_ARROW_LEFT,
     SHIFT_ARROW_RIGHT,
@@ -794,6 +886,9 @@ enum Key
     SHIFT_ARROW_DOWN,
     SHIFT_HOME,
     SHIFT_END,
+
+    ALT_ARROW_UP,
+    ALT_ARROW_DOWN,
 
     CTRL_Q,
     CTRL_S,
@@ -841,6 +936,12 @@ int get_key()
             if (seq[2] == '~' && seq[1] == '3')
                 return DELETE;
 
+            if (seq[2] == '~' && seq[1] == '5')
+                return PAGE_UP;
+
+            if (seq[2] == '~' && seq[1] == '6')
+                return PAGE_DOWN;
+
             if (seq[1] == '1')
             {
                 if (!getchar(seq + 3) || !getchar(seq + 4))
@@ -856,6 +957,14 @@ int get_key()
                     case 'D': return SHIFT_ARROW_LEFT;
                     case 'H': return SHIFT_HOME;
                     case 'F': return SHIFT_END;
+                    }
+                }
+                else if (seq[2] == ';' && seq[3] == '3')
+                {
+                    switch (seq[4])
+                    {
+                    case 'A': return ALT_ARROW_UP;
+                    case 'B': return ALT_ARROW_DOWN;
                     }
                 }
             }
@@ -922,6 +1031,12 @@ void process_keys(Editor* ed)
         case SHIFT_ARROW_DOWN:  ed->move_down(true);            break;
         case SHIFT_HOME:        ed->move_to_line_start(true);   break;
         case SHIFT_END:         ed->move_to_line_end(true);     break;
+
+        case ALT_ARROW_UP:      ed->swap_up();                  break;
+        case ALT_ARROW_DOWN:    ed->swap_down();                break;
+
+        case PAGE_UP:           ed->page_up();                  break;
+        case PAGE_DOWN:         ed->page_down();                break;
         }
     }
 
@@ -1013,13 +1128,7 @@ inline void clear_screen()
     ioctl(1, FBTERM_CLEAR, nullptr);
 }
 
-int get_height()
-{
-    int height;
-    ioctl(1, FBTERM_GET_HEIGHT, &height);
 
-    return height;
-}
 
 int get_width()
 {
