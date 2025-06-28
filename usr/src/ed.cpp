@@ -144,6 +144,9 @@ struct Editor
     void deselect();
 
     void cut();
+    void trim_trailing_whitespace();
+    void trim_trailing_newlines();
+    void append_newline_if_needed();
 
     usize get_size();
 };
@@ -221,6 +224,10 @@ bool Editor::write()
 
     if (fd < 0)
         return false;
+
+    trim_trailing_whitespace();
+    trim_trailing_newlines();
+    append_newline_if_needed();
 
     for (int line = 0; line < text->size; line++)
     {
@@ -687,6 +694,63 @@ void Editor::cut()
         }
 
     dirty = true;
+}
+
+void Editor::trim_trailing_whitespace()
+{
+    for (int i = 0; i < text->size; i++)
+    {
+        Line* ln = &text->lines[i];
+
+        if (ln->size == 0)
+            continue;
+
+        int j = ln->size - 1;
+        int removed = 0;
+
+        while (j >= 0 && isspace(ln->data[j])) {
+            removed++;
+            j--;
+        }
+
+        ln->size -= removed;
+
+        if (line == i && col > ln->size)
+            col = ln->size;
+    }
+}
+
+void Editor::trim_trailing_newlines()
+{
+    int count = 0;
+    for (int i = text->size - 1; i >= 0; i--)
+    {
+        if (text->lines[i].size == 0)
+            count++;
+        else
+            break;
+    }
+
+    if (count <= 1)
+        return;
+
+    for (int i = 0; i < count - 1; i++)
+        text->size--;
+
+    if (line >= text->size)
+    {
+        line = text->size - 1;
+        col = text->lines[line].size;
+    }
+}
+
+void Editor::append_newline_if_needed()
+{
+    if (get_size() == 0)
+        return;
+
+    if (text->lines[text->size - 1].size != 0)
+        text->push_back_empty();
 }
 
 usize Editor::get_size()
