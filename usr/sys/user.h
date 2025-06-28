@@ -92,12 +92,12 @@ char* strchr(const char* str, int c)
         str++;
     }
 
-    return 0;
+    return NULL;
 }
 
 char* strrchr(const char* str, int c)
 {
-    const char* last = 0;
+    const char* last = NULL;
 
     while (*str)
     {
@@ -144,13 +144,13 @@ int isspace(char ch)
 
 // this is used when the width is specified
 // so the thing that is being formatted should not overflow it
-//
-// it's also VERY IMPORTANT to declare this before buf_start
-// since otherwise append_ptr >= buf_start + BUFFER_SIZE
-// which will cause a flush, resetting append_ptr
 char temp_buf[256];
 
-char buf_start[BUFFER_SIZE];
+// for some reason, sometimes the compiler puts the temp_buf right after
+// the end of buf, so we incorrectly flush when we append to the temp_buf
+// so just add some padding to the end of buf
+// I should have used a bool to check if we are in temp_buf but...
+char buf_start[BUFFER_SIZE + 32];
 char* append_ptr = buf_start;
 
 void flush()
@@ -161,7 +161,7 @@ void flush()
 
 inline void append_char(char c)
 {
-    if (append_ptr >= buf_start + BUFFER_SIZE)
+    if (append_ptr >= buf_start + BUFFER_SIZE && append_ptr < buf_start + BUFFER_SIZE + 32)
         flush();
 
     *append_ptr++ = c;
@@ -263,7 +263,7 @@ void printf(const char* fmt, ...)
     va_list args;
     va_start(args, fmt);
 
-    char* arg_start = 0;
+    char* arg_start = NULL;
 
     for (const char* ptr = fmt; *ptr; ptr++)
     {
