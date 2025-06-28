@@ -139,12 +139,13 @@ struct Editor
     void start_selection();
     void select_all();
     void select_line();
+    void select_word();
     void erase_selection();
     void deselect();
 
     void cut();
 
-    size_t get_size();
+    usize get_size();
 };
 
 Editor::Editor(char* _filename)
@@ -581,6 +582,33 @@ void Editor::select_line()
     col = text->lines[line].size;
 }
 
+bool is_select_word_char(char c)
+{
+    return isalnum(c) || c == '_';
+}
+
+void Editor::select_word()
+{
+    if (text->size == 1 && text->lines[0].size == 0)
+        return;
+
+    if (col >= text->lines[line].size)
+        return;
+
+    if (!is_select_word_char(text->lines[line].data[col]))
+        return;
+
+    is_selection = true;
+    sel_line = line;
+    sel_col = col;
+
+    while (sel_col > 0 && is_select_word_char(text->lines[line].data[sel_col - 1]))
+        sel_col--;
+
+    while (col < text->lines[line].size && is_select_word_char(text->lines[line].data[col]))
+        col++;
+}
+
 void Editor::erase_selection()
 {
     if (!is_selection)
@@ -661,9 +689,9 @@ void Editor::cut()
     dirty = true;
 }
 
-size_t Editor::get_size()
+usize Editor::get_size()
 {
-    size_t ret = 0;
+    usize ret = 0;
 
     for (int line = 0; line < text->size; line++)
     {
@@ -707,7 +735,8 @@ enum Key
     CTRL_S,
     CTRL_A,
     CTRL_X,
-    CTRL_L
+    CTRL_L,
+    CTRL_D
 };
 
 bool getchar(char* ch)
@@ -787,6 +816,7 @@ int get_key()
     else if (c == CTRL('Q'))    return CTRL_Q;
     else if (c == CTRL('X'))    return CTRL_X;
     else if (c == CTRL('L'))    return CTRL_L;
+    else if (c == CTRL('D'))    return CTRL_D;
     else                return c;
 }
 
@@ -808,6 +838,7 @@ void process_keys(Editor* ed)
 
         case CTRL_A:            ed->select_all();               break;
         case CTRL_L:            ed->select_line();              break;
+        case CTRL_D:            ed->select_word();              break;
         case ESC:               ed->deselect();                 break;
 
         case BACKSPACE:         ed->backspace();                break;
