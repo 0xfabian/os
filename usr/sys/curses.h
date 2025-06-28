@@ -1,3 +1,5 @@
+#pragma once
+
 #include <sys.h>
 
 #define CTRL(x) ((x) - 'A' + 1)

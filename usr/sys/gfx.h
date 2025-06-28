@@ -1,3 +1,5 @@
+#pragma once
+
 #include <sys.h>
 
 int fb_fd;
