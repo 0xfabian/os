@@ -74,6 +74,8 @@ char translate_key(int key)
         mask = KBD_LSHIFT;
     else if (base == 0x36)
         mask = KBD_RSHIFT;
+    else if (base == 0x38)
+        mask = KBD_ALT;
 
     if (mask)
     {
@@ -154,6 +156,8 @@ void keyboard_task()
     // 16    u
     // 20    d
     // e0 53 delete     \e[3~
+    // e0 49 page up    \e[5~
+    // e0 51 page down  \e[6~
     // e0 47 home       \e[H
     // e0 4f end        \e[F
     // e0 48 up         \e[A
@@ -161,6 +165,7 @@ void keyboard_task()
     // e0 4d right      \e[C
     // e0 4b left       \e[D
     // 1;2 shift modifier
+    // 1;3 alt modifier
 
     while (true)
     {
@@ -194,9 +199,19 @@ void keyboard_task()
 
                     *end++ = '[';
 
-                    if (key == 0x53)
+                    if (key == 0x53) // delete
                     {
                         *end++ = '3';
+                        *end++ = '~';
+                    }
+                    else if (key == 0x49) // page up
+                    {
+                        *end++ = '5';
+                        *end++ = '~';
+                    }
+                    else if (key == 0x51) // page down
+                    {
+                        *end++ = '6';
                         *end++ = '~';
                     }
                     else
@@ -207,15 +222,21 @@ void keyboard_task()
                             *end++ = ';';
                             *end++ = '2';
                         }
+                        else if (kbd_state & KBD_ALT)
+                        {
+                            *end++ = '1';
+                            *end++ = ';';
+                            *end++ = '3';
+                        }
 
                         switch (key)
                         {
-                        case 0x47:      *end++ = 'H';       break;
-                        case 0x4f:      *end++ = 'F';       break;
-                        case 0x48:      *end++ = 'A';       break;
-                        case 0x50:      *end++ = 'B';       break;
-                        case 0x4d:      *end++ = 'C';       break;
-                        case 0x4b:      *end++ = 'D';       break;
+                        case 0x47:      *end++ = 'H';       break; // home
+                        case 0x4f:      *end++ = 'F';       break; // end
+                        case 0x48:      *end++ = 'A';       break; // up
+                        case 0x50:      *end++ = 'B';       break; // down
+                        case 0x4d:      *end++ = 'C';       break; // right
+                        case 0x4b:      *end++ = 'D';       break; // left
                         default:        end = buf;          break;
                         }
                     }

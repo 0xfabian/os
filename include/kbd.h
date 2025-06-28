@@ -6,6 +6,7 @@
 #define KBD_LSHIFT  2
 #define KBD_RSHIFT  4
 #define KBD_CAPS    8
+#define KBD_ALT     16
 
 struct KeyQueue
 {
