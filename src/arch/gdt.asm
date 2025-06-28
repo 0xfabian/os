@@ -1,6 +1,6 @@
 [bits 64]
 
-load_gdt_desc:   
+load_gdt_desc:
     lgdt [rdi]
     mov ax, 0x10    ; kernel data segment
     mov ds, ax

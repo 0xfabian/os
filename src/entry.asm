@@ -61,7 +61,7 @@ timer_handler_asm:
     ; at this point rsp should be the kernel rsp
     ; if this is a kernel thread rsp is already kernel rsp
     ; if it's a user process, this means that we transitioned from ring 3 to ring 0
-    ; so rsp gets loaded with the rsp0 from the tss struct 
+    ; so rsp gets loaded with the rsp0 from the tss struct
 
     ; right now the stack looks like this
     ; ss
@@ -75,8 +75,8 @@ timer_handler_asm:
     ; CPU struct is saved on the kernel stack now
 
     mov rdi, [running]
-    mov [rdi], rsp ; save rsp in the current task krsp 
-    
+    mov [rdi], rsp ; save rsp in the current task krsp
+
     call timer_handler
 
     mov rdi, [running]
@@ -113,7 +113,7 @@ yield:
     push rax                ; push rip
 
     PUSH_REGS
-    
+
     mov rdi, [running]
     mov [rdi], rsp
 
@@ -149,7 +149,7 @@ pause:
     push rax                ; push rip
 
     PUSH_REGS
-    
+
     mov rdi, [running]
     mov [rdi], rsp
 
@@ -220,5 +220,5 @@ breakpoint_handler_asm:
 
     mov rdi, [running]
     mov [rdi], rsp
-    
+
     call breakpoint_handler
