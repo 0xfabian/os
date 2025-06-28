@@ -1,5 +1,7 @@
 #pragma once
 
+#include <types.h>
+
 #define STDIN_FILENO    0
 #define STDOUT_FILENO   1
 #define STDERR_FILENO   2
@@ -50,7 +52,6 @@
 #define FBTERM_GET_WIDTH    6
 #define FBTERM_GET_HEIGHT   7
 #define FBTERM_SET_FG_GROUP 8
-
 #define FB_GET_WIDTH        1
 #define FB_GET_HEIGHT       2
 
@@ -60,18 +61,6 @@
 #define R_OK        4
 
 #define AT_FDCWD    -100
-
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
-typedef unsigned long u64;
-typedef unsigned long usize;
-
-typedef signed char i8;
-typedef signed short i16;
-typedef signed int i32;
-typedef signed long i64;
-typedef signed long isize;
 
 struct stat
 {
@@ -105,49 +94,49 @@ struct iovec
 #define extern extern "C"
 #endif
 
-extern isize read(unsigned int fd, void* buf, usize size);
-extern isize write(unsigned int fd, const void* buf, usize size);
-extern int open(const char* path, u32 flags, u32 mode);
-extern int close(unsigned int fd);
-extern int stat(const char* path, struct stat* buf);
-extern int fstat(int fd, struct stat* buf);
-extern isize seek(int fd, isize offset, int whence);
-extern int mprotect(void* addr, usize size, int prot);
-extern u64 brk(void* addr);
-extern int ioctl(int fd, int cmd, void* arg);
-extern isize pread(int fd, void* buf, usize size, usize offset);
-extern isize pwrite(int fd, const void* buf, usize size, usize offset);
-extern isize readv(int fd, const struct iovec* iov, int iovcnt);
-extern isize writev(int fd, const struct iovec* iov, int iovcnt);
-extern int access(const char* path, int mode);
-extern int pipe(int fds[2]);
-extern int dup(int oldfd);
-extern int dup2(int oldfd, int newfd);
-extern int fork();
-extern int execve(const char* path, char* const argv[], char* const envp[]);
-extern void exit(int status);
-extern int wait(int pid, int* status, int options);
-extern int uname(void* buf);
-extern int fcntl(int fd, int op, u64 arg);
-extern int truncate(const char* path, usize size);
-extern int ftruncate(int fd, usize size);
-extern int getdents(int fd, void* buf, usize size);
-extern int getcwd(char* buf, usize size);
-extern int chdir(const char* path);
-extern int mkdir(const char* path);
-extern int rmdir(const char* path);
-extern int creat(const char* path, u32 mode);
-extern int link(const char* oldpath, const char* newpath);
-extern int unlink(const char* path);
-extern isize readlink(const char* path, char* buf, usize size);
-extern int getuid();
-extern int getgid();
-extern int geteuid();
-extern int getegid();
-extern int mknod(const char* path, u32 mode, u32 dev);
-extern int arch_prctl(int op, u64* addr);
-extern int mount(const char* source, const char* target, const char* fstype);
-extern int umount(const char* target);
-extern int openat(int dirfd, const char* path, u32 flags, u32 mode);
-extern int setgroup(int group);
-extern int debug(const char* str);
+extern isize    read(unsigned int fd, void* buf, usize size);
+extern isize    write(unsigned int fd, const void* buf, usize size);
+extern int      open(const char* path, u32 flags, u32 mode);
+extern int      close(unsigned int fd);
+extern int      stat(const char* path, struct stat* buf);
+extern int      fstat(int fd, struct stat* buf);
+extern isize    seek(int fd, isize offset, int whence);
+extern int      mprotect(void* addr, usize size, int prot);
+extern u64      brk(void* addr);
+extern int      ioctl(int fd, int cmd, void* arg);
+extern isize    pread(int fd, void* buf, usize size, usize offset);
+extern isize    pwrite(int fd, const void* buf, usize size, usize offset);
+extern isize    readv(int fd, const struct iovec* iov, int iovcnt);
+extern isize    writev(int fd, const struct iovec* iov, int iovcnt);
+extern int      access(const char* path, int mode);
+extern int      pipe(int fds[2]);
+extern int      dup(int oldfd);
+extern int      dup2(int oldfd, int newfd);
+extern int      fork(void);
+extern int      execve(const char* path, char* const argv[], char* const envp[]);
+extern void     exit(int status);
+extern int      wait(int pid, int* status, int options);
+extern int      uname(void* buf);
+extern int      fcntl(int fd, int op, u64 arg);
+extern int      truncate(const char* path, usize size);
+extern int      ftruncate(int fd, usize size);
+extern int      getdents(int fd, void* buf, usize size);
+extern int      getcwd(char* buf, usize size);
+extern int      chdir(const char* path);
+extern int      mkdir(const char* path);
+extern int      rmdir(const char* path);
+extern int      creat(const char* path, u32 mode);
+extern int      link(const char* oldpath, const char* newpath);
+extern int      unlink(const char* path);
+extern isize    readlink(const char* path, char* buf, usize size);
+extern int      getuid(void);
+extern int      getgid(void);
+extern int      geteuid(void);
+extern int      getegid(void);
+extern int      mknod(const char* path, u32 mode, u32 dev);
+extern int      arch_prctl(int op, u64* addr);
+extern int      mount(const char* source, const char* target, const char* fstype);
+extern int      umount(const char* target);
+extern int      openat(int dirfd, const char* path, u32 flags, u32 mode);
+extern int      setgroup(int group);
+extern int      debug(const char* str);
