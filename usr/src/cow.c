@@ -6197,7 +6197,7 @@ int main(int argc, char** argv)
     }
 
     struct mat4x4 proj = get_projection(0.1, 100, PI / 3, (float)WIDTH / (float)HEIGHT);
-    struct mat4x4 view = get_translation(0, 0, 8);
+    struct mat4x4 view = get_translation(0, 0, 12);
     struct mat4x4 mvp = matmul(&proj, &view);
 
     struct mat4x4 x_rot = get_rotation_x(0.01);
