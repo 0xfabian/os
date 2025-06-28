@@ -86,6 +86,8 @@ result_ptr<File> File::open(const char* path, u32 flags, u32 mode)
             give_zero_fops(&file->ops);
         else if (inode->dev == 0x84)
             give_random_fops(&file->ops);
+        else if (inode->dev == 0x85)
+            give_serial_fops(&file->ops);
 
         // Device* dev = inode->get_device();
 

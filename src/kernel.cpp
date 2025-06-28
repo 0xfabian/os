@@ -32,6 +32,7 @@ void populate_root()
     inode->mknod("null", IT_CDEV | IP_RW, 0x82);
     inode->mknod("zero", IT_CDEV | IP_RW, 0x83);
     inode->mknod("random", IT_CDEV | IP_RW, 0x84);
+    inode->mknod("serial", IT_CDEV | IP_RW, 0x85);
     inode->put();
 
     load_exec("/bin/sh", sh_code, sizeof(sh_code));
