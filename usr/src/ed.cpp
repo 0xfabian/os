@@ -1,16 +1,66 @@
 #include <user.h>
 
-#define MAX_LINE_SIZE 80
+#define MAX_LINE_SIZE 120
 #define MAX_LINES 1000
 
+bool quit = false;
+int term_fd;
 int view_start_line = 0;
+
+inline void hide_cursor()
+{
+    printf("\e[25l");
+}
+
+inline void show_cursor()
+{
+    printf("\e[25h");
+}
+
+inline void move_cursor(int line, int col)
+{
+    printf("\e[%d;%dH", line + 1, col + 1);
+}
+
+inline void clear_screen()
+{
+    // printf("\e[2J\e[H");
+    ioctl(term_fd, FBTERM_CLEAR, nullptr);
+}
+
+int get_width()
+{
+    int width;
+    ioctl(term_fd, FBTERM_GET_WIDTH, &width);
+
+    return width;
+}
 
 int get_height()
 {
     int height;
-    ioctl(1, FBTERM_GET_HEIGHT, &height);
+    ioctl(term_fd, FBTERM_GET_HEIGHT, &height);
 
     return height;
+}
+
+void set_raw()
+{
+    ioctl(term_fd, FBTERM_ECHO_OFF, nullptr);
+    ioctl(term_fd, FBTERM_LB_OFF, nullptr);
+
+    hide_cursor();
+
+    auto_flush = false;
+}
+
+void set_cooked()
+{
+    ioctl(term_fd, FBTERM_ECHO_ON, nullptr);
+    ioctl(term_fd, FBTERM_LB_ON, nullptr);
+
+    show_cursor();
+    flush();
 }
 
 struct Line
@@ -136,7 +186,9 @@ struct Editor
     Editor(char* _filename);
     ~Editor();
 
-    bool write();
+    bool save();
+    bool write_to_fd(int fd);
+    bool read_from_fd(int fd);
 
     void insert_tab();
     void insert_newline();
@@ -165,6 +217,8 @@ struct Editor
     void erase_selection();
     void deselect();
 
+    void eval_shell_command();
+
     void cut();
     void trim_trailing_whitespace();
     void trim_trailing_newlines();
@@ -175,6 +229,8 @@ struct Editor
 
 Editor::Editor(char* _filename)
 {
+    filename = _filename;
+
     line = 0;
     col = 0;
     target_col = 0;
@@ -187,42 +243,35 @@ Editor::Editor(char* _filename)
     text = &bss_text;
     text->push_back_empty();
 
-    filename = _filename;
-    fd = open(filename, O_RDONLY, 0);
+    next_token = next_regular_token;
 
-    // try to read the file if it exists
-    if (fd >= 0)
+    if (filename)
     {
-        char buf[4096];
-        isize bytes_read;
+        char* ext = strrchr(filename, '.');
 
-        while ((bytes_read = read(fd, buf, 4096)) > 0)
+        if (ext)
         {
-            for (int i = 0; i < bytes_read; i++)
-            {
-                if (buf[i] == '\n')
-                    text->push_back_empty();
-                else
-                    text->lines[text->size - 1].push_back(buf[i]);
-            }
+            if (strcmp(ext, ".c") == 0 || strcmp(ext, ".cpp") == 0 || strcmp(ext, ".h") == 0)
+                next_token = next_c_token;
+            else if (strcmp(ext, ".s") == 0 || strcmp(ext, ".S") == 0 || strcmp(ext, ".asm") == 0)
+                next_token = next_asm_token;
+        }
+
+        fd = open(filename, O_RDONLY, 0);
+
+        if (fd >= 0)
+        {
+            read_from_fd(fd);
+            dirty = false;
+            return;
         }
     }
 
-    dirty = !(fd >= 0);
+    fd = -1;
+    dirty = true;
 
-    next_token = next_regular_token;
-
-    char* ext = strrchr(filename, '.');
-
-    if (!ext)
-        return;
-
-    ext++;
-
-    if (strcmp(ext, "c") == 0 || strcmp(ext, "cpp") == 0 || strcmp(ext, "h") == 0)
-        next_token = next_c_token;
-    else if (strcmp(ext, "s") == 0 || strcmp(ext, "S") == 0 || strcmp(ext, "asm") == 0)
-        next_token = next_asm_token;
+    if (!isatty(STDIN_FILENO))
+        read_from_fd(STDIN_FILENO);
 }
 
 Editor::~Editor()
@@ -231,8 +280,15 @@ Editor::~Editor()
         close(fd);
 }
 
-bool Editor::write()
+bool Editor::save()
 {
+    trim_trailing_whitespace();
+    trim_trailing_newlines();
+    append_newline_if_needed();
+
+    if (!filename)
+        return false;
+
     if (fd < 0)
         // if the file was never opened, try to open so we can write
         fd = open(filename, O_RDWR | O_CREAT, 0644);
@@ -247,10 +303,15 @@ bool Editor::write()
     if (fd < 0)
         return false;
 
-    trim_trailing_whitespace();
-    trim_trailing_newlines();
-    append_newline_if_needed();
+    if (!write_to_fd(fd))
+        return false;
 
+    dirty = false;
+    return true;
+}
+
+bool Editor::write_to_fd(int fd)
+{
     for (int line = 0; line < text->size; line++)
     {
         Line* l = &text->lines[line];
@@ -265,9 +326,26 @@ bool Editor::write()
         }
     }
 
-    dirty = false;
-
     return true;
+}
+
+bool Editor::read_from_fd(int fd)
+{
+    char buf[4096];
+    isize bytes_read;
+
+    while ((bytes_read = read(fd, buf, 4096)) > 0)
+    {
+        for (int i = 0; i < bytes_read; i++)
+        {
+            if (buf[i] == '\n')
+                text->push_back_empty();
+            else
+                text->lines[text->size - 1].push_back(buf[i]);
+        }
+    }
+
+    return bytes_read < 0;
 }
 
 int get_prefix_whitespace(char* str, int len)
@@ -592,6 +670,7 @@ void Editor::swap_up()
     above->from(&tmp);
 
     line--;
+    dirty = true;
 }
 
 void Editor::swap_down()
@@ -610,6 +689,7 @@ void Editor::swap_down()
     below->from(&tmp);
 
     line++;
+    dirty = true;
 }
 
 void Editor::page_up()
@@ -756,6 +836,82 @@ void Editor::deselect()
     is_selection = false;
 }
 
+void Editor::eval_shell_command()
+{
+    if (!is_selection)
+        return;
+
+    if (sel_line != line)
+        return;
+
+    char cmd[MAX_LINE_SIZE + 1];
+    const char* args[] =
+    {
+        "/mnt/bin/sh",
+        "-c",
+        cmd,
+        nullptr
+    };
+
+    int start_col = col > sel_col ? sel_col : col;
+    int len = col > sel_col ? col - sel_col : sel_col - col;
+
+    memcpy(cmd, text->lines[line].data + start_col, len);
+    cmd[len] = 0;
+
+    int fds[2];
+
+    if (pipe(fds) != 0)
+        return;
+
+    if (fork() == 0)
+    {
+        dup2(fds[1], STDOUT_FILENO);
+        dup2(open("/dev/null", O_WRONLY, 0), STDERR_FILENO);
+
+        close(fds[0]);
+        close(fds[1]);
+
+        execve(args[0], (char* const*)args, 0);
+        exit(1);
+    }
+    else
+    {
+        close(fds[1]);
+
+        erase_selection();
+
+        char buf[1024];
+        isize bytes_read;
+
+        bool newline_seen = false;
+
+        while ((bytes_read = read(fds[0], buf, sizeof(buf))) > 0)
+        {
+            for (isize i = 0; i < bytes_read; i++)
+            {
+                if (buf[i] != '\n')
+                {
+                    if (newline_seen)
+                    {
+                        insert_char(' ');
+                        newline_seen = false;
+                    }
+
+                    insert_char(buf[i]);
+                }
+                else
+                    newline_seen = true;
+            }
+        }
+
+        close(fds[0]);
+
+        wait(-1, 0, 0);
+        set_raw();
+    }
+}
+
 void Editor::cut()
 {
     if (is_selection)
@@ -858,9 +1014,6 @@ usize Editor::get_size()
     return ret;
 }
 
-bool quit = false;
-
-
 void draw(Editor* ed);
 
 enum Key
@@ -895,12 +1048,13 @@ enum Key
     CTRL_A,
     CTRL_X,
     CTRL_L,
-    CTRL_D
+    CTRL_D,
+    CTRL_E
 };
 
 bool getchar(char* ch)
 {
-    if (read(0, ch, 1) == 1)
+    if (read(term_fd, ch, 1) == 1)
         return true;
 
     return false;
@@ -990,6 +1144,7 @@ int get_key()
     else if (c == CTRL('X'))    return CTRL_X;
     else if (c == CTRL('L'))    return CTRL_L;
     else if (c == CTRL('D'))    return CTRL_D;
+    else if (c == CTRL('E'))    return CTRL_E;
     else                return c;
 }
 
@@ -1007,7 +1162,7 @@ void process_keys(Editor* ed)
         switch (key)
         {
         case CTRL_Q:            quit = true;                    break;
-        case CTRL_S:            ed->write();                    break;
+        case CTRL_S:            ed->save();                    break;
 
         case CTRL_A:            ed->select_all();               break;
         case CTRL_L:            ed->select_line();              break;
@@ -1016,6 +1171,7 @@ void process_keys(Editor* ed)
 
         case BACKSPACE:         ed->backspace();                break;
         case DELETE:            ed->erase();                    break;
+        case CTRL_E:            ed->eval_shell_command();       break;
         case CTRL_X:            ed->cut();                      break;
 
         case ARROW_LEFT:        ed->move_left();                break;
@@ -1105,56 +1261,6 @@ int get_num_size(int num)
     }
 
     return ret;
-}
-
-inline void hide_cursor()
-{
-    printf("\e[25l");
-}
-
-inline void show_cursor()
-{
-    printf("\e[25h");
-}
-
-inline void move_cursor(int line, int col)
-{
-    printf("\e[%d;%dH", line + 1, col + 1);
-}
-
-inline void clear_screen()
-{
-    // printf("\e[2J\e[H");
-    ioctl(1, FBTERM_CLEAR, nullptr);
-}
-
-
-
-int get_width()
-{
-    int width;
-    ioctl(1, FBTERM_GET_WIDTH, &width);
-
-    return width;
-}
-
-void set_raw()
-{
-    ioctl(0, FBTERM_ECHO_OFF, nullptr);
-    ioctl(0, FBTERM_LB_OFF, nullptr);
-
-    hide_cursor();
-
-    auto_flush = false;
-}
-
-void set_cooked()
-{
-    ioctl(0, FBTERM_ECHO_ON, nullptr);
-    ioctl(0, FBTERM_LB_ON, nullptr);
-
-    show_cursor();
-    flush();
 }
 
 bool parse_whitespace(char*& ptr)
@@ -1767,8 +1873,10 @@ void draw(Editor* ed)
     move_cursor(height, 0);
     printf("\e[97;44m\e[K");
 
+    const char* name = ed->filename ? ed->filename : "\e[90m[temp]\e[39m";
+    const char* status = !ed->filename ? "" : (ed->dirty ? "*" : " ");
     move_cursor(height, 4);
-    printf("%s%s     %lu bytes", ed->filename, ed->dirty ? "*" : "", ed->get_size());
+    printf("%s%s     %lu bytes", name, status, ed->get_size());
 
     move_cursor(height, width - 16);
     printf("%d,%d\e[m", ed->line + 1, ed->col + 1);
@@ -1776,26 +1884,51 @@ void draw(Editor* ed)
     flush();
 }
 
-int main(int argc, char** argv)
+int ed(char* filename, int p_flag)
 {
-    if (argc != 2)
+    term_fd = open("/dev/fbterm", O_RDONLY, 0);
+
+    if (term_fd < 0)
     {
-        write(1, "usage: ed <file>\n", 17);
+        write(2, "ed: could not open /dev/fbterm\n", 31);
         return 1;
     }
 
-    Editor ed(argv[1]);
+    output_fd = term_fd;
+    Editor ed(filename);
 
     set_raw();
-
     draw(&ed);
 
     while (!quit)
         process_keys(&ed);
 
     clear_screen();
-
     set_cooked();
 
+    if (p_flag)
+        ed.write_to_fd(STDOUT_FILENO);
+
     return 0;
+}
+
+void print_usage()
+{
+    write(2, "usage: ed [-p] [file]\n", 22);
+}
+
+int main(int argc, char** argv)
+{
+    if (argc == 1)
+        return ed(nullptr, false);
+
+    // no flag, so filename
+    if (argv[1][0] != '-')
+        return ed(argv[1], false);
+
+    if (strcmp(argv[1], "-p") == 0)
+        return ed(argc > 2 ? argv[2] : nullptr, true);
+
+    print_usage();
+    return 1;
 }
