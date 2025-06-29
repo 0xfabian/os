@@ -225,11 +225,28 @@ Task* Task::from(const char* path)
     cpu->rsp = ustack_top;
     cpu->ss = USER_DS;
 
-    cpu->rsp -= 8;
-    *(u64*)cpu->rsp = 0; // the null terminator
+    cpu->rsp -= strlen(path) + 1;
+    memcpy((char*)cpu->rsp, path, strlen(path) + 1);
+
+    u64 stack_addr = cpu->rsp;
+
+    // we should align the stack to 16 bytes
+    cpu->rsp &= ~0x0f;
+
+    // no auxv magic for now
+    // we should have a better stack initialization anyway
 
     cpu->rsp -= 8;
-    *(u64*)cpu->rsp = 0; // argc
+    *(u64*)cpu->rsp = 0; // envp null terminator, basically no env
+
+    cpu->rsp -= 8;
+    *(u64*)cpu->rsp = 0; // argv null terminator
+
+    cpu->rsp -= 8;
+    *(u64*)cpu->rsp = stack_addr; // argv[0], the path
+
+    cpu->rsp -= 8;
+    *(u64*)cpu->rsp = 1; // argc, 1 argument
 
     // since Task::from can't be called from a user task
     // this is running under a kernel task
