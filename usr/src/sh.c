@@ -118,7 +118,7 @@ const char* paths[] =
 };
 
 char exec_path[256];
-int fg_group;
+int fg_group = -1;
 
 char* trim(char* str)
 {
@@ -367,7 +367,8 @@ int exec_line(char* line)
         if (pid != 0)
             continue;
 
-        setgroup(fg_group);
+        if (fg_group > 0)
+            setgroup(fg_group);
 
         if (try_exec_internal(cmds + i))
             exit(0);
