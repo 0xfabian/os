@@ -71,16 +71,20 @@ char* strchr(char* str, char ch)
     return 0;
 }
 
+void fprintln(int fd, const char* str)
+{
+    write(fd, str, strlen(str));
+    write(fd, "\n", 1);
+}
+
 void println(const char* str)
 {
-    write(1, str, strlen(str));
-    write(1, "\n", 1);
+    fprintln(STDOUT_FILENO, str);
 }
 
 void eprintln(const char* str)
 {
-    write(2, str, strlen(str));
-    write(2, "\n", 1);
+    fprintln(STDERR_FILENO, str);
 }
 
 int isatty(int fd)
@@ -116,24 +120,64 @@ const char* paths[] =
 char exec_path[256];
 int fg_group;
 
-void build_args()
+char* trim(char* str)
+{
+    char* end = str + strlen(str) - 1;
+
+    while (end >= str && *end == ' ')
+        end--;
+
+    end[1] = 0;
+
+    while (*str == ' ')
+        str++;
+
+    return str;
+}
+
+void build_args(char* line)
 {
     cmd_count = 0;
     cmds[0].argc = 0;
-    char* ptr = line;
+    char* ptr = trim(line);
+
+    // empty line
+    if (*ptr == 0)
+        return;
 
     while (1)
     {
-        cmds[cmd_count].argv[cmds[cmd_count].argc++] = ptr;
-        char* start = ptr;
-
-        while (*ptr && *ptr != ' ')
+        while (*ptr == ' ')
             ptr++;
 
         if (*ptr == 0)
             break;
 
-        *ptr++ = 0;
+        char* start;
+
+        if (*ptr == '\'')
+        {
+            ptr++;
+            start = ptr;
+
+            while (*ptr && *ptr != '\'')
+                ptr++;
+
+            if (*ptr == '\'')
+                *ptr++ = 0;
+        }
+        else
+        {
+            start = ptr;
+
+            while (*ptr && *ptr != ' ')
+                ptr++;
+
+            if (*ptr == ' ')
+                *ptr++ = 0;
+        }
+
+        cmds[cmd_count].argv[cmds[cmd_count].argc++] = start;
 
         if (strcmp(start, "|") == 0)
         {
@@ -142,9 +186,6 @@ void build_args()
             cmd_count++;
             cmds[cmd_count].argc = 0;
         }
-
-        while (*ptr == ' ')
-            ptr++;
     }
 
     cmds[cmd_count].argv[cmds[cmd_count].argc] = 0;
@@ -182,12 +223,9 @@ int readline()
     // we need to reset the terminal state
     // because some programs may mess with it
 
-    if (isatty(STDIN_FILENO))
-    {
-        ioctl(STDIN_FILENO, FBTERM_LB_ON, 0);
-        ioctl(STDIN_FILENO, FBTERM_ECHO_ON, 0);
-        write(STDIN_FILENO, "\e[25h", 5);
-    }
+    ioctl(STDIN_FILENO, FBTERM_LB_ON, 0);
+    ioctl(STDIN_FILENO, FBTERM_ECHO_ON, 0);
+    write(STDIN_FILENO, "\e[25h", 5);
 
     i64 bytes = read(0, readline_buf, BUF_SIZE - 1);
 
@@ -293,15 +331,18 @@ void redirect(int fd, const char* filename, u32 flags, u32 mode)
     close(new_fd);
 }
 
-void exec_line()
+int exec_line(char* line)
 {
-    build_args();
+    build_args(line);
+
+    if (cmd_count == 0)
+        return 0;
 
     int pipe_count = cmd_count - 1;
     int pipes[pipe_count][2];
 
     if (!pipe_count && try_exec_internal(cmds))
-        return;
+        return 0;
 
     for (int i = 0; i < pipe_count; i++)
     {
@@ -315,7 +356,7 @@ void exec_line()
                 close(pipes[j][1]);
             }
 
-            return;
+            return 1;
         }
     }
 
@@ -388,23 +429,12 @@ void exec_line()
 
     while (wait(-1, 0, 0) > 0);
 
-    ioctl(1, FBTERM_SET_FG_GROUP, &fg_group);
+    // should return the exit status of the last command
+    return 0;
 }
 
-int main()
+int repl()
 {
-    int fd;
-
-    // open stdin, stdout and stderr if not already open
-    while ((fd = open("/dev/fbterm", O_RDWR, 0)) >= 0)
-    {
-        if (fd > 2)
-        {
-            close(fd);
-            break;
-        }
-    }
-
     // set the foreground group to the current group + 1
     fg_group = setgroup(-1) + 1;
     ioctl(1, FBTERM_SET_FG_GROUP, &fg_group);
@@ -424,8 +454,135 @@ int main()
             break;
         }
 
-        exec_line();
+        exec_line(line);
+
+        ioctl(1, FBTERM_SET_FG_GROUP, &fg_group);
     }
 
     return 0;
+}
+
+int exec_file(int fd)
+{
+    char buf[BUF_SIZE];
+    char line[BUF_SIZE];
+    int line_len = 0;
+    isize bytes;
+
+    while ((bytes = read(fd, buf, BUF_SIZE)) > 0)
+    {
+        for (isize i = 0; i < bytes; ++i)
+        {
+            if (buf[i] == '\n')
+            {
+                line[line_len] = 0;
+
+                if (line_len > 0)
+                    exec_line(line);
+
+                line_len = 0;
+            }
+            else if (line_len < BUF_SIZE - 1)
+            {
+                line[line_len++] = buf[i];
+            }
+            else
+            {
+                eprintln("sh: line too long");
+                return 1;
+            }
+        }
+    }
+
+    if (line_len > 0)
+    {
+        line[line_len] = 0;
+        exec_line(line);
+    }
+
+    if (bytes < 0)
+    {
+        eprintln("sh: read error");
+        return 1;
+    }
+
+    return 0;
+}
+
+void print_usage(int fd)
+{
+    fprintln(fd,
+        "usage: sh [file]\n"
+        "       sh -c <command>\n"
+        "       sh [-h | --help]\n"
+        "\n"
+        "options:\n"
+        "  -c <command>   Execute the specified command string.\n"
+        "  -h, --help     Show this help message and exit.\n"
+        "\n"
+        "If file is provided, commands are read from the file.\n"
+        "If no file is provided, input is read from stdin.\n"
+        "If stdin is a TTY, the shell runs in interactive mode.");
+}
+
+int main(int argc, char** argv)
+{
+    int fd;
+
+    // open stdin, stdout and stderr if not already open
+    while ((fd = open("/dev/fbterm", O_RDWR, 0)) >= 0)
+    {
+        if (fd > 2)
+        {
+            close(fd);
+            break;
+        }
+    }
+
+    // argc should be always > 0, but just in case
+    if (argc < 1)
+    {
+        eprintln("sh: invalid argument count");
+        goto err;
+    }
+
+    if (argc == 1)
+        return isatty(STDIN_FILENO) ? repl() : exec_file(STDIN_FILENO);
+
+    if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)
+    {
+        print_usage(STDOUT_FILENO);
+        return 0;
+    }
+
+    if (strcmp(argv[1], "-c") == 0)
+    {
+        if (argc >= 3)
+            return exec_line(argv[2]);
+
+        eprintln("sh: -c requires an argument");
+        goto err;
+    }
+
+    if (argv[1][0] == '-')
+    {
+        eprintln("sh: unknown option");
+        goto err;
+    }
+
+    fd = open(argv[1], O_RDONLY, 0);
+
+    if (fd < 0)
+    {
+        eprintln("sh: open failed");
+        return 1;
+    }
+
+    int ret = exec_file(fd);
+    close(fd);
+    return ret;
+
+err:
+    print_usage(STDERR_FILENO);
+    return 1;
 }
