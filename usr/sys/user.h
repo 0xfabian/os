@@ -158,10 +158,11 @@ char temp_buf[256];
 // I should have used a bool to check if we are in temp_buf but...
 char buf_start[BUFFER_SIZE + 32];
 char* append_ptr = buf_start;
+int output_fd = STDOUT_FILENO;
 
 void flush()
 {
-    write(1, buf_start, append_ptr - buf_start);
+    write(output_fd, buf_start, append_ptr - buf_start);
     append_ptr = buf_start;
 }
 
