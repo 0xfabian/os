@@ -140,6 +140,12 @@ int isspace(char ch)
     return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\f' || ch == '\v';
 }
 
+int isatty(int fd)
+{
+    int dummy;
+    return ioctl(fd, FBTERM_GET_WIDTH, &dummy) == 0;
+}
+
 #define BUFFER_SIZE 4096
 
 // this is used when the width is specified
