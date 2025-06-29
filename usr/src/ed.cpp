@@ -838,11 +838,18 @@ void Editor::deselect()
 
 void Editor::eval_shell_command()
 {
-    if (!is_selection)
-        return;
+    if (is_selection)
+    {
+        if (sel_line != line)
+            return;
+    }
+    else
+    {
+        select_line();
 
-    if (sel_line != line)
-        return;
+        if (!is_selection)
+            return;
+    }
 
     char cmd[MAX_LINE_SIZE + 1];
     const char* args[] =
