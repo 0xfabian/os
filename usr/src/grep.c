@@ -1,14 +1,4 @@
-#include <sys.h>
-
-int strlen(const char* str)
-{
-    int len = 0;
-
-    while (str[len])
-        len++;
-
-    return len;
-}
+#include <user.h>
 
 #define BUF_SIZE 4096
 char buf[BUF_SIZE];
@@ -61,9 +51,15 @@ void do_grep_on_line(char* pattern, int pat_len)
         else
         {
             write(1, begin, ptr - begin);
-            write(1, "\e[91m", 5);
-            write(1, ptr, pat_len);
-            write(1, "\e[39m", 5);
+
+            if (isatty(1))
+            {
+                write(1, "\e[91m", 5);
+                write(1, ptr, pat_len);
+                write(1, "\e[39m", 5);
+            }
+            else
+                write(1, ptr, pat_len);
 
             total_matches++;
 
@@ -107,7 +103,7 @@ int main(int argc, char** argv)
 {
     if (argc < 2)
     {
-        write(1, "usage: grep <pattern> [file...]\n", 32);
+        write(2, "usage: grep <pattern> [file...]\n", 32);
         return 1;
     }
 
@@ -119,7 +115,7 @@ int main(int argc, char** argv)
 
         if (fd < 0)
         {
-            write(1, "grep: failed opening file\n", 26);
+            write(2, "grep: open failed\n", 18);
             return 1;
         }
     }
