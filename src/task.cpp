@@ -74,6 +74,8 @@ void free_task(Task* task)
     task->next_global = nullptr;
     task->prev_global = nullptr;
 
+    // they should be all closed already
+    // but just in case
     for (int i = 0; i < FD_TABLE_SIZE; i++)
         if (task->fdt.files[i])
             task->fdt.files[i]->close();
@@ -645,6 +647,15 @@ void Task::exit(int code)
 
     if (waitq)
         waitq->remove(this);
+
+    for (int i = 0; i < FD_TABLE_SIZE; i++)
+    {
+        if (fdt.files[i])
+        {
+            fdt.files[i]->close();
+            fdt.files[i] = nullptr;
+        }
+    }
 
     state = TASK_ZOMBIE;
     exit_code = code;
