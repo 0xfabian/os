@@ -82,6 +82,12 @@ int check_fit(Dirent* entries, usize count, int cols, int width)
 char full_path[256];
 int reset_index = 0;
 
+void print_dents_simple(Dirent* entries, usize count)
+{
+    for (usize i = 0; i < count; i++)
+        printf("%s\n", entries[i].name);
+}
+
 void print_dents(Dirent* entries, usize count, int cols)
 {
     int lines = count / cols + (count % cols > 0);
@@ -171,16 +177,21 @@ void ls(const char* path)
 
     qsort(dents, count, sizeof(Dirent), compare);
 
-    int cols = 80;
-    ioctl(STDOUT_FILENO, FBTERM_GET_WIDTH, &cols);
+    if (isatty(STDOUT_FILENO))
+    {
+        int cols = 80;
+        ioctl(STDOUT_FILENO, FBTERM_GET_WIDTH, &cols);
 
-    int good = 1;
+        int good = 1;
 
-    for (int i = 2; i <= cols; i++)
-        if (check_fit(dents, count, i, cols))
-            good = i;
+        for (int i = 2; i <= cols; i++)
+            if (check_fit(dents, count, i, cols))
+                good = i;
 
-    print_dents(dents, count, good);
+        print_dents(dents, count, good);
+    }
+    else
+        print_dents_simple(dents, count);
 
     flush();
 
