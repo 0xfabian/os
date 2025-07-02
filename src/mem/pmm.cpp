@@ -128,7 +128,7 @@ void PhysicalMemoryManager::init()
     limine_memmap_response* memmap = memmap_request.response;
 
     if (!memmap)
-        panic("No memory map response\n");
+        panic("No memory map response");
 
     usize total_size;
     compute_allocator_total_size(memmap, &region_count, &total_size);
@@ -147,7 +147,7 @@ void PhysicalMemoryManager::init()
     }
 
     if (!allocator_addr)
-        panic("Failed to allocate page frame allocator\n");
+        panic("Failed to allocate page frame allocator");
 
     regions = (MemoryRegion*)allocator_addr;
     total_pages = 0;
