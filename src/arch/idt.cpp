@@ -58,46 +58,38 @@ void IDT::set(u8 index, void (*isr)(interrupt_frame*, u64), u8 dpl)
 
 void default_handler(interrupt_frame* frame)
 {
-    if (running)
-    {
-        kprintf("\a\e[37mKilled task %lu due to unhandled interrupt\e[m\n", running->tid);
-        running->exit(-1);
-    }
-    else
+    if (!running)
         panic("Unhandled interrupt");
+
+    kprintf("\a\e[37mKilled task %lu due to unhandled interrupt\e[m\n", running->tid);
+    running->exit(-1);
 }
 
 __attribute__((interrupt)) void opcode_fault_handler(interrupt_frame* frame)
 {
-    if (running)
-    {
-        kprintf("\a\e[37mKilled task %lu due to \e[91minvalid opcode\e[37m at address %p\e[m\n", running->tid, frame->rip);
-        running->exit(-1);
-    }
-    else
+    if (!running)
         panic("Invalid opcode fault");
+
+    kprintf("\a\e[37mKilled task %lu due to \e[91minvalid opcode\e[37m at address %p\e[m\n", running->tid, frame->rip);
+    running->exit(-1);
 }
 
 void gp_fault_handler(interrupt_frame* frame, u64 error_code)
 {
-    if (running)
-    {
-        kprintf("\a\e[37mKilled task %lu due to \e[91mgeneral protection fault\e[m\n", running->tid);
-        running->exit(-1);
-    }
-    else
+    if (!running)
         panic("General protection fault");
+
+    kprintf("\a\e[37mKilled task %lu due to \e[91mgeneral protection fault\e[m\n", running->tid);
+    running->exit(-1);
 }
 
 void page_fault_handler(interrupt_frame* frame, u64 error_code)
 {
-    if (running)
-    {
-        kprintf("\a\e[37mKilled task %lu due to \e[91mpage fault\e[37m at address %p\e[m\n", running->tid, read_cr2());
-        running->exit(-1);
-    }
-    else
+    if (!running)
         panic("Page fault");
+
+    kprintf("\a\e[37mKilled task %lu due to \e[91mpage fault\e[37m at address %p\e[m\n", running->tid, read_cr2());
+    running->exit(-1);
 }
 
 bool kbd_escape = false;
