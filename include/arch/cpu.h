@@ -44,7 +44,7 @@ static inline void sti()
     asm volatile("sti");
 }
 
-static inline void idle()
+__attribute__((noreturn)) static inline void idle()
 {
     while (true)
         asm volatile("hlt");
