@@ -76,7 +76,7 @@ struct FramebufferTerminal
     void write(const void* buffer, usize len);
     isize read(void* buffer, usize len);
 
-    void ansi_function(char name, int arg);
+    void ansi_function(char name, int arg, int param_index);
     void putchar(char ch);
     void receive_char(char ch);
     void clear_input();

@@ -372,7 +372,9 @@ void FramebufferTerminal::write(const void* buffer, usize len)
         case TAKE_PARAMS:
 
             if (*ptr >= '0' && *ptr <= '9')
+            {
                 params[param_index] = params[param_index] * 10 + *ptr - '0';
+            }
             else if (*ptr == ';')
             {
                 if (param_index < 4)
@@ -381,7 +383,7 @@ void FramebufferTerminal::write(const void* buffer, usize len)
             else if ((*ptr >= 'a' && *ptr <= 'z') || (*ptr >= 'A' && *ptr <= 'Z'))
             {
                 for (int j = 0; j <= param_index; j++)
-                    ansi_function(*ptr, params[j]);
+                    ansi_function(*ptr, params[j], j);
 
                 state = NONE;
             }
@@ -397,6 +399,7 @@ void FramebufferTerminal::write(const void* buffer, usize len)
     cursor_ticks = 0;
 }
 
+// all of this ANSI stuff is a mess
 isize FramebufferTerminal::read(void* buffer, usize len)
 {
     while (true)
@@ -430,8 +433,7 @@ inline int max(int a, int b)
     return a > b ? a : b;
 }
 
-bool in_ansi_H = false;
-void FramebufferTerminal::ansi_function(char name, int arg)
+void FramebufferTerminal::ansi_function(char name, int arg, int param_index)
 {
     switch (name)
     {
@@ -472,17 +474,15 @@ void FramebufferTerminal::ansi_function(char name, int arg)
 
     case 'H':
 
-        if (!in_ansi_H)
+        if (param_index == 0)
         {
             int line = min(max(arg - 1, 0), height - 1);
             cursor = line * width;
-            in_ansi_H = true;
         }
-        else
+        else if (param_index == 1)
         {
             int col = min(max(arg - 1, 0), width - 1);
             cursor += col;
-            in_ansi_H = false;
         }
 
         break;
