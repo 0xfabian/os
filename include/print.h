@@ -11,4 +11,9 @@
 void kprintf(const char* fmt, ...);
 usize snprintf(char* buf, usize n, const char* fmt, ...);
 void hexdump(void* data, usize len);
-void panic(const char* msg);
+
+#define panic(fmt, args...)                                                 \
+    do {                                                                    \
+        kprintf("\a" PANIC "%s:%d: " fmt "\n", __FILE__, __LINE__, ##args); \
+        idle();                                                             \
+    } while (0)

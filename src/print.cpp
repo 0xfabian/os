@@ -407,9 +407,3 @@ void hexdump(void* data, usize len)
             kprintf("\n");
     }
 }
-
-void panic(const char* msg)
-{
-    kprintf(PANIC "\a%s\n", msg);
-    idle();
-}
