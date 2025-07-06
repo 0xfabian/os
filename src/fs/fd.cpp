@@ -65,3 +65,28 @@ result_ptr<File> FDTable::uninstall(unsigned int fd)
 
     return file;
 }
+
+void FDTable::clear_all()
+{
+    for (int i = 0; i < FD_TABLE_SIZE; i++)
+        files[i] = nullptr;
+}
+
+void FDTable::close_all()
+{
+    for (int i = 0; i < FD_TABLE_SIZE; i++)
+    {
+        if (files[i])
+        {
+            files[i]->close();
+            files[i] = nullptr;
+        }
+    }
+}
+
+void FDTable::dup(const FDTable* other)
+{
+    for (int i = 0; i < FD_TABLE_SIZE; i++)
+        if (other->files[i])
+            files[i] = other->files[i]->dup();
+}

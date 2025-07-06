@@ -43,8 +43,7 @@ Task* alloc_task()
     task->cwd_str = strdup("/");
     task->cwd = root_mount->sb->root->get();
 
-    for (int i = 0; i < FD_TABLE_SIZE; i++)
-        task->fdt.files[i] = nullptr;
+    task->fdt.clear_all();
 
     task->waitq = nullptr;
 
@@ -76,9 +75,7 @@ void free_task(Task* task)
 
     // they should be all closed already
     // but just in case
-    for (int i = 0; i < FD_TABLE_SIZE; i++)
-        if (task->fdt.files[i])
-            task->fdt.files[i]->close();
+    task->fdt.close_all();
 
     kfree(task->cwd_str);
     task->cwd->put();
@@ -293,9 +290,7 @@ Task* Task::fork()
     task->cwd_str = strdup(running->cwd_str);
     task->cwd = running->cwd->get();
 
-    for (int i = 0; i < FD_TABLE_SIZE; i++)
-        if (running->fdt.files[i])
-            task->fdt.files[i] = running->fdt.files[i]->dup();
+    task->fdt.dup(&running->fdt);
 
     task->mm->pml4 = vmm.make_user_page_table();
     task->mm->user_stack = running->mm->user_stack;
@@ -661,14 +656,7 @@ void Task::exit(int code)
     if (waitq)
         waitq->remove(this);
 
-    for (int i = 0; i < FD_TABLE_SIZE; i++)
-    {
-        if (fdt.files[i])
-        {
-            fdt.files[i]->close();
-            fdt.files[i] = nullptr;
-        }
-    }
+    fdt.close_all();
 
     state = TASK_ZOMBIE;
     exit_code = code;

@@ -15,4 +15,8 @@ struct FDTable
 
     int install(unsigned int fd, File* file);
     result_ptr<File> uninstall(unsigned int fd);
+
+    void clear_all();
+    void close_all();
+    void dup(const FDTable* other);
 };
