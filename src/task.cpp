@@ -43,7 +43,7 @@ Task* alloc_task()
     task->cwd_str = strdup("/");
     task->cwd = root_mount->sb->root->get();
 
-    task->fdt.clear_all();
+    task->fdt.init();
 
     task->waitq = nullptr;
 

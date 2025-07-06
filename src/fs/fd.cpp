@@ -66,7 +66,7 @@ result_ptr<File> FDTable::uninstall(unsigned int fd)
     return file;
 }
 
-void FDTable::clear_all()
+void FDTable::init()
 {
     for (int i = 0; i < FD_TABLE_SIZE; i++)
         files[i] = nullptr;
