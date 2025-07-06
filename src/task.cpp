@@ -89,9 +89,11 @@ void free_task(Task* task)
     kfree(task);
 }
 
-Task* Task::from(void (*func)(void))
+Task* Task::from(void (*func)(void), const char* name)
 {
     Task* task = alloc_task();
+
+    strcpy(task->name, name);
 
     task->mm->pml4 = nullptr;
     task->mm->user_stack = nullptr;
@@ -202,6 +204,8 @@ Task* Task::from(const char* path)
 {
     Task* task = alloc_task();
 
+    strcpy(task->name, basename(path));
+
     task->mm->kernel_stack = vmm.alloc_pages(KERNEL_STACK_PAGES, PE_WRITE);
 
     u64 entry;
@@ -265,6 +269,8 @@ Task* Task::dummy()
 
     Task* task = alloc_task();
 
+    strcpy(task->name, "kmain");
+
     task->mm->pml4 = nullptr;
     task->mm->user_stack = nullptr;
     task->mm->kernel_stack = nullptr;
@@ -280,6 +286,8 @@ Task* Task::fork()
 
     kfree(task->cwd_str);
     task->cwd->put();
+
+    strcpy(task->name, running->name);
 
     task->group = running->group;
     task->cwd_str = strdup(running->cwd_str);
@@ -451,8 +459,11 @@ int Task::execve(const char* path, char* const argv[], char* const envp[])
     // we save the argv in kernel memory
     // because we will change the page table
 
+    char name[32];
     usize argv_size = 0;
     usize argc = 0;
+
+    strcpy(name, basename(path));
 
     for (usize i = 0; argv[i]; i++)
     {
@@ -481,6 +492,8 @@ int Task::execve(const char* path, char* const argv[], char* const envp[])
         kfree(argv_mem);
         return err;
     }
+
+    strcpy(this->name, name);
 
     // !!! we are not freeing the previous mm
 
@@ -697,13 +710,27 @@ int Task::wait(int* status)
     }
 }
 
+const char* state_to_string(TaskState state)
+{
+    switch (state)
+    {
+    case TASK_BORN:     return "BORN";
+    case TASK_READY:    return "READY";
+    case TASK_SLEEPING: return "SLEEPING";
+    case TASK_ZOMBIE:   return "ZOMBIE";
+    case TASK_DEAD:     return "DEAD";
+    case TASK_IDLE:     return "IDLE";
+    default:            return "UNKNOWN";
+    }
+}
+
 void Task::debug()
 {
     Task* task = task_list_head;
 
     while (task)
     {
-        kprintf("Task %ld: group %d state %d\n", task->tid, task->group, task->state);
+        kprintf("Task %ld (%s): group %d state %s\n", task->tid, task->name, task->group, state_to_string(task->state));
         task = task->next_global;
     }
 }
@@ -735,7 +762,7 @@ void sched_init()
 
     // the idle task is special
     // it executes only when the rq is empty
-    idle_task = Task::from(idle);
+    idle_task = Task::from(idle, "idle");
     idle_task->tid = -1;
     idle_task->state = TASK_IDLE;
 

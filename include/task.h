@@ -51,6 +51,7 @@ struct Task
     Task* next_global;
 
     u64 tid;
+    char name[32];
     int group;
 
     TaskState state;
@@ -66,7 +67,7 @@ struct Task
     Task* prev;
     Task* next;
 
-    static Task* from(void (*func)(void));
+    static Task* from(void (*func)(void), const char* name);
     static Task* from(const char* path);
     static Task* dummy();
 

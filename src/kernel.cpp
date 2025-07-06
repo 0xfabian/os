@@ -80,7 +80,7 @@ extern "C" void kmain(void)
 
     sched_init();
 
-    kbd_task = Task::from(keyboard_task);
+    kbd_task = Task::from(keyboard_task, "kbd");
     kbd_task->ready();
 
     Task* sh = Task::from("/mnt/bin/sh");
