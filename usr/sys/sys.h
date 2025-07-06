@@ -112,6 +112,7 @@ extern int      access(const char* path, int mode);
 extern int      pipe(int fds[2]);
 extern int      dup(int oldfd);
 extern int      dup2(int oldfd, int newfd);
+extern u64      gettid();
 extern int      fork(void);
 extern int      execve(const char* path, char* const argv[], char* const envp[]);
 extern void     exit(int status);

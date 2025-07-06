@@ -21,6 +21,7 @@ u64 do_syscall(CPU* cpu, int num)
     case SYS_PIPE:          return sys_pipe((int*)cpu->rdi);
     case SYS_DUP:           return sys_dup(cpu->rdi);
     case SYS_DUP2:          return sys_dup2(cpu->rdi, cpu->rsi);
+    case SYS_GETTID:        return sys_gettid();
     case SYS_FORK:          return sys_fork();
     case SYS_EXECVE:        return sys_execve((const char*)cpu->rdi, (char* const*)cpu->rsi, (char* const*)cpu->rdx);
     case SYS_EXIT:          sys_exit(cpu->rdi); return 0;
@@ -347,6 +348,11 @@ int sys_dup2(int oldfd, int newfd)
     int err = fdt->install(newfd, file->dup());
 
     return (err == 0) ? newfd : err;
+}
+
+u64 sys_gettid()
+{
+    return running->tid;
 }
 
 int sys_fork()

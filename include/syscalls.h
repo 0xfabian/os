@@ -13,46 +13,58 @@ enum SyscallNumber
     SYS_STAT,
     SYS_FSTAT,
     SYS_SEEK = 8,
-    SYS_MPROTECT = 10,
-    SYS_BRK = 12,
-    SYS_IOCTL = 16,
+    SYS_MPROTECT = 10,      // dummy implementation
+    SYS_BRK = 12,           // doesn't free pages
+    SYS_SIGNAL,             // not implemented
+    SYS_SIGPROCMASK,        // not implemented
+    SYS_SIGRETURN,          // not implemented
+    SYS_IOCTL,
     SYS_PREAD,
     SYS_PWRITE,
     SYS_READV,
     SYS_WRITEV,
     SYS_ACCESS,
     SYS_PIPE,
+    SYS_YIELD = 24,         // not implemented
     SYS_DUP = 32,
     SYS_DUP2,
+    SYS_PAUSE,              // not implemented
+    SYS_NANOSLEEP,          // not implemented
+    SYS_ALARM = 37,         // not implemented
+    SYS_GETTID = 39,
     SYS_FORK = 57,
     SYS_EXECVE = 59,
     SYS_EXIT,
     SYS_WAIT,
-    SYS_UNAME = 63,
-    SYS_FCNTL = 72,
+    SYS_KILL,               // not implemented
+    SYS_UNAME,              // dummy implementation
+    SYS_FCNTL = 72,         // partial implementation
     SYS_TRUNCATE = 76,
     SYS_FTRUNCATE,
     SYS_GETDENTS,
     SYS_GETCWD,
     SYS_CHDIR,
-    // SYS_RENAME = 82,
-    SYS_MKDIR = 83,
+    SYS_RENAME = 82,        // not implemented
+    SYS_MKDIR,
     SYS_RMDIR,
     SYS_CREAT,
     SYS_LINK,
     SYS_UNLINK,
-    // SYS_SYMLINK,
-    SYS_READLINK = 89,
-    SYS_GETUID = 102,
-    SYS_GETGID = 104,
-    SYS_GETEUID = 107,
-    SYS_GETEGID,
+    SYS_SYMLINK,            // not implemented
+    SYS_READLINK,           // dummy implementation
+    SYS_CHMOD,              // not implemented
+    SYS_FCHMOD,             // not implemented
+    SYS_GETTIMEOFDAY = 96,  // not implemented
+    SYS_GETUID = 102,       // dummy implementation
+    SYS_GETGID = 104,       // dummy implementation
+    SYS_GETEUID = 107,      // dummy implementation
+    SYS_GETEGID,            // dummy implementation
     SYS_MKNOD = 133,
-    SYS_ARCH_PRCTL = 158,
-    SYS_MOUNT = 165,
-    SYS_UMOUNT,
-    SYS_EXIT_GROUP = 231,
-    SYS_OPENAT = 257,
+    SYS_ARCH_PRCTL = 158,   // partial implementation
+    SYS_MOUNT = 165,        // not implemented
+    SYS_UMOUNT,             // not implemented
+    SYS_EXIT_GROUP = 231,   // same as SYS_EXIT
+    SYS_OPENAT = 257,       // doesn't respect dirfd
     SYS_SETGROUP = 300,
     SYS_DEBUG = 512
 };
@@ -81,6 +93,7 @@ int sys_access(const char* path, int mode);
 int sys_pipe(int fds[2]);
 int sys_dup(int oldfd);
 int sys_dup2(int oldfd, int newfd);
+u64 sys_gettid();
 int sys_fork();
 int sys_execve(const char* path, char* const argv[], char* const envp[]);
 void sys_exit(int status);

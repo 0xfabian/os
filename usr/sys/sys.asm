@@ -39,6 +39,7 @@ SYSCALL     access,         21
 SYSCALL     pipe,           22
 SYSCALL     dup,            32
 SYSCALL     dup2,           33
+SYSCALL     gettid,         39
 SYSCALL     fork,           57
 SYSCALL     execve,         59
 SYSCALL     exit,           60
