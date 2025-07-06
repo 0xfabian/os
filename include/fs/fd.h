@@ -19,4 +19,5 @@ struct FDTable
     void init();
     void close_all();
     void dup(const FDTable* other);
+    usize size();
 };

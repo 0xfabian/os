@@ -90,3 +90,14 @@ void FDTable::dup(const FDTable* other)
         if (other->files[i])
             files[i] = other->files[i]->dup();
 }
+
+usize FDTable::size()
+{
+    usize count = 0;
+
+    for (int i = 0; i < FD_TABLE_SIZE; i++)
+        if (files[i])
+            count++;
+
+    return count;
+}
