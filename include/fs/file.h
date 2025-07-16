@@ -15,6 +15,7 @@
 #define O_TRUNC         0x200
 #define O_APPEND        0x400
 #define O_DIRECTORY     0x10000
+#define O_NOFOLLOW      0x20000
 
 #define SEEK_SET 0
 #define SEEK_CUR 1

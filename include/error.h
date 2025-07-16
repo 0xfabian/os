@@ -15,6 +15,7 @@ enum ErrorCode
     ERR_NOT_DIR,
     ERR_IS_DIR,
     ERR_DIR_NOT_EMPTY,
+    ERR_TOO_MANY_LINKS,
     ERR_BAD_ARG,
     ERR_BAD_FD,
     ERR_MNT_TABLE_FULL,

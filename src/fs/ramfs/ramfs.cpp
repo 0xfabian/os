@@ -124,7 +124,7 @@ int ramfs_create(Inode* dir, const char* name, u32 mode)
     Inode* inode = ramfs_alloc_inode();
 
     inode->sb = dir->sb;
-    inode->mode = IT_REG | mode;
+    inode->mode = mode;
     inode->ops = ramfs_reg_inode_ops;
     inode->fops = ramfs_reg_file_ops;
 

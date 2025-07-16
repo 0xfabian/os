@@ -98,7 +98,7 @@ struct Inode
     InodeOps ops;
     FileOps fops;
 
-    static result_ptr<Inode> get(const char* path);
+    static result_ptr<Inode> get(const char* path, bool follow = true);
     Inode* get();
     void put();
 
@@ -107,11 +107,13 @@ struct Inode
     bool is_device();
     bool is_block_device();
     bool is_char_device();
+    bool is_link();
     bool is_readable();
     bool is_writable();
     bool is_executable();
 
     int create(const char* name, u32 mode);
+    int symlink(const char* target, const char* path);
     int mknod(const char* name, u32 mode, u32 dev);
     int link(const char* name, Inode* inode);
     int unlink(const char* name);

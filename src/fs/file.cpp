@@ -10,10 +10,13 @@ result_ptr<File> File::open(const char* path, u32 flags, u32 mode)
     if (flags & O_EXCL && !(flags & O_CREAT))
         return -ERR_BAD_ARG;
 
-    auto inode = Inode::get(path);
+    auto inode = Inode::get(path, !(flags & O_NOFOLLOW));
 
     if (!inode)
     {
+        if (inode.error() != -ERR_NOT_FOUND)
+            return inode.error();
+
         if (!(flags & O_CREAT))
             return inode.error();
 

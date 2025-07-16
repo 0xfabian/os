@@ -27,6 +27,7 @@ SYSCALL     open,           2
 SYSCALL     close,          3
 SYSCALL     stat,           4
 SYSCALL     fstat,          5
+SYSCALL     lstat,          6
 SYSCALL     seek,           8
 SYSCALL     mprotect,       10
 SYSCALL     brk,            12
@@ -56,6 +57,7 @@ SYSCALL     rmdir,          84
 SYSCALL     creat,          85
 SYSCALL     link,           86
 SYSCALL     unlink,         87
+SYSCALL     symlink,        88
 SYSCALL     readlink,       89
 SYSCALL     getuid,         102
 SYSCALL     getgid,         104

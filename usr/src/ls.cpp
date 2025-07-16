@@ -128,7 +128,7 @@ void print_dents(Dirent* entries, usize count, int cols)
             const char* color = "39";
 
             struct stat st;
-            if (stat(full_path, &st) == 0)
+            if (lstat(full_path, &st) == 0)
             {
                 int type = st.st_mode & IT_MASK;
                 int perm = st.st_mode & IP_MASK;
@@ -137,6 +137,8 @@ void print_dents(Dirent* entries, usize count, int cols)
                     color = "94";
                 else if (type == IT_CDEV || type == IT_BDEV)
                     color = "93";
+                else if (type == IT_LINK)
+                    color = "96";
                 else if (perm & IP_X)
                     color = "92";
             }

@@ -132,7 +132,7 @@ struct Editor
 
                 Entry* ent = entries + entry_count;
 
-                if (stat(dent->name, &ent->st) < 0)
+                if (lstat(dent->name, &ent->st) < 0)
                     continue;
 
                 strcpy(ent->name, dent->name);
@@ -144,12 +144,17 @@ struct Editor
                     strcpy(ent->display_name, "\e[94m");
                 else if (type == IT_CDEV || type == IT_BDEV)
                     strcpy(ent->display_name, "\e[93m");
+                else if (type == IT_LINK)
+                    strcpy(ent->display_name, "\e[96m");
                 else if (perm & IP_X)
                     strcpy(ent->display_name, "\e[92m");
                 else
                     strcpy(ent->display_name, "\e[39m");
 
                 strcat(ent->display_name, dent->name);
+
+                if (type == IT_LINK)
+                    stat(dent->name, &ent->st);
 
                 entry_count++;
             }
@@ -328,7 +333,13 @@ struct Editor
         int err;
 
         if ((entries[sel_line].st.st_mode & IT_MASK) == IT_DIR)
+        {
             err = rmdir(entries[sel_line].name);
+
+            // maybe is symlink
+            if (err)
+                err = unlink(entries[sel_line].name);
+        }
         else
             err = unlink(entries[sel_line].name);
 

@@ -4,14 +4,9 @@
 
 InodeTable inode_table;
 
-result_ptr<Inode> Inode::get(const char* path)
+result_ptr<Inode> namei(Inode* dir, const char* path, bool follow, usize* links_seen)
 {
-    Inode* inode;
-
-    if (*path == '/' || !running)
-        inode = root_mount->sb->root->get();
-    else
-        inode = running->cwd->get();
+    Inode* inode = dir->get();
 
     // i think this should always be a valid pointer but just in case
     if (!inode)
@@ -60,16 +55,61 @@ result_ptr<Inode> Inode::get(const char* path)
             return next.error();
         }
 
+        // check for symlink here
+        while (next->is_link() && (*path != '\0' || follow))
+        {
+            if (*links_seen > 8)
+            {
+                next->put();
+                inode->put();
+                return -ERR_TOO_MANY_LINKS;
+            }
+
+            char target_path[256];
+            if (next->size > 255)
+            {
+                next->put();
+                inode->put();
+                return -ERR_NO_MEM;
+            }
+
+            // hack, only works for ramfs
+            File dummy_file;
+            dummy_file.inode = next.ptr;
+            isize bytes = next->fops.read(&dummy_file, target_path, next->size, 0);
+
+            if (bytes < 0)
+            {
+                next->put();
+                inode->put();
+                return bytes;
+            }
+
+            target_path[bytes] = '\0';
+
+            Inode* root = target_path[0] == '/' ? root_mount->sb->root : inode;
+            (*links_seen)++;
+            result_ptr<Inode> target = namei(root, target_path, follow, links_seen);
+
+            if (!target)
+            {
+                next->put();
+                inode->put();
+                return target.error();
+            }
+
+            next->put();
+            next = target;
+        }
+
         // switch to the next
         inode->put();
         inode = next.ptr;
 
-        // check for symlink here
-
         // path is not finished so next should be a directory
-        if (*path != '\0' && !next->is_dir())
+        if (*path != '\0' && !inode->is_dir())
         {
-            next->put();
+            inode->put();
             return -ERR_NOT_DIR;
         }
 
@@ -85,6 +125,19 @@ result_ptr<Inode> Inode::get(const char* path)
     }
 
     return inode;
+}
+
+result_ptr<Inode> Inode::get(const char* path, bool follow)
+{
+    Inode* inode;
+
+    if (*path == '/' || !running)
+        inode = root_mount->sb->root;
+    else
+        inode = running->cwd;
+
+    usize links_seen = 0;
+    return namei(inode, path, follow, &links_seen);
 }
 
 Inode* Inode::get()
@@ -132,6 +185,11 @@ bool Inode::is_char_device()
     return (mode & IT_MASK) == IT_CDEV;
 }
 
+bool Inode::is_link()
+{
+    return (mode & IT_MASK) == IT_LINK;
+}
+
 bool Inode::is_readable()
 {
     return (mode & IP_MASK) & IP_R;
@@ -152,7 +210,31 @@ int Inode::create(const char* name, u32 mode)
     if (!ops.create)
         return -ERR_NOT_IMPL;
 
-    return ops.create(this, name, mode & IP_MASK);
+    return ops.create(this, name, (mode & IP_MASK) | IT_REG);
+}
+
+int Inode::symlink(const char* target, const char* path)
+{
+    if (!ops.create)
+        return -ERR_NOT_IMPL;
+
+    int ret = ops.create(this, basename(path), IT_LINK | IP_R);
+
+    if (ret != 0)
+        return ret;
+
+    auto file = File::open(path, O_WRONLY | O_NOFOLLOW, 0);
+
+    if (!file)
+        return file.error();
+
+    isize bytes = file->write(target, strlen(target));
+    file->close();
+
+    if (bytes < 0)
+        return bytes;
+
+    return 0;
 }
 
 int Inode::mknod(const char* name, u32 mode, u32 dev)

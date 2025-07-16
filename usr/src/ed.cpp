@@ -291,7 +291,7 @@ bool Editor::save()
 
     if (fd < 0)
         // if the file was never opened, try to open so we can write
-        fd = open(filename, O_RDWR | O_CREAT, 0644);
+        fd = open(filename, O_RDWR | O_CREAT | O_EXCL, 0644);
     else
     {
         // if the file was opened, close it and open it

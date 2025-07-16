@@ -10,6 +10,7 @@ u64 do_syscall(CPU* cpu, int num)
     case SYS_CLOSE:         return sys_close(cpu->rdi);
     case SYS_STAT:          return sys_stat((const char*)cpu->rdi, (stat*)cpu->rsi);
     case SYS_FSTAT:         return sys_fstat(cpu->rdi, (stat*)cpu->rsi);
+    case SYS_LSTAT:         return sys_lstat((const char*)cpu->rdi, (stat*)cpu->rsi);
     case SYS_SEEK:          return sys_seek(cpu->rdi, cpu->rsi, cpu->rdx);
     case SYS_MPROTECT:      return sys_mprotect((void*)cpu->rdi, cpu->rsi, cpu->rdx);
     case SYS_BRK:           return sys_brk((void*)cpu->rdi);
@@ -38,6 +39,7 @@ u64 do_syscall(CPU* cpu, int num)
     case SYS_CREAT:         return sys_creat((const char*)cpu->rdi, cpu->rsi);
     case SYS_LINK:          return sys_link((const char*)cpu->rdi, (const char*)cpu->rsi);
     case SYS_UNLINK:        return sys_unlink((const char*)cpu->rdi);
+    case SYS_SYMLINK:       return sys_symlink((const char*)cpu->rdi, (const char*)cpu->rsi);
     case SYS_READLINK:      return sys_readlink((const char*)cpu->rdi, (char*)cpu->rsi, cpu->rdx);
     case SYS_GETUID:        return sys_getuid();
     case SYS_GETGID:        return sys_getgid();
@@ -141,6 +143,19 @@ int sys_fstat(int fd, stat* buf)
         return file->pipe->fill_stat(buf);
 
     return -1;
+}
+
+int sys_lstat(const char* path, stat* buf)
+{
+    auto inode = Inode::get(path, false);
+
+    if (!inode)
+        return inode.error();
+
+    inode->fill_stat(buf);
+    inode->put();
+
+    return 0;
 }
 
 isize sys_seek(int fd, isize offset, int whence)
@@ -470,41 +485,47 @@ int sys_getcwd(char* buf, usize size)
 
 int sys_chdir(const char* path)
 {
-    auto inode = Inode::get(path);
-
-    if (!inode)
-        return inode.error();
-
-    if (!inode->is_dir())
-    {
-        inode->put();
-        return -ERR_NOT_DIR;
-    }
-
     // we should use the dentry cache to resolve the cwd_str
     // but we don't have that so we do it in this hacky way
     // by manipulating the cwd_str using the cd path
 
-    char* new_cwd_str;
+    char* temp_cwd_str;
 
     if (*path == '/')
-        new_cwd_str = strdup(path);
+        temp_cwd_str = strdup(path);
     else
     {
-        new_cwd_str = (char*)kmalloc(strlen(running->cwd_str) + strlen(path) + 2);
+        temp_cwd_str = (char*)kmalloc(strlen(running->cwd_str) + 1 + strlen(path) + 1);
 
-        strcpy(new_cwd_str, running->cwd_str);
-        strcat(new_cwd_str, "/");
-        strcat(new_cwd_str, path);
+        strcpy(temp_cwd_str, running->cwd_str);
+        strcat(temp_cwd_str, "/");
+        strcat(temp_cwd_str, path);
+    }
+
+    char* cwd_str = path_normalize(temp_cwd_str);
+    kfree(temp_cwd_str);
+
+    auto inode = Inode::get(cwd_str);
+
+    if (!inode)
+    {
+        kfree(cwd_str);
+        return inode.error();
+    }
+
+    if (!inode->is_dir())
+    {
+        kfree(cwd_str);
+        inode->put();
+        return -ERR_NOT_DIR;
     }
 
     kfree(running->cwd_str);
     running->cwd->put();
 
-    running->cwd_str = path_normalize(new_cwd_str);
-    running->cwd = inode.ptr;
 
-    kfree(new_cwd_str);
+    running->cwd_str = cwd_str;
+    running->cwd = inode.ptr;
 
     // the path normalization maybe could be done in place
     // so no need for kmalloc
@@ -622,7 +643,7 @@ int sys_link(const char* oldpath, const char* newpath)
 
 int sys_unlink(const char* path)
 {
-    auto inode = Inode::get(path);
+    auto inode = Inode::get(path, false);
 
     if (!inode)
         return inode.error();
@@ -644,9 +665,46 @@ int sys_unlink(const char* path)
     return ret;
 }
 
+int sys_symlink(const char* target, const char* name)
+{
+    auto inode = Inode::get(name);
+
+    if (inode)
+    {
+        inode->put();
+        return -ERR_EXISTS;
+    }
+
+    auto dir = Inode::get(dirname(name));
+
+    if (!dir)
+        return dir.error();
+
+    int ret = dir->symlink(target, name);
+
+    dir->put();
+
+    return ret;
+}
+
 isize sys_readlink(const char* path, char* buf, usize size)
 {
-    return -ERR_NOT_FOUND;
+    auto file = File::open(path, O_RDONLY | O_NOFOLLOW, 0);
+
+    if (!file)
+        return file.error();
+
+    if (!file->inode || !file->inode->is_link())
+    {
+        file->close();
+        return -ERR_BAD_ARG;
+    }
+
+    isize bytes = file->read(buf, size);
+
+    file->close();
+
+    return bytes;
 }
 
 int sys_getuid()

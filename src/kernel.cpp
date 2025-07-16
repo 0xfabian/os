@@ -24,6 +24,7 @@ void populate_root()
     inode->mkdir("dev");
     inode->mkdir("bin");
     inode->mkdir("mnt");
+    inode->symlink("/mnt/include/", "inc");
     inode->put();
 
     inode = Inode::get("/dev");

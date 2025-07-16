@@ -12,6 +12,7 @@ enum SyscallNumber
     SYS_CLOSE,
     SYS_STAT,
     SYS_FSTAT,
+    SYS_LSTAT,
     SYS_SEEK = 8,
     SYS_MPROTECT = 10,      // dummy implementation
     SYS_BRK = 12,           // doesn't free pages
@@ -50,8 +51,8 @@ enum SyscallNumber
     SYS_CREAT,
     SYS_LINK,
     SYS_UNLINK,
-    SYS_SYMLINK,            // not implemented
-    SYS_READLINK,           // dummy implementation
+    SYS_SYMLINK,
+    SYS_READLINK,
     SYS_CHMOD,              // not implemented
     SYS_FCHMOD,             // not implemented
     SYS_GETTIMEOFDAY = 96,  // not implemented
@@ -81,6 +82,7 @@ int sys_open(const char* path, u32 flags, u32 mode);
 int sys_close(unsigned int fd);
 int sys_stat(const char* path, stat* buf);
 int sys_fstat(int fd, stat* buf);
+int sys_lstat(const char* path, stat* buf);
 isize sys_seek(int fd, isize offset, int whence);
 int sys_mprotect(void* addr, usize size, int prot);
 u64 sys_brk(void* addr);
@@ -110,6 +112,7 @@ int sys_rmdir(const char* path);
 int sys_creat(const char* path, u32 mode);
 int sys_link(const char* oldpath, const char* newpath);
 int sys_unlink(const char* path);
+int sys_symlink(const char* target, const char* name);
 isize sys_readlink(const char* path, char* buf, usize size);
 int sys_getuid();
 int sys_getgid();
