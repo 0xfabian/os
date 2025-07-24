@@ -552,6 +552,8 @@ void FramebufferTerminal::receive_char(char ch)
         {
             if (input_cursor > 0)
                 input_cursor--;
+            else
+                return;
         }
         else if (input_cursor < INPUT_BUFFER_SIZE)
         {
