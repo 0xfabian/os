@@ -218,7 +218,7 @@ int Inode::symlink(const char* target, const char* path)
     if (!ops.create)
         return -ERR_NOT_IMPL;
 
-    int ret = ops.create(this, basename(path), IT_LINK | IP_R);
+    int ret = ops.create(this, basename(path), IT_LINK | IP_RWX);
 
     if (ret != 0)
         return ret;
