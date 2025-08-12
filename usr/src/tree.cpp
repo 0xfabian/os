@@ -75,20 +75,20 @@ void tree(const char* path, const char* prefix = "", bool last_dir = true)
         char new_prefix[256];
         strcpy(new_prefix, prefix);
 
-        if (strlen(new_prefix) >= 1)
+        if (strlen(new_prefix) >= 3)
         {
-            new_prefix[strlen(new_prefix) - 2] = 0;
+            new_prefix[strlen(new_prefix) - 4] = 0;
 
             if (last_dir)
-                strcat(new_prefix, "  ");
+                strcat(new_prefix, "    ");
             else
-                strcat(new_prefix, "\xb3 ");
+                strcat(new_prefix, "\xb3   ");
         }
 
         if (last_ent)
-            strcat(new_prefix, "\xc0\xc4");
+            strcat(new_prefix, "\xc0\xc4\xc4 ");
         else
-            strcat(new_prefix, "\xc3\xc4");
+            strcat(new_prefix, "\xc3\xc4\xc4 ");
 
         char next_path[256];
         strcpy(next_path, path);
