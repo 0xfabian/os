@@ -269,6 +269,11 @@ void keyboard_task()
                 {
                     fbterm.clear_input();
                 }
+                else if (fbterm.line_buffered && key == 0x26 && kbd_state & KBD_CTRL)
+                {
+                    while (fbterm.cursor / fbterm.width)
+                        fbterm.scroll();
+                }
                 else if (ch)
                 {
                     if (isalpha(ch) && kbd_state & KBD_CTRL)
