@@ -23,44 +23,44 @@
 // #define FOREGROUND          0xaaaaaa
 
 // gruvbox
-// #define BLACK               0x282828
-// #define RED                 0xcc241d
-// #define GREEN               0x98971a
-// #define YELLOW              0xd79921
-// #define BLUE                0x458588
-// #define MAGENTA             0xb16286
-// #define CYAN                0x689d6a
-// #define WHITE               0x928374
-// #define BRIGHT_BLACK        0x3c3836
-// #define BRIGHT_RED          0xfb4934
-// #define BRIGHT_GREEN        0xb8bb26
-// #define BRIGHT_YELLOW       0xfabd2f
-// #define BRIGHT_BLUE         0x83a598
-// #define BRIGHT_MAGENTA      0xd3869b
-// #define BRIGHT_CYAN         0x8ec07c
-// #define BRIGHT_WHITE        0xebdbb2
-// #define BACKGROUND          0x1d2021
-// #define FOREGROUND          0xfbf1c7
+#define BLACK               0x282828
+#define RED                 0xcc241d
+#define GREEN               0x98971a
+#define YELLOW              0xd79921
+#define BLUE                0x458588
+#define MAGENTA             0xb16286
+#define CYAN                0x689d6a
+#define WHITE               0x928374
+#define BRIGHT_BLACK        0x3c3836
+#define BRIGHT_RED          0xfb4934
+#define BRIGHT_GREEN        0xb8bb26
+#define BRIGHT_YELLOW       0xfabd2f
+#define BRIGHT_BLUE         0x83a598
+#define BRIGHT_MAGENTA      0xd3869b
+#define BRIGHT_CYAN         0x8ec07c
+#define BRIGHT_WHITE        0xebdbb2
+#define BACKGROUND          0x1d2021
+#define FOREGROUND          0xfbf1c7
 
 // chocolate
-#define BLACK               0x2a1f15
-#define RED                 0xbe2d26
-#define GREEN               0x97b349
-#define YELLOW              0xe99d2a
-#define BLUE                0x5a86ad
-#define MAGENTA             0xac80a6
-#define CYAN                0x6ba18a
-#define WHITE               0x9b6c4a
-#define BRIGHT_BLACK        0x573d26
-#define BRIGHT_RED          0xe84627
-#define BRIGHT_GREEN        0xd0d150
-#define BRIGHT_YELLOW       0xffc745
-#define BRIGHT_BLUE         0xb8d3ed
-#define BRIGHT_MAGENTA      0xd19ecb
-#define BRIGHT_CYAN         0x95d8ba
-#define BRIGHT_WHITE        0xfff9d5
-#define BACKGROUND          BLACK
-#define FOREGROUND          BRIGHT_WHITE
+// #define BLACK               0x2a1f15
+// #define RED                 0xbe2d26
+// #define GREEN               0x97b349
+// #define YELLOW              0xe99d2a
+// #define BLUE                0x5a86ad
+// #define MAGENTA             0xac80a6
+// #define CYAN                0x6ba18a
+// #define WHITE               0x9b6c4a
+// #define BRIGHT_BLACK        0x573d26
+// #define BRIGHT_RED          0xe84627
+// #define BRIGHT_GREEN        0xd0d150
+// #define BRIGHT_YELLOW       0xffc745
+// #define BRIGHT_BLUE         0xb8d3ed
+// #define BRIGHT_MAGENTA      0xd19ecb
+// #define BRIGHT_CYAN         0x95d8ba
+// #define BRIGHT_WHITE        0xfff9d5
+// #define BACKGROUND          BLACK
+// #define FOREGROUND          BRIGHT_WHITE
 
 u32 colors[] =
 {
