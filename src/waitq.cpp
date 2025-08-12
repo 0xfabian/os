@@ -52,16 +52,34 @@ void WaitQueue::remove(Task* task)
     }
 }
 
+void WaitQueue::wake_one()
+{
+    if (!head)
+        return;
+
+    Node* node = head;
+
+    head = head->next;
+
+    if (!head)
+        tail = nullptr;
+
+    node->task->waitq = nullptr;
+    node->task->ready();
+    kfree(node);
+}
+
 void WaitQueue::wake_all()
 {
     while (head)
     {
         Node* node = head;
+
+        head = head->next;
+
         node->task->waitq = nullptr;
         node->task->ready();
         kfree(node);
-
-        head = head->next;
     }
 
     tail = nullptr;
