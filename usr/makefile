@@ -9,7 +9,7 @@ utils:
 	@ for i in $(SRC); do \
 		echo "gcc   $$i"; \
 		base=`basename $$i | sed -E 's/\..*//'`; \
-		if [ $$base != "cow" ]; then \
+		if [ $$base != "cow" ] && [ $$base != "rt" ]; then \
 			gcc $$i sys/sys.o -o bin/$$base -Isys -O2 -static -nostdlib -fno-builtin -mgeneral-regs-only -fno-stack-protector -fno-exceptions; \
 		else \
 			gcc $$i sys/sys.o -o bin/$$base -Isys -O2 -static -nostdlib -fno-builtin -fno-stack-protector -fno-exceptions -ffast-math; \
