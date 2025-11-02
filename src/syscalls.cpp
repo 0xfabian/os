@@ -14,6 +14,9 @@ u64 do_syscall(CPU* cpu, int num)
     case SYS_SEEK:          return sys_seek(cpu->rdi, cpu->rsi, cpu->rdx);
     case SYS_MPROTECT:      return sys_mprotect((void*)cpu->rdi, cpu->rsi, cpu->rdx);
     case SYS_BRK:           return sys_brk((void*)cpu->rdi);
+    case SYS_SIGNAL:        return sys_signal(cpu->rdi, (SigHandler)cpu->rsi);
+    case SYS_SIGPROCMASK:   return sys_sigprocmask(cpu->rdi, (u32*)cpu->rsi, (u32*)cpu->rdx);
+    case SYS_SIGRETURN:     return sys_sigreturn();
     case SYS_IOCTL:         return sys_ioctl(cpu->rdi, cpu->rsi, (void*)cpu->rdx);
     case SYS_PREAD:         return sys_pread(cpu->rdi, (void*)cpu->rsi, cpu->rdx, cpu->r10);
     case SYS_PWRITE:        return sys_pwrite(cpu->rdi, (const void*)cpu->rsi, cpu->rdx, cpu->r10);
@@ -27,6 +30,7 @@ u64 do_syscall(CPU* cpu, int num)
     case SYS_EXECVE:        return sys_execve((const char*)cpu->rdi, (char* const*)cpu->rsi, (char* const*)cpu->rdx);
     case SYS_EXIT:          sys_exit(cpu->rdi); return 0;
     case SYS_WAIT:          return sys_wait(cpu->rdi, (int*)cpu->rsi, cpu->rdx);
+    case SYS_KILL:          return sys_kill(cpu->rdi, cpu->rsi);
     case SYS_UNAME:         return sys_uname((void*)cpu->rdi);
     case SYS_FCNTL:         return sys_fcntl(cpu->rdi, cpu->rsi, cpu->rdx);
     case SYS_TRUNCATE:      return sys_truncate((const char*)cpu->rdi, cpu->rsi);
@@ -199,6 +203,24 @@ u64 sys_brk(void* addr)
     running->mm->brk = new_brk;
 
     return new_brk;
+}
+
+int sys_signal(int signo, SigHandler handler)
+{
+    if (signo < 1 || signo > 32)
+        return -ERR_BAD_ARG;
+
+    return running->sig_state.set_handler((Signal)signo, handler);
+}
+
+int sys_sigprocmask(int how, u32* set, u32* oldset)
+{
+    return running->sig_state.sigprocmask(how, set, oldset);
+}
+
+int sys_sigreturn()
+{
+    return -1;
 }
 
 int sys_ioctl(int fd, int cmd, void* arg)
@@ -399,6 +421,23 @@ void sys_exit(int status)
 int sys_wait(int pid, int* status, int options)
 {
     return running->wait(status);
+}
+
+int sys_kill(int pid, int signo)
+{
+    Task* task = Task::find(pid);
+
+    if (!task)
+        return -ERR_NO_TASK;
+
+    // no-op, used to check if the task exists
+    if (signo == 0)
+        return 0;
+
+    if (signo < 1 || signo > 32)
+        return -ERR_BAD_ARG;
+
+    return task->kill((Signal)signo);
 }
 
 int sys_uname(void* buf)

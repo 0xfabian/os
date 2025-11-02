@@ -16,9 +16,9 @@ enum SyscallNumber
     SYS_SEEK = 8,
     SYS_MPROTECT = 10,      // dummy implementation
     SYS_BRK = 12,           // doesn't free pages
-    SYS_SIGNAL,             // not implemented
-    SYS_SIGPROCMASK,        // not implemented
-    SYS_SIGRETURN,          // not implemented
+    SYS_SIGNAL,             // implementing ...
+    SYS_SIGPROCMASK,        // implementing ...
+    SYS_SIGRETURN,          // implementing ...
     SYS_IOCTL,
     SYS_PREAD,
     SYS_PWRITE,
@@ -37,7 +37,7 @@ enum SyscallNumber
     SYS_EXECVE = 59,
     SYS_EXIT,
     SYS_WAIT,
-    SYS_KILL,               // not implemented
+    SYS_KILL,               // implementing ...
     SYS_UNAME,              // dummy implementation
     SYS_FCNTL = 72,         // partial implementation
     SYS_TRUNCATE = 76,
@@ -86,6 +86,9 @@ int sys_lstat(const char* path, stat* buf);
 isize sys_seek(int fd, isize offset, int whence);
 int sys_mprotect(void* addr, usize size, int prot);
 u64 sys_brk(void* addr);
+int sys_signal(int signo, SigHandler handler);
+int sys_sigprocmask(int how, u32* set, u32* oldset);
+int sys_sigreturn();
 int sys_ioctl(int fd, int cmd, void* arg);
 isize sys_pread(int fd, void* buf, usize size, usize offset);
 isize sys_pwrite(int fd, const void* buf, usize size, usize offset);
@@ -100,6 +103,7 @@ int sys_fork();
 int sys_execve(const char* path, char* const argv[], char* const envp[]);
 void sys_exit(int status);
 int sys_wait(int pid, int* status, int options);
+int sys_kill(int pid, int signo);
 int sys_uname(void* buf);
 int sys_fcntl(int fd, int op, u64 arg);
 int sys_truncate(const char* path, usize size);

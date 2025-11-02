@@ -31,6 +31,8 @@ SYSCALL     lstat,          6
 SYSCALL     seek,           8
 SYSCALL     mprotect,       10
 SYSCALL     brk,            12
+SYSCALL     signal,         13
+SYSCALL     sigprocmask,    14
 SYSCALL     ioctl,          16
 SYSCALL4    pread,          17
 SYSCALL4    pwrite,         18
@@ -45,6 +47,7 @@ SYSCALL     fork,           57
 SYSCALL     execve,         59
 SYSCALL     exit,           60
 SYSCALL4    wait,           61
+SYSCALL     kill,           62
 SYSCALL     uname,          63
 SYSCALL     fcntl,          72
 SYSCALL     truncate,       76

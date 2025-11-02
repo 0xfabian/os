@@ -37,6 +37,46 @@ struct MemoryMap
     void* kernel_stack;
 };
 
+enum Signal
+{
+    SIG_STOP = 1,
+    SIG_KILL
+};
+
+enum SigDefaultAction
+{
+    ACTION_IGNORE,
+    ACTION_STOP,
+    ACTION_CONTINUE,
+    ACTION_TERM
+};
+
+using SigHandler = void (*)(int);
+
+#define SIG_DFL ((SigHandler)0)
+#define SIG_IGN ((SigHandler)1)
+
+#define SIG_BLOCK       0
+#define SIG_UNBLOCK     1
+#define SIG_SETMASK     2
+
+struct SignalState
+{
+    u32 pending;
+    u32 blocked;
+    SigHandler handlers[32];
+
+    void init();
+    void init(SignalState* other);
+
+    bool can_ignore(Signal sig);
+    void set_pending(Signal sig);
+    bool should_deliver(Signal sig);
+
+    int set_handler(Signal sig, SigHandler handler);
+    int sigprocmask(int how, u32* set, u32* oldset);
+};
+
 struct Task
 {
     u64 krsp;
@@ -61,6 +101,8 @@ struct Task
     FDTable fdt;
     WaitQueue* waitq;
 
+    SignalState sig_state;
+
     int exit_code;
 
     // pointers in the ready queue, only relevant if in ready state
@@ -69,6 +111,7 @@ struct Task
 
     static Task* from(void (*func)(void), const char* name);
     static Task* from(const char* path);
+    static Task* find(u64 tid);
     static Task* dummy();
 
     Task* fork();
@@ -83,6 +126,7 @@ struct Task
     void ready();
     void exit(int code);
     int wait(int* status);
+    int kill(Signal sig);
 
     static void debug();
 };
@@ -90,6 +134,7 @@ struct Task
 extern Task* running;
 
 int exit_group(int group);
+int kill_group(int group, Signal sig);
 
 void sched_init();
 extern "C" void schedule();

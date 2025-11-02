@@ -11,6 +11,100 @@ Task* task_list_tail = nullptr;
 
 extern "C" void switch_now();
 
+SigDefaultAction default_action(Signal sig)
+{
+    return ACTION_IGNORE;
+}
+
+void SignalState::init()
+{
+    pending = 0;
+    blocked = 0;
+
+    for (int i = 0; i < 32; i++)
+        handlers[i] = SIG_DFL;
+}
+
+// this should be called only when forking
+void SignalState::init(SignalState* other)
+{
+    // clear the pending signals
+    pending = 0;
+    blocked = other->blocked;
+
+    for (int i = 0; i < 32; i++)
+        handlers[i] = other->handlers[i];
+}
+
+bool SignalState::can_ignore(Signal sig)
+{
+    if (handlers[sig - 1] == SIG_IGN)
+        return true;
+
+    if (handlers[sig - 1] == SIG_DFL && default_action(sig) == ACTION_IGNORE)
+        return true;
+
+    return false;
+}
+
+void SignalState::set_pending(Signal sig)
+{
+    if (can_ignore(sig))
+        return;
+
+    pending |= (1u << (sig - 1));
+}
+
+bool SignalState::should_deliver(Signal sig)
+{
+    u32 mask = (1u << (sig - 1));
+
+    if ((pending & mask) == 0)
+        return false;
+
+    if ((blocked & mask) != 0)
+        return false;
+
+    if (can_ignore(sig))
+        return false;
+
+    return true;
+}
+
+int SignalState::set_handler(Signal sig, SigHandler handler)
+{
+    if (sig == SIG_STOP || sig == SIG_KILL)
+        return -ERR_BAD_ARG;
+
+    handlers[sig - 1] = handler;
+
+    return 0;
+}
+
+#define SIG_UNBLOCKABLE ((1u << (SIG_STOP - 1)) | (1u << (SIG_KILL - 1)))
+
+int SignalState::sigprocmask(int how, u32* set, u32* oldset)
+{
+    if (oldset)
+        *oldset = blocked;
+
+    if (!set)
+        return 0;
+
+    u32 mask = *set & ~SIG_UNBLOCKABLE;
+
+    switch (how)
+    {
+    case SIG_BLOCK:     blocked |= mask;    break;
+    case SIG_UNBLOCK:   blocked &= ~mask;   break;
+    case SIG_SETMASK:   blocked = mask;     break;
+
+    default: return -ERR_BAD_ARG;
+    }
+
+    return 0;
+}
+
 Task* alloc_task()
 {
     Task* task = (Task*)kmalloc(sizeof(Task));
@@ -51,6 +145,8 @@ Task* alloc_task()
 
     task->next = nullptr;
     task->prev = nullptr;
+
+    task->sig_state.init();
 
     return task;
 }
@@ -258,6 +354,21 @@ Task* Task::from(const char* path)
     return task;
 }
 
+Task* Task::find(u64 tid)
+{
+    Task* task = task_list_head;
+
+    while (task)
+    {
+        if (task->tid == tid)
+            return task;
+
+        task = task->next_global;
+    }
+
+    return nullptr;
+}
+
 Task* Task::dummy()
 {
     // this should be the first task in the queue
@@ -295,6 +406,8 @@ Task* Task::fork()
     task->mm->pml4 = vmm.make_user_page_table();
     task->mm->user_stack = running->mm->user_stack;
     task->mm->kernel_stack = vmm.alloc_pages(KERNEL_STACK_PAGES, PE_WRITE);
+
+    task->sig_state.init(&running->sig_state);
 
     // now here we should copy the mappings
     // and also copy the memory itself
@@ -698,6 +811,29 @@ int Task::wait(int* status)
     }
 }
 
+int Task::kill(Signal sig)
+{
+    // don't care if it's a zombie
+    if (state == TASK_ZOMBIE)
+        return 0;
+
+    sig_state.set_pending(sig);
+
+    if (state == TASK_SLEEPING && sig_state.should_deliver(sig))
+    {
+        // we can maybe optimize and check the signal here
+        // but currently we always wake up the task
+        // and before we switch, we handle the signal
+
+        if (waitq)
+            waitq->remove(this);
+
+        ready();
+    }
+
+    return 0;
+}
+
 const char* state_to_string(TaskState state)
 {
     switch (state)
@@ -716,9 +852,29 @@ void Task::debug()
 {
     Task* task = task_list_head;
 
+    kprintf("\e[7m %-8s %-16s %-8s %-16s %-8s %-16s %-8s %-8s %-8s %-8s %-8s %-8s \e[27m\n",
+        "TID", "NAME", "GROUP", "STATE", "PARENT", "CWD", "FDT", "WAITQ", "PENDING", "BLOCKED", "HANDLERS", "STATUS");
+
     while (task)
     {
-        kprintf("Task %ld (%s): group %d state %s\n", task->tid, task->name, task->group, state_to_string(task->state));
+        u32 handlers = 0;
+        for (int i = 0; i < 32; i++)
+            if (task->sig_state.handlers[i])
+                handlers |= (1u << i);
+
+        kprintf(" %-8ld %-16s %-8d %-16s %-8ld %-16s %-8lu %-8s %-8x %-8x %-8x %-8x \n",
+            task->tid,
+            task->name,
+            task->group,
+            state_to_string(task->state),
+            task->parent ? task->parent->tid : -1,
+            task->cwd_str, task->fdt.size(),
+            task->waitq ? "yes" : "no",
+            task->sig_state.pending,
+            task->sig_state.blocked,
+            handlers,
+            task->exit_code);
+
         task = task->next_global;
     }
 }
@@ -733,6 +889,25 @@ int exit_group(int group)
         if (task->group == group && task->state != TASK_ZOMBIE)
         {
             task->exit(0);
+            ret++;
+        }
+
+        task = task->next_global;
+    }
+
+    return ret;
+}
+
+int kill_group(int group, Signal sig)
+{
+    int ret = 0;
+    Task* task = task_list_head;
+
+    while (task)
+    {
+        if (task->group == group && task->state != TASK_ZOMBIE)
+        {
+            task->kill(sig);
             ret++;
         }
 
