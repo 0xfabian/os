@@ -1,5 +1,7 @@
 [bits 64]
 
+default abs
+
 extern timer_handler
 extern syscall_handler
 extern breakpoint_handler
