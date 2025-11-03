@@ -33,8 +33,7 @@ void* memmove(void* dest, const void* src, usize n)
     {
         for (usize i = 0; i < n; i++)
             pdest[i] = psrc[i];
-    }
-    else if (src < dest)
+    } else if (src < dest)
     {
         for (usize i = n; i > 0; i--)
             pdest[i - 1] = psrc[i - 1];
@@ -248,8 +247,7 @@ int parse_size_mod(const char** ptr)
     {
         size++;
         (*ptr)++;
-    }
-    else if (*(*ptr) == 'h')
+    } else if (*(*ptr) == 'h')
     {
         size--;
         (*ptr)++;
@@ -365,8 +363,7 @@ void printf(const char* fmt, ...)
 
             for (int i = len; i < -width; i++)
                 append_char(' ');
-        }
-        else
+        } else
         {
             for (int i = len; i < width; i++)
                 append_char(' ');

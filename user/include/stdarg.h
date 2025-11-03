@@ -1,3 +1,8 @@
+// sad and pathetic hack to work around stdarg.h shadowing...
+#ifdef __GNUC__
+#include_next <stdarg.h>
+#else
+
 // https://github.com/Tiny-C-Compiler/tinycc-mirror-repository/blob/mob/lib/va_list.c
 
 void* __stdarg_memcpy(void* dest, const void* src, unsigned long n)
@@ -75,3 +80,5 @@ typedef __builtin_va_list va_list;
 // fix a buggy dependency on GCC in libio.h
 typedef va_list __gnuc_va_list;
 #define _VA_LIST_DEFINED
+
+#endif // __GNUC__

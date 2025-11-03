@@ -1,10 +1,11 @@
 /.vscode
-/build
-/disk
+
+/boot/esp/kernel.elf
+/boot/image.hdd
+
+/kernel/build
+
 /ovmf
 
-/usr/bin
-/usr/sys/sys.o
-
-image.hdd
-disk.img
+/user/bin
+/user/lib
