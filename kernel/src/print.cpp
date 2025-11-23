@@ -1,13 +1,18 @@
 #include <print.h>
 #include <task.h>
 
-#define BUFFER_SIZE 256
+#define BUFFER_SIZE 512
 
 char buf_start[BUFFER_SIZE];
 char* buf_end;
 
 inline void append_char(char c)
 {
+    // This is obviously unsafe.
+    // It overflows and messes with the PMM (try `debug pmm`).
+    // Increasing BUFFER_SIZE seems to mitigate the issue
+    // but doesn't fully solve it, we need a flushing mechanism.
+
     *buf_end++ = c;
 }
 
