@@ -35,6 +35,14 @@ Full thesis documentation is available [here](docs/thesis.pdf).
 
 ## Screenshots
 
+<div align="center">
+  <img src="docs/screenshots/boot.gif">
+  <img src="docs/screenshots/dired.gif">
+  <img src="docs/screenshots/tcc.gif">
+  <img src="docs/screenshots/cow.gif" width="49.8%">
+  <img src="docs/screenshots/rt.gif" width="49.8%">
+</div>
+
 ## Repo structure
 
 ```
@@ -129,12 +137,13 @@ cp -r user/* disk/        # Copies userspace files into the disk image
 make run                  # Run the OS with the userspace available at /mnt
 ```
 
-**Note:** `make clean` does **not** remove `disk.img`. If you want to remove the disk image, just unmount it and delete the file:
-
-```sh
-sudo umount disk
-rm disk.img
-```
+> [!NOTE]
+> `make clean` does **not** remove `disk.img`. If you want to remove the disk image, just unmount it and delete the file:
+>
+> ```sh
+> sudo umount disk
+> rm disk.img
+> ```
 
 ## License
 
