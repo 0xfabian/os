@@ -39,8 +39,8 @@ Full thesis documentation is available [here](docs/thesis.pdf).
   <img src="docs/screenshots/boot.gif">
   <img src="docs/screenshots/dired.gif">
   <img src="docs/screenshots/tcc.gif">
-  <img src="docs/screenshots/cow.gif" width="49.8%">
-  <img src="docs/screenshots/rt.gif" width="49.8%">
+  <img src="docs/screenshots/cow.gif" width="49%">
+  <img src="docs/screenshots/rt.gif" width="49%">
 </div>
 
 ## Repo structure
