@@ -28,7 +28,6 @@ Full thesis documentation is available [here](docs/thesis.pdf).
   - Simple shell
   - Text editor (based on [a previous project](https://github.com/0xfabian/ed))
   - CPU-based graphics demos, including a path tracer and a rasterizer
-- Ext2 filesystem mounted at `/mnt` for program storage and testing
 - Compatible enough with Linux binaries to support static compilation of [TCC (Tiny C Compiler)](https://bellard.org/tcc/)
 - Designed to be easily extended for additional userspace programs and libraries
 
@@ -45,7 +44,7 @@ Full thesis documentation is available [here](docs/thesis.pdf).
 
 ## Repo structure
 
-```
+```bash
 .
 ├── boot/
 │   ├── esp/            # EFI System Partition files for booting
@@ -66,7 +65,7 @@ Full thesis documentation is available [here](docs/thesis.pdf).
 │   └── OVMF_VARS.fd
 │
 ├── scripts/
-│   └── init_disk.sh    # Creates an Ext2 formatted disk image
+│   └── init_disk.sh    # Creates an ext2 formatted disk image
 │
 ├── user/
 │   ├── include/        # User headers
@@ -131,7 +130,7 @@ This will launch the kernel with the minimal built-in userspace utilities.
 For a more complete environment with userspace programs:
 
 ```sh
-sh scripts/init_disk.sh   # Creates and mounts an Ext2 disk image at disk/
+sh scripts/init_disk.sh   # Creates and mounts an ext2 disk image at disk/
 make user                 # Builds all userspace binaries and libraries
 cp -r user/* disk/        # Copies userspace files into the disk image
 make run                  # Run the OS with the userspace available at /mnt
