@@ -24,7 +24,7 @@ image: $(IMG)
 
 $(IMG): $(KERNEL_DEST) $(LIMINE_CONF)
 	@ echo "Creating bootable image..."
-	dd if=/dev/zero bs=1M count=0 seek=$(IMG_SIZE) of=$(IMG)
+	dd if=/dev/zero of=$(IMG) bs=1M count=$(IMG_SIZE)
 	sgdisk $(IMG) -n 1:2048 -t 1:ef00
 	mformat -i $(IMG)@@1M
 	mmd -i $(IMG)@@1M ::/EFI ::/EFI/BOOT

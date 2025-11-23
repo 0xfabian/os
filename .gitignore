@@ -9,3 +9,6 @@
 
 /user/bin
 /user/lib
+
+/disk
+disk.img
