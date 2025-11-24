@@ -1,4 +1,4 @@
-# Operating system kernel
+# Operating System Kernel (Bachelor’s Thesis)
 
 A kernel for a minimal UNIX-like operating system, developed for my bachelor's degree at the [Faculty of Mathematics and Computer Science, University of Bucharest](https://www.fmi.unibuc.ro/) targeting the x86-64 architecture.
 The project also includes a minimal userspace environment, making it a complete, self-contained operating system.
