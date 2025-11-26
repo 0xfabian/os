@@ -52,7 +52,7 @@ Full thesis documentation is available [here](docs/thesis.pdf).
 │
 ├── docs/
 │   ├── screenshots/
-│   └── thesis.pdf      # Bachelor’s degree documentation
+│   └── thesis.pdf      # Bachelor’s thesis
 │
 ├── kernel/
 │   ├── include/        # Kernel headers
